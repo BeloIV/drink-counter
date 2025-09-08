@@ -2,3 +2,5 @@
 venv
 frontend/node_modules
 db.sqlite3
+.idea
+
