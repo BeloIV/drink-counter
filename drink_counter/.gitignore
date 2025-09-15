@@ -1,4 +1,4 @@
-.env
+backend/.env
 venv
 frontend/node_modules
 db.sqlite3
