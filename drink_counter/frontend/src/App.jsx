@@ -4,6 +4,24 @@ import { API_BASE } from './config'
 import { api } from './api'
 import './App.css'
 import { FaBeer, FaCoffee } from 'react-icons/fa'
+import dejvoImg from './assets/dejvo.jpg'
+import tomasImg from './assets/tomas.jpeg'
+import stevoImg from './assets/stevo.jpeg'
+import risoImg from './assets/riso.jpg'
+import stanoImg from './assets/stano.jpg'
+
+// meno -> obrázok
+const AVATAR_BY_NAME = {
+  'David': dejvoImg,
+  'Tomaš': tomasImg,
+  'Števo': stevoImg,
+  'Rišo': risoImg,
+  "Stano" : stanoImg,
+}
+
+// fallback (vložíš súbor napr. do public/avatars/default.png)
+const DEFAULT_AVATAR = '/avatars/default.png'
+
 export default function App() {
   const [persons, setPersons] = useState([])
   const [items, setItems] = useState([])
@@ -183,24 +201,28 @@ const addItem = async (item, quantity) => {
             </button>
           </div>
 
-          <Section title="Domáci">
-            <div className="grid-choices">
-              {home.map(p => {
-                const selected = !!selectedPersons.find(x => x.id === p.id)
-                return (
-                  <button
-                    key={p.id}
-                    className={`choice ${multi && selected ? 'selected' : ''}`}
-                    onClick={() => onPersonClick(p)}
-                  >
-                    <div className="fw-bold">{p.name}</div>
-                    <div className="small text-muted mt-1">{(debts[p.id] ?? 0).toFixed(2)} €</div>
-                    {multi && selected && <div className="tick">✓</div>}
-                  </button>
-                )
-              })}
-            </div>
-          </Section>
+         <Section title="Domáci">
+  <div className="grid-choices">
+    {home.map(p => {
+      const selected = !!selectedPersons.find(x => x.id === p.id)
+      const bg = AVATAR_BY_NAME[p.name]
+      return (
+        <button
+          key={p.id}
+          className={`choice ${multi && selected ? 'selected' : ''}`}
+          onClick={() => onPersonClick(p)}
+          style={bg ? { backgroundImage: `url(${bg})` } : undefined}
+        >
+          <div className="overlay">
+            <div className="fw-bold">{p.name}</div>
+            <div className="small text-light mt-1">{(debts[p.id] ?? 0).toFixed(2)} €</div>
+          </div>
+          {multi && selected && <div className="tick">✓</div>}
+        </button>
+      )
+    })}
+  </div>
+</Section>
 
           <Section title="Hostia">
             <div className="grid-choices">
