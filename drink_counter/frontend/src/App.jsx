@@ -8,24 +8,26 @@ import dejvoImg from './assets/dejvo.jpg'
 import tomasImg from './assets/tomas.jpeg'
 import stevoImg from './assets/stevo.jpeg'
 import risoImg from './assets/riso.jpg'
-import stanoImg from './assets/stano.jpg'
+import monkyImg from './assets/monky.jpg'
 
 // meno -> obrázok
 const AVATAR_BY_NAME = {
-  'David': dejvoImg,
-  'Tomaš': tomasImg,
+  'Dávid': dejvoImg,
+  'Tomáš': tomasImg,
   'Števo': stevoImg,
   'Rišo': risoImg,
-  "Stano" : stanoImg,
+  "Monky" : monkyImg,
 }
 
 // fallback (vložíš súbor napr. do public/avatars/default.png)
-const DEFAULT_AVATAR = '/avatars/default.png'
+const DEFAULT_AVATAR = './assets/default.png'
 
 export default function App() {
   const [persons, setPersons] = useState([])
   const [items, setItems] = useState([])
   const [summary, setSummary] = useState({ total: 0, per_person: [], session: null })
+
+  const [coffeeFilters, setCoffeeFilters] = useState([])
 
   // kroky: person | category | item | grams | done
   const [step, setStep] = useState('person')
@@ -56,8 +58,20 @@ export default function App() {
   const home = persons.filter(p => !p.is_guest)
   const guests = persons.filter(p => p.is_guest)
 
+  // const loadCoffeeFilters = async () => {
+  //   const r = await fetch(`${API_BASE}/coffee-filters/`, { credentials: "include" })
+  //   const data = await r.json()
+  //   // zoradíme podľa sort_order, g_min
+  //   (Number(a.g_min) - Number(b.g_min))
+  //   setCoffeeFilters(data)
+  //
+  // }
+
   const loadPersons = () => fetch(`${API_BASE}/persons/`).then(r=>r.json()).then(setPersons)
-  const loadItems   = () => fetch(`${API_BASE}/items/`).then(r=>r.json()).then(setItems)
+  const loadItems = () =>
+    fetch(`${API_BASE}/items/`)
+      .then(r => r.json())
+      .then(data => setItems(data.filter(i => i.active)))
   const refreshSummary = () => fetch(`${API_BASE}/session/active`).then(r => r.json()).then(setSummary)
 
   useEffect(() => { loadPersons() }, [])
@@ -72,7 +86,6 @@ export default function App() {
  const categoryItems = useMemo(() => {
   if (!selectedCategory) return []
   return items
-    .filter(i => i.active) // ← zobraz len aktívne
     .filter(i => i.category?.name?.toLowerCase() === selectedCategory.toLowerCase())
 }, [items, selectedCategory])
 
@@ -228,6 +241,7 @@ const addItem = async (item, quantity) => {
             <div className="grid-choices">
               {guests.map(p => {
                 const selected = !!selectedPersons.find(x => x.id === p.id)
+                const bg = AVATAR_BY_NAME[p.name]
                 return (
                   <button
                     key={p.id}
@@ -305,7 +319,7 @@ const addItem = async (item, quantity) => {
       {step === 'grams' && (
         <Section title={`Koľko gramov kávy? ${multi ? `(delí sa medzi ${selectedPersons.length} os.)` : ''}`}>
           <div className="grid-choices">
-            {[15,30,45].map(g => (
+            {[15,20,30,45].map(g => (
               <button key={g} className="choice" onClick={() => addItem(selectedItem, g)} disabled={isSubmitting}>
                 {g} g
                 <div className="small text-muted">

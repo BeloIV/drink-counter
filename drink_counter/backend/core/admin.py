@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils import timezone
 from django.db.models import Sum
-from .models import Person, Category, Item, Session, Transaction, ResetEvent
+from .models import Person, Category, Item, Session, Transaction, ResetEvent, CoffeePreset
 
 @admin.action(description="Aktivovať označené osoby")
 def activate_people(modeladmin, request, queryset):
@@ -33,10 +33,10 @@ def deactivate_items(modeladmin, request, queryset):
 
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin):
-    list_display = ("name", "category", "pricing_mode", "unit", "price", "active", "created_at")
+    list_display = ("name", "category", "pricing_mode", "price", "active", "created_at")
     list_filter = ("category", "pricing_mode", "active")
     search_fields = ("name",)
-    list_editable = ("pricing_mode", "unit", "price", "active")
+    list_editable = ("pricing_mode", "price", "active")
     actions = (activate_items, deactivate_items)
 
 class TransactionInline(admin.TabularInline):
@@ -71,3 +71,11 @@ class TransactionAdmin(admin.ModelAdmin):
 @admin.register(ResetEvent)
 class ResetEventAdmin(admin.ModelAdmin):
     list_display = ("session", "created_at")
+
+
+@admin.register(CoffeePreset)
+class CoffeePresetAdmin(admin.ModelAdmin):
+    list_display = ("label", "g_min", "g_max", "extra_eur", "created_at")
+    search_fields = ("label", "note")
+    list_editable = ("g_min", "g_max", "extra_eur")
+    ordering = ("g_min", "id")
