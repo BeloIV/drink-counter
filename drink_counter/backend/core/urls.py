@@ -6,7 +6,8 @@ from .views import (
     PersonViewSet, CategoryViewSet, ItemViewSet,
     SessionActiveView, SessionResetView,
     TransactionView, TransactionUndoView,
-    AdminLoginView, AdminLogoutView,ResetPersonDebtView
+    AdminLoginView, AdminLogoutView,ResetPersonDebtView,
+CoffeePresetViewSet
 )
 
 
@@ -14,6 +15,8 @@ router = DefaultRouter()
 router.register(r"persons", PersonViewSet, basename="person")
 router.register(r"categories", CategoryViewSet, basename="category")
 router.register(r"items", ItemViewSet, basename="item")
+router.register(r"coffee-presets", CoffeePresetViewSet, basename="coffee-preset")
+router.register(r"coffee-filters", CoffeePresetViewSet, basename="coffee-filter")  # alias pre frontend
 
 urlpatterns = [
     path("", include(router.urls)),
