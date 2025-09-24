@@ -5,7 +5,7 @@ from .models import Person, Category, Item, Session, Transaction, CoffeePreset
 class PersonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Person
-        fields = ["id", "name", "is_guest", "active", "created_at"]
+        fields = ["id", "name", "is_guest", "active", "created_at","total_beers","total_coffees"]
 
 
 class CategorySerializer(serializers.ModelSerializer):

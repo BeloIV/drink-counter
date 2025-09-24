@@ -1,18 +1,29 @@
+import base64
 from decimal import Decimal
+from io import BytesIO
 
+import qrcode
+import qrcode
+import qrcode
 from django.conf import settings
-from django.db.models import Sum, Count, F
-from django.http import JsonResponse
+from django.db.models import Count, F
+from django.db.models import Sum
+from django.http import HttpResponse, JsonResponse
 from django.middleware.csrf import get_token
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import ensure_csrf_cookie
+from qrcode import constants as qconst
+from qrcode.constants import ERROR_CORRECT_M
+from qrcode.image.pil import PilImage
+from qrcode.image.pil import PilImage
 from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Category, Item, Person, Transaction, Session, CoffeePreset
+from .models import Category, Item, Session, CoffeePreset
+from .models import Person, Transaction
 from .permissions import ReadOnlyOrAdmin, IsAdminSession
 from .serializers import (
     PersonSerializer, CategorySerializer, ItemSerializer,
@@ -28,6 +39,73 @@ def get_active_session():
         s = Session.objects.create()
     return s
 
+
+
+
+
+
+def generate_epc_spd_payload(account: str, amount: float, currency: str, variable_symbol: str, message: str) -> str:
+    safe_msg = " ".join(str(message).split())
+    return f"SPD*1.0*ACC:{account}*AM:{amount:.2f}*CC:{currency}*X-VS:{variable_symbol}*MSG:{safe_msg}"
+
+
+class GeneratePayBySquareView(View):
+    def get(self, request, pk):
+        try:
+            person = Person.objects.get(pk=pk)
+        except Person.DoesNotExist:
+            return JsonResponse({"error": "Person not found"}, status=404)
+
+        session = get_active_session()
+        debt = Transaction.objects.filter(session=session, person=person)\
+                                  .aggregate(total=Sum("price_at_time"))["total"] or 0
+
+        if debt <= 0:
+            return JsonResponse({"error": "No debt to pay"}, status=400)
+
+        iban = "SK9365000000003650622489"
+        vs = f"{person.id:06d}"
+        message = f"Debt payment for {person.name}"
+
+        payload = generate_epc_spd_payload(
+            account=iban,
+            amount=float(debt),
+            currency="EUR",
+            variable_symbol=vs,
+            message=message
+        )
+
+        qr = qrcode.QRCode(
+            version=None,
+            error_correction=ERROR_CORRECT_M,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(payload)
+        qr.make(fit=True)
+        img = qr.make_image(image_factory=PilImage)
+
+        buf = BytesIO()
+        img.save(buf, format="PNG")
+        img_base64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+
+        # vrátime HTML s QR a údajmi
+        html = f"""
+        <html>
+          <head><title>Pay by Square</title></head>
+          <body style="font-family: sans-serif; text-align: center;">
+            <h2>Platba dlhu</h2>
+            <img src="data:image/png;base64,{img_base64}" alt="QR kód" /><br/><br/>
+            <table style="margin: 0 auto; text-align: left;">
+              <tr><td><b>IBAN:</b></td><td>{iban}</td></tr>
+              <tr><td><b>Suma:</b></td><td>{debt:.2f} EUR</td></tr>
+              <tr><td><b>Variabilný symbol:</b></td><td>{vs}</td></tr>
+              <tr><td><b>Správa pre prijímateľa:</b></td><td>{message}</td></tr>
+            </table>
+          </body>
+        </html>
+        """
+        return HttpResponse(html)
 
 # ===== Person / Category / Item =====
 class PersonViewSet(viewsets.ModelViewSet):
@@ -113,6 +191,9 @@ class SessionResetView(APIView):
 
 
 # ===== Transactions =====
+from django.db import transaction
+from django.db.models import F
+
 class TransactionView(APIView):
     def post(self, request):
         s = get_active_session()
@@ -124,21 +205,39 @@ class TransactionView(APIView):
 
         if item.pricing_mode == "per_gram":
             total = (item.price * qty).quantize(Decimal("0.001"))
-            # ak je to káva, aplikuj globálne filtre
             if (item.category and item.category.name.lower() == "coffee"):
                 preset = (CoffeePreset.objects
                           .filter(g_min__lte=qty, g_max__gte=qty)
-                          .order_by( "g_min", "id")
+                          .order_by("g_min", "id")
                           .first())
                 if preset:
                     total = (total + preset.extra_eur).quantize(Decimal("0.001"))
         else:
             total = item.price.quantize(Decimal("0.001"))
 
-        t = Transaction.objects.create(
-            session=s, person=person, item=item,
-            quantity=qty, price_at_time=total
-        )
+        cat = (item.category.name.lower() if item.category and item.category.name else None)
+
+        with transaction.atomic():
+            # vytvor transakciu
+            t = Transaction.objects.create(
+                session=s, person=person, item=item,
+                quantity=qty, price_at_time=total
+            )
+
+            # inkrementuj počty cez SQL (bez načítania a ukladania objektu)
+            if cat == "coffee":
+                cups = max(1, int(qty // Decimal("15")))
+                Person.objects.filter(pk=person.pk).update(
+                    total_coffees=F("total_coffees") + cups
+                )
+            elif cat == "beer":
+                Person.objects.filter(pk=person.pk).update(
+                    total_beers=F("total_beers") + 1
+                )
+
+        # ak potrebuješ aktuálne hodnoty v odpovedi:
+        person.refresh_from_db(fields=["total_beers", "total_coffees"])
+
         return Response(TransactionSerializer(t).data, status=status.HTTP_201_CREATED)
 
 

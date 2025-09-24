@@ -10,6 +10,8 @@ class Person(models.Model):
     name = models.CharField(max_length=100)
     is_guest = models.BooleanField(default=False)
     active = models.BooleanField(default=True)
+    total_beers = models.PositiveIntegerField(default=0)
+    total_coffees = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

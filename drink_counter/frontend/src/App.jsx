@@ -190,7 +190,9 @@ const addItem = async (item, quantity) => {
 
   return (
     <div className="container py-3">
-      <h2 className="mb-3">Drink Counter</h2>
+      <button className="btn btn-link mb-3 p-0 text-decoration-none" onClick={resetFlow}>
+        <h2 className="m-0">Drink Counter</h2>
+      </button>
 
       {/* INFO / notice */}
       {notice && <div className="alert alert-success py-2">{notice}</div>}
@@ -214,28 +216,28 @@ const addItem = async (item, quantity) => {
             </button>
           </div>
 
-         <Section title="Domáci">
-  <div className="grid-choices">
-    {home.map(p => {
-      const selected = !!selectedPersons.find(x => x.id === p.id)
-      const bg = AVATAR_BY_NAME[p.name]
-      return (
-        <button
-          key={p.id}
-          className={`choice ${multi && selected ? 'selected' : ''}`}
-          onClick={() => onPersonClick(p)}
-          style={bg ? { backgroundImage: `url(${bg})` } : undefined}
-        >
-          <div className="overlay">
-            <div className="fw-bold">{p.name}</div>
-            <div className="small text-light mt-1">{(debts[p.id] ?? 0).toFixed(2)} €</div>
-          </div>
-          {multi && selected && <div className="tick">✓</div>}
-        </button>
-      )
-    })}
-  </div>
-</Section>
+          <Section title="Domáci">
+            <div className="grid-choices">
+              {home.map(p => {
+                const selected = !!selectedPersons.find(x => x.id === p.id)
+                const bg = AVATAR_BY_NAME[p.name]
+                return (
+                  <button
+                    key={p.id}
+                    className={`choice ${multi && selected ? 'selected' : ''}`}
+                    onClick={() => onPersonClick(p)}
+                    style={bg ? { backgroundImage: `url(${bg})` } : undefined}
+                  >
+                    <div className="overlay">
+                      <div className="fw-bold">{p.name}</div>
+                      <div className="small text-light mt-1">{(debts[p.id] ?? 0).toFixed(2)} €</div>
+                    </div>
+                    {multi && selected && <div className="tick">✓</div>}
+                  </button>
+                )
+              })}
+            </div>
+          </Section>
 
           <Section title="Hostia">
             <div className="grid-choices">
@@ -360,7 +362,7 @@ const addItem = async (item, quantity) => {
           </div>
           <div className="mt-3 d-flex flex-wrap gap-2 justify-content-center">
             <button className="btn btn-primary" onClick={() => setStep(selectedItem?.pricing_mode === 'per_gram' ? 'grams' : 'item')}>Pridať ďalší</button>
-            <button className="btn btn-outline-secondary" onClick={resetFlow}>Nová osoba</button>
+            <button className="btn btn-outline-secondary" onClick={resetFlow}>Domov</button>
           </div>
         </Section>
       )}
@@ -369,6 +371,16 @@ const addItem = async (item, quantity) => {
       <div className="mt-4 text-center">
         <Link className="btn btn-outline-secondary" to="/admin">Admin</Link>
       </div>
+
+      {/* Pätička */}
+    <footer className="text-center mt-4">
+      <p className="small text-muted">&copy; {new Date().getFullYear()} Drink Counter.</p>
+      <ul className="small text-muted" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+        <li>1 kg sáčok → 28 g</li>
+        <li>250 g sáčok → 14 g</li>
+        <li>100 g sáčok → 11 g</li>
+      </ul>
+    </footer>
     </div>
   )
 }
