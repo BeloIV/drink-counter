@@ -99,18 +99,19 @@ const overlapsAny = (all, candidate, skipId = null) => {
 
   useEffect(() => { api.csrf().catch(()=>{}) }, [])
 
-  const login = async (e) => {
-    e.preventDefault()
-    try {
-      await api.csrf()
-      await api.login(pin)
-      setAuthed(true)
-      await load()
-      setMsg("Prihlásený")
-    } catch {
-      setMsg("Zlý PIN")
-    }
+const login = async (e) => {
+  e.preventDefault()
+  try {
+    await api.csrf()
+    await api.login(pin)
+    setAuthed(true)
+    await load()
+    setMsg("Prihlásený")
+  } catch (err) {
+    console.error("Login error:", err)
+    setMsg("Zlý PIN")
   }
+}
 
   const logout = async () => {
     await api.logout()
@@ -193,8 +194,6 @@ const overlapsAny = (all, candidate, skipId = null) => {
   const loadCoffeeFilters = async () => {
     const r = await fetch(`${API_BASE}/coffee-filters/`, { credentials: "include" })
     const data = await r.json()
-    // zoradíme podľa sort_order, g_min
-    (Number(a.g_min) - Number(b.g_min))
     setCoffeeFilters(data)
   }
 
@@ -227,10 +226,7 @@ const addCoffeeFilter = async (e) => {
         g_min: normDec(cfForm.g_min, 3),
         g_max: normDec(cfForm.g_max, 3),
         extra_eur: normDec(cfForm.extra_eur, 3), // backend Decimal(3 places OK)
-        sort_order: normInt(cfForm.sort_order),
-        active: !!cfForm.active,
-        color: (cfForm.color || "").trim() || null,
-        note: (cfForm.note || "").trim() || null,
+
       }),
     });
 
@@ -239,7 +235,7 @@ const addCoffeeFilter = async (e) => {
       throw new Error(`Server: ${res.status} ${txt}`);
     }
 
-    setCfForm({ label: "", g_min: "", g_max: "", extra_eur: "", sort_order: 0, active: true, color: "", note: "" });
+    setCfForm({ label: "", g_min: "", g_max: "", extra_eur: ""});
     await loadCoffeeFilters();
     setMsg("Kávový filter pridaný");
   } catch (e) {
@@ -619,20 +615,43 @@ const saveCoffeeFilter = async (id) => {
                 <div className="table-responsive">
                   <table className="table table-sm align-middle">
                     <thead>
-                      <tr><th>Meno</th><th className="text-end">Dlh (€)</th><th className="text-end">Akcie</th></tr>
+                      <tr>
+                        <th>Meno</th>
+                        <th className="text-end">Pivá</th>
+                        <th className="text-end">Kávy</th>
+                        <th className="text-end">Dlh (€)</th>
+                        <th className="text-end">Akcie</th>
+                      </tr>
                     </thead>
                     <tbody>
                       {persons.map(p => (
                         <tr key={p.id}>
                           <td>{p.name}</td>
+                          <td className="text-end">{p.total_beers}</td>
+                          <td className="text-end">{p.total_coffees}</td>
                           <td className="text-end">{(debts[p.id] ?? 0).toFixed(2)}</td>
                           <td className="text-end">
-                            <button className="btn btn-sm btn-outline-danger" onClick={() => resetDebt(p)}>Vynulovať dlh</button>
+                            <button
+                              className="btn btn-sm btn-outline-primary"
+                              onClick={() => window.open(`/api/persons/${p.id}/pay-by-square/`, "_blank")}
+                            >
+                              Pay by Square
+                            </button>
+                            <button
+                              className="btn btn-sm btn-outline-danger"
+                              onClick={() => resetDebt(p)}
+                            >
+                              Vynulovať dlh
+                            </button>
                           </td>
                         </tr>
                       ))}
-                      {persons.length===0 && (
-                        <tr><td colSpan="3" className="text-center text-muted">Žiadne osoby</td></tr>
+                      {persons.length === 0 && (
+                        <tr>
+                          <td colSpan="5" className="text-center text-muted">
+                            Žiadne osoby
+                          </td>
+                        </tr>
                       )}
                     </tbody>
                   </table>
