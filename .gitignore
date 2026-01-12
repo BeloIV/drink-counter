@@ -1,0 +1,12 @@
+backend/.env
+venv
+frontend/node_modules
+frontend/src/assets/*.jpg
+frontend/src/assets/*.jpeg
+frontend/src/assets/*.png
+db.sqlite3
+.idea
+
+__pycache__/
+*.pyc
+backend/core/migrations/*

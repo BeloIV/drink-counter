@@ -1,0 +1,186 @@
+body {
+  background: #f8f9fa; /* jemné sivé pozadie */
+  font-family: system-ui, sans-serif;
+}
+
+h2 {
+  font-weight: 600;
+  text-align: center;
+}
+
+.card {
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.card-body {
+  padding: 1rem;
+}
+
+.btn-lg {
+  padding: 1rem;
+  font-size: 1.25rem;
+  border-radius: 0.75rem;
+  transition: transform 0.1s ease-in-out;
+}
+
+.btn-lg:active {
+  transform: scale(0.95);
+}
+
+.btn-warning {
+  border-radius: 0.5rem;
+  font-weight: 500;
+}
+
+hr {
+  border-top: 2px solid #dee2e6;
+}
+
+.fw-bold.fs-4 {
+  color: #212529;
+}
+
+.container {
+  max-width: 1200px;
+}
+/* krokovník */
+.steps {
+  display: flex;
+  gap: .5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.steps span {
+  padding: .35rem .6rem;
+  border-radius: .75rem;
+  background: #e9ecef;
+  font-size: .9rem;
+}
+.steps span.active { background: #0d6efd; color: #fff; }
+.steps span.done { background: #bde0fe; }
+
+/* výberové mriežky */
+.grid-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: .75rem;
+}
+.choice {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 1rem;
+  padding: 1.1rem;
+  font-size: 1.05rem;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,.05);
+}
+.choice:active { transform: scale(.98); }
+.choice-beer { background: #fff9e6; }
+.choice-coffee { background: #fff4ec; }
+
+
+/* ===== Mobile polish ===== */
+@media (max-width: 576px) {
+  h2 { font-size: 1.5rem; }
+
+  /* krokovník nech je scrollovateľný, aby sa nezalámal */
+  .steps {
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: .25rem;
+    -webkit-overflow-scrolling: touch;
+  }
+  .steps span { font-size: .8rem; }
+
+  /* karty/voľby – kompaktnejšia mriežka a väčšie hit-zóny */
+  .grid-choices {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .6rem;
+  }
+  .choice {
+    padding: .9rem;
+    border-radius: .9rem;
+  }
+
+  /* tabuľky v Admin – menší font a paddings */
+  .table { font-size: .9rem; }
+  .table td, .table th { padding: .5rem .4rem; }
+
+  /* akcie pri položkách – zalomiť do dvoch stĺpcov, plná šírka */
+  .actions { display: flex; flex-wrap: wrap; gap: .35rem; }
+  .actions .btn { flex: 1 1 48%; }
+
+  /* inputy – príjemná veľkosť na dotyk */
+  .form-control, .form-select, .btn { font-size: 1rem; }
+  .input-group .btn { min-width: 64px; }
+}
+
+/* mierny vizuálny facelift aj na desktope */
+.card { border-radius: 1rem; box-shadow: 0 6px 18px rgba(0,0,0,.06); }
+.choice:active { transform: scale(.98); }
+
+/* zvýraznenie vybraných osôb v multi režime */
+.choice.selected {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 3px rgba(13,110,253,.15);
+  position: relative;
+}
+.choice .tick {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-weight: 900;
+  font-size: 1.75rem;
+  color: #fff;
+  background: #0d6efd;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 8px rgba(0,0,0,.25);
+}
+.choice {
+  width: 150px;
+  height: 150px;
+  border: none;
+  border-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  overflow: hidden;
+  color: darkgrey;
+  font-weight: bold;
+}
+
+.choice .overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5); /* stmaví fotku, aby bolo vidno text */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+/* fixované tlačidlo na spodku */
+.fixed-bottom-button {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1rem;
+  background: linear-gradient(to top, rgba(255,255,255,1) 70%, rgba(255,255,255,0));
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.fixed-bottom-button .btn {
+  pointer-events: all;
+  min-width: 200px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
