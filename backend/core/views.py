@@ -194,6 +194,51 @@ class SessionResetView(APIView):
 from django.db import transaction
 from django.db.models import F
 
+class TransactionListView(APIView):
+    """GET: list transactions with pagination (limit/offset)"""
+    def get(self, request):
+        limit = int(request.query_params.get("limit", 20))
+        offset = int(request.query_params.get("offset", 0))
+        
+        transactions = Transaction.objects.all().order_by("-created_at")[offset:offset+limit]
+        total_count = Transaction.objects.count()
+        
+        return Response({
+            "results": TransactionSerializer(transactions, many=True).data,
+            "count": total_count,
+            "limit": limit,
+            "offset": offset
+        })
+
+class TransactionDetailView(APIView):
+    """PATCH: update, DELETE: delete specific transaction"""
+    permission_classes = [IsAdminSession]
+    
+    def patch(self, request, pk):
+        try:
+            tx = Transaction.objects.get(pk=pk)
+        except Transaction.DoesNotExist:
+            return Response({"error": "Transaction not found"}, status=404)
+        
+        # allow updating quantity and price_at_time
+        if "quantity" in request.data:
+            tx.quantity = request.data["quantity"]
+        if "price_at_time" in request.data:
+            tx.price_at_time = request.data["price_at_time"]
+        
+        tx.save()
+        return Response(TransactionSerializer(tx).data)
+    
+    def delete(self, request, pk):
+        try:
+            tx = Transaction.objects.get(pk=pk)
+        except Transaction.DoesNotExist:
+            return Response({"error": "Transaction not found"}, status=404)
+        
+        data = TransactionSerializer(tx).data
+        tx.delete()
+        return Response({"deleted": data})
+
 class TransactionView(APIView):
     def post(self, request):
         s = get_active_session()

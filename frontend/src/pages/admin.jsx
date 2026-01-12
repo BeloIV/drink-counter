@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { Link } from "react-router-dom"
 import { api } from "../api"
 import { API_BASE } from "../config"
 
@@ -36,6 +37,10 @@ export default function Admin() {
     g_max: "",
     extra_eur: "",
   })
+
+  // === COLLAPSE STATE ===
+  const [showAddItem, setShowAddItem] = useState(false)
+  const [showCoffeeFilters, setShowCoffeeFilters] = useState(false)
 
   // --- helpers na čísla/validáciu ---
 const toFixedStr = (v, places = 3) => {
@@ -344,7 +349,10 @@ const saveCoffeeFilter = async (id) => {
 
   return (
     <div className="container py-3">
-      <h2 className="mb-3">Admin</h2>
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h2 className="mb-0">Admin</h2>
+        <Link to="/" className="btn btn-outline-secondary">Späť</Link>
+      </div>
       {msg && <div className="alert alert-info py-2">{msg}</div>}
 
       {!authed ? (
@@ -356,20 +364,52 @@ const saveCoffeeFilter = async (id) => {
       ) : (
         <>
           {/* Filtre + akcie (položky) */}
-          <div className="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
-            <div className="d-flex flex-wrap gap-2">
-              <div className="btn-group btn-group-sm actions">
-                <button className={`btn ${filterStatus==='All'?'btn-secondary':'btn-outline-secondary'}`} onClick={()=>setFilterStatus('All')}>Všetky</button>
-                <button className={`btn ${filterStatus==='Active'?'btn-success':'btn-outline-success'}`} onClick={()=>setFilterStatus('Active')}>Aktívne</button>
-                <button className={`btn ${filterStatus==='Hidden'?'btn-warning':'btn-outline-warning'}`} onClick={()=>setFilterStatus('Hidden')}>Skryté</button>
-              </div>
-              <div className="btn-group btn-group-sm actions">
-                <button className={`btn ${filterCat==='All'?'btn-primary':'btn-outline-primary'}`} onClick={()=>setFilterCat('All')}>Všetko</button>
-                {cats.map(c => (
-                  <button key={c.id} className={`btn ${filterCat===c.name?'btn-primary':'btn-outline-primary'}`} onClick={()=>setFilterCat(c.name)}>
-                    {c.name}
-                  </button>
-                ))}
+          <div className="mb-4">
+            <div className="card p-3 shadow-sm">
+              <div className="row g-3">
+                <div className="col-12 col-md-6">
+                  <label className="form-label small text-muted fw-bold mb-2">Stav položiek</label>
+                  <div className="d-flex gap-2 flex-wrap">
+                    <button 
+                      className={`btn ${filterStatus==='All'?'btn-secondary':'btn-outline-secondary'}`} 
+                      onClick={()=>setFilterStatus('All')}
+                    >
+                      📋 Všetky
+                    </button>
+                    <button 
+                      className={`btn ${filterStatus==='Active'?'btn-success':'btn-outline-success'}`} 
+                      onClick={()=>setFilterStatus('Active')}
+                    >
+                      ✓ Aktívne
+                    </button>
+                    <button 
+                      className={`btn ${filterStatus==='Hidden'?'btn-warning text-dark':'btn-outline-warning'}`} 
+                      onClick={()=>setFilterStatus('Hidden')}
+                    >
+                      👁️ Skryté
+                    </button>
+                  </div>
+                </div>
+                <div className="col-12 col-md-6">
+                  <label className="form-label small text-muted fw-bold mb-2">Kategória</label>
+                  <div className="d-flex gap-2 flex-wrap">
+                    <button 
+                      className={`btn ${filterCat==='All'?'btn-primary':'btn-outline-primary'}`} 
+                      onClick={()=>setFilterCat('All')}
+                    >
+                      🔍 Všetko
+                    </button>
+                    {cats.map(c => (
+                      <button 
+                        key={c.id} 
+                        className={`btn ${filterCat===c.name?'btn-primary':'btn-outline-primary'}`} 
+                        onClick={()=>setFilterCat(c.name)}
+                      >
+                        {c.name === 'Beer' ? '🍺' : c.name === 'Coffee' ? '☕' : '📦'} {c.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -379,83 +419,110 @@ const saveCoffeeFilter = async (id) => {
             <div className="col-12 col-xxl-7">
               <div className="card p-3">
                 <h5 className="mb-3">Položky</h5>
-                <div className="table-responsive">
-                  <table className="table table-sm align-middle">
-                    <thead>
-                      <tr>
-                        <th>Názov</th><th>Kategória</th><th>Režim</th><th>Cena</th><th>Stav</th><th className="text-end">Akcie</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredItems.map(it => (
-                        <tr key={it.id} className={!it.active ? "table-warning" : ""}>
-                          <td>
-                            {editId===it.id ? (
-                              <input className="form-control form-control-sm" value={editForm.name}
-                                     onChange={e=>setEditForm(f=>({...f, name:e.target.value}))} />
-                            ) : it.name}
-                          </td>
-                          <td>
-                            {editId===it.id ? (
-                              <select className="form-select form-select-sm" value={editForm.category_id}
-                                      onChange={e=>setEditForm(f=>({...f, category_id:e.target.value}))}>
-                                <option value="">—</option>
-                                {cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                              </select>
-                            ) : (it.category?.name ?? "—")}
-                          </td>
-                          <td style={{width:150}}>
-                            {editId===it.id ? (
-                              <select className="form-select form-select-sm" value={editForm.pricing_mode}
-                                      onChange={e=>setEditForm(f=>({...f, pricing_mode:e.target.value}))}>
-                                <option value="per_item">per_item</option>
-                                <option value="per_gram">per_gram</option>
-                              </select>
-                            ) : it.pricing_mode}
-                          </td>
-                          <td style={{width:140}}>
-                            {editId===it.id ? (
-                              <input className="form-control form-control-sm" inputMode="decimal" value={editForm.price}
-                                     onChange={e=>setEditForm(f=>({...f, price:e.target.value}))} />
-                            ) : (it.pricing_mode==='per_gram'
-                                  ? `${Number(it.price).toFixed(3)} €/g`
-                                  : `${Number(it.price).toFixed(2)} €`)}
-                          </td>
-                          <td>
-                            <span className={`badge ${it.active?'bg-success':'bg-secondary'}`}>{it.active?'aktívne':'skryté'}</span>
-                          </td>
-                          <td className="text-end">
-                            {editId===it.id ? (
-                              <div className="btn-group btn-group-sm">
-                                <button className="btn btn-primary" onClick={()=>saveEditItem(it.id)}>Uložiť</button>
-                                <button className="btn btn-outline-secondary" onClick={cancelEditItem}>Zrušiť</button>
+                <div className="d-flex flex-column gap-2">
+                  {filteredItems.map(it => (
+                    <div key={it.id} className={`card ${!it.active ? 'border-warning' : ''}`}>
+                      <div className="card-body p-3">
+                        {editId===it.id ? (
+                          // Edit režim
+                          <>
+                            <div className="row g-2 mb-3">
+                              <div className="col-12">
+                                <label className="form-label small text-muted mb-1">Názov</label>
+                                <input className="form-control" value={editForm.name}
+                                       onChange={e=>setEditForm(f=>({...f, name:e.target.value}))} />
                               </div>
-                            ) : (
-                              <div className="btn-group btn-group-sm">
-                                <button className="btn btn-outline-secondary" onClick={()=>startEditItem(it)}>Upraviť</button>
-                                <button className={`btn ${it.active?'btn-outline-warning':'btn-outline-success'}`} onClick={()=>toggleActiveItem(it)}>
-                                  {it.active ? 'Skryť' : 'Zobraziť'}
-                                </button>
-                                <button className="btn btn-outline-danger" onClick={async ()=>{ await api.deleteItem(it.id); await load() }}>
-                                  Zmazať
-                                </button>
+                              <div className="col-6">
+                                <label className="form-label small text-muted mb-1">Kategória</label>
+                                <select className="form-select" value={editForm.category_id}
+                                        onChange={e=>setEditForm(f=>({...f, category_id:e.target.value}))}>
+                                  <option value="">—</option>
+                                  {cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
                               </div>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                      {filteredItems.length===0 && (<tr><td colSpan="6" className="text-center text-muted">Žiadne položky</td></tr>)}
-                    </tbody>
-                  </table>
+                              <div className="col-6">
+                                <label className="form-label small text-muted mb-1">Režim</label>
+                                <select className="form-select" value={editForm.pricing_mode}
+                                        onChange={e=>setEditForm(f=>({...f, pricing_mode:e.target.value}))}>
+                                  <option value="per_item">per_item</option>
+                                  <option value="per_gram">per_gram</option>
+                                </select>
+                              </div>
+                              <div className="col-12">
+                                <label className="form-label small text-muted mb-1">Cena</label>
+                                <input className="form-control" inputMode="decimal" value={editForm.price}
+                                       onChange={e=>setEditForm(f=>({...f, price:e.target.value}))} />
+                              </div>
+                            </div>
+                            <div className="d-flex gap-2">
+                              <button className="btn btn-success flex-fill" onClick={()=>saveEditItem(it.id)}>
+                                ✓ Uložiť
+                              </button>
+                              <button className="btn btn-secondary flex-fill" onClick={cancelEditItem}>
+                                ✕ Zrušiť
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          // Zobrazovací režim
+                          <>
+                            <div className="d-flex justify-content-between align-items-start mb-2">
+                              <div>
+                                <h6 className="card-title mb-1">{it.name}</h6>
+                                <span className="badge bg-secondary me-2">{it.category?.name ?? "—"}</span>
+                                <span className={`badge ${it.active?'bg-success':'bg-warning'}`}>
+                                  {it.active?'aktívne':'skryté'}
+                                </span>
+                              </div>
+                              <div className="text-end">
+                                <div className="fw-bold text-primary">
+                                  {it.pricing_mode==='per_gram'
+                                    ? `${Number(it.price).toFixed(3)} €/g`
+                                    : `${Number(it.price).toFixed(2)} €`}
+                                </div>
+                                <small className="text-muted">{it.pricing_mode}</small>
+                              </div>
+                            </div>
+                            
+                            <div className="d-flex gap-2 pt-2 border-top">
+                              <button className="btn btn-sm btn-outline-primary flex-fill" onClick={()=>startEditItem(it)}>
+                                Upraviť
+                              </button>
+                              <button className={`btn btn-sm flex-fill ${it.active?'btn-outline-warning':'btn-outline-success'}`} 
+                                      onClick={()=>toggleActiveItem(it)}>
+                                {it.active ? 'Skryť' : 'Zobraziť'}
+                              </button>
+                              <button className="btn btn-sm btn-outline-danger" 
+                                      onClick={async ()=>{ await api.deleteItem(it.id); await load() }}>
+                                Zmazať
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {filteredItems.length===0 && (
+                    <div className="text-center text-muted py-3">Žiadne položky</div>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* Pridať položku */}
             <div className="col-12 col-xxl-5">
-              <div className="card p-3 mb-3">
-                <h5 className="mb-3">Pridať položku</h5>
-                <form onSubmit={saveItem} className="row g-2">
+              <div className="card shadow-sm mb-3">
+                <div 
+                  className="card-header bg-primary text-white d-flex justify-content-between align-items-center" 
+                  style={{cursor: 'pointer'}}
+                  onClick={() => setShowAddItem(!showAddItem)}
+                >
+                  <h6 className="mb-0">➕ Pridať položku</h6>
+                  <span className="fs-5">{showAddItem ? '▼' : '▶'}</span>
+                </div>
+                {showAddItem && (
+                  <div className="card-body">
+                    <form onSubmit={saveItem} className="row g-2">
                   <div className="col-12">
                     <label className="form-label">Názov</label>
                     <input className="form-control" value={form.name} onChange={e=>setForm(f=>({...f, name:e.target.value}))} required />
@@ -482,19 +549,30 @@ const saveCoffeeFilter = async (id) => {
                       pri <code>per_gram</code> = €/g, pri <code>per_item</code> = € za kus
                     </div>
                   </div>
-                  <div className="col-12 d-flex justify-content-end">
-                    <button className="btn btn-primary" disabled={loading} type="submit">Uložiť</button>
+                      <div className="col-12 d-flex justify-content-end">
+                        <button className="btn btn-primary" disabled={loading} type="submit">Uložiť</button>
+                      </div>
+                    </form>
                   </div>
-                </form>
+                )}
               </div>
 
               {/* =================== KÁVOVÉ FILTRE – GLOBÁLNE =================== */}
-              <div className="card p-3">
-                <h5 className="mb-3">Kávové filtre (globálne)</h5>
-                <p className="text-muted small mb-3">
-                  Intervaly gramáže s prirážkou k výslednej cene kávy.
-                  Výpočet: <code>(cena_za_g * gramy) + extra_eur</code> podľa toho, do ktorého intervalu gramy spadnú.
-                </p>
+              <div className="card shadow-sm">
+                <div 
+                  className="card-header bg-info text-white d-flex justify-content-between align-items-center" 
+                  style={{cursor: 'pointer'}}
+                  onClick={() => setShowCoffeeFilters(!showCoffeeFilters)}
+                >
+                  <h6 className="mb-0">☕ Kávové filtre (globálne)</h6>
+                  <span className="fs-5">{showCoffeeFilters ? '▼' : '▶'}</span>
+                </div>
+                {showCoffeeFilters && (
+                  <div className="card-body">
+                    <p className="text-muted small mb-3">
+                      Intervaly gramáže s prirážkou k výslednej cene kávy.
+                      Výpočet: <code>(cena_za_g * gramy) + extra_eur</code> podľa toho, do ktorého intervalu gramy spadnú.
+                    </p>
 
                 <div className="table-responsive mb-2">
                   <table className="table table-sm align-middle">
@@ -604,57 +682,85 @@ const saveCoffeeFilter = async (id) => {
                     <button className="btn btn-primary" disabled={cfLoading} type="submit">Pridať filter</button>
                   </div>
                 </form>
+                  </div>
+                )}
               </div>
               {/* =================== /KÁVOVÉ FILTRE =================== */}
             </div>
 
             {/* Osoby */}
             <div className="col-12">
-              <div className="card p-3">
-                <h5 className="mb-3">Osoby</h5>
-                <div className="table-responsive">
-                  <table className="table table-sm align-middle">
-                    <thead>
-                      <tr>
-                        <th>Meno</th>
-                        <th className="text-end">Pivá</th>
-                        <th className="text-end">Kávy</th>
-                        <th className="text-end">Dlh (€)</th>
-                        <th className="text-end">Akcie</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {persons.map(p => (
-                        <tr key={p.id}>
-                          <td>{p.name}</td>
-                          <td className="text-end">{p.total_beers}</td>
-                          <td className="text-end">{p.total_coffees}</td>
-                          <td className="text-end">{(debts[p.id] ?? 0).toFixed(2)}</td>
-                          <td className="text-end">
-                            <button
-                              className="btn btn-sm btn-outline-primary"
-                              onClick={() => window.open(`/api/persons/${p.id}/pay-by-square/`, "_blank")}
-                            >
-                              Pay by Square
-                            </button>
-                            <button
-                              className="btn btn-sm btn-outline-danger"
-                              onClick={() => resetDebt(p)}
-                            >
-                              Vynulovať dlh
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {persons.length === 0 && (
-                        <tr>
-                          <td colSpan="5" className="text-center text-muted">
-                            Žiadne osoby
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+              <div className="card p-3 shadow-sm">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <h5 className="mb-0">👥 Osoby a dlhy</h5>
+                  <div className="text-end">
+                    <small className="text-muted d-block">Celkový dlh</small>
+                    <h4 className="mb-0 text-danger fw-bold">
+                      {Object.values(debts).reduce((sum, d) => sum + d, 0).toFixed(2)} €
+                    </h4>
+                  </div>
+                </div>
+                <div className="row g-3">
+                  {persons.map(p => {
+                    const debt = debts[p.id] ?? 0
+                    return (
+                      <div key={p.id} className="col-12 col-md-6 col-xl-4">
+                        <div className={`card h-100 ${debt > 0 ? 'border-danger' : 'border-success'}`}>
+                          <div className="card-body">
+                            <div className="d-flex justify-content-between align-items-start mb-2">
+                              <div>
+                                <h6 className="card-title mb-1">{p.name}</h6>
+                                {p.is_guest && <span className="badge bg-secondary">Hosť</span>}
+                              </div>
+                              <div className="text-end">
+                                <div className={`fs-5 fw-bold ${debt > 0 ? 'text-danger' : 'text-success'}`}>
+                                  {debt.toFixed(2)} €
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="d-flex gap-3 mb-3 text-muted small">
+                              <div>
+                                <span>🍺 {p.total_beers}</span>
+                              </div>
+                              <div>
+                                <span>☕ {p.total_coffees}</span>
+                              </div>
+                            </div>
+                            
+                            <div className="d-flex flex-column gap-2">
+                              {debt > 0 && (
+                                <button
+                                  className="btn btn-sm btn-outline-primary w-100"
+                                  onClick={() => window.open(`/api/persons/${p.id}/pay-by-square/`, "_blank")}
+                                >
+                                  💳 Pay by Square
+                                </button>
+                              )}
+                              {debt > 0 && (
+                                <button
+                                  className="btn btn-sm btn-outline-danger w-100"
+                                  onClick={() => resetDebt(p)}
+                                >
+                                  ✕ Vynulovať dlh
+                                </button>
+                              )}
+                              {debt === 0 && (
+                                <div className="text-center text-success small">
+                                  ✓ Bez dlhu
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {persons.length === 0 && (
+                    <div className="col-12 text-center text-muted py-3">
+                      Žiadne osoby
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
