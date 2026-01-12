@@ -212,11 +212,11 @@ const addItem = async (item, quantity) => {
   return (
     <div className="container py-3">
       <button
-      className="btn btn-link mb-3 p-0 text-decoration-none d-flex align-items-center gap-2"
+      className="btn btn-link mb-3 p-0 text-decoration-none logo-header"
       onClick={resetFlow}
     >
-      <img src={logo} alt="Drink Counter logo" width="80" height="80" />
-      <h2 className="m-0">Drink Counter</h2>
+      <img src={logo} alt="Drink Counter logo" />
+      <h2>Drink Counter</h2>
     </button>
 
       {/* INFO / notice */}
@@ -224,11 +224,11 @@ const addItem = async (item, quantity) => {
 
       {/* krokovník */}
       <div className="steps mb-3">
-        <span className={step === 'person' ? 'active' : (selectedPerson || selectedPersons.length) ? 'done' : ''}>1. Osoba</span>
-        <span className={step === 'category' ? 'active' : selectedCategory ? 'done' : ''}>2. Kategória</span>
-        <span className={step === 'item' || step === 'grams' ? 'active' : step === 'done' ? 'done' : ''}>3. Typ</span>
-        <span className={step === 'grams' ? 'active' : ''}>3b. Gramáž</span>
-        <span className={step === 'done' ? 'active' : ''}>4. Dlh</span>
+        <span className={step === 'person' ? 'active' : (selectedPerson || selectedPersons.length) ? 'done' : ''}>Osoba</span>
+        <span className={step === 'category' ? 'active' : selectedCategory ? 'done' : ''}>Kategória</span>
+        <span className={step === 'item' || step === 'grams' ? 'active' : step === 'done' ? 'done' : ''}>Typ</span>
+        <span className={step === 'grams' ? 'active' : ''}>Gramáž</span>
+        <span className={step === 'done' ? 'active' : ''}>Dlh</span>
       </div>
 
       {/* krok 1: výber osôb */}
@@ -405,8 +405,9 @@ const addItem = async (item, quantity) => {
       )}
 
       {/* odkaz na admin */}
-      <div className="mt-4 text-center">
+      <div className="mt-4 text-center d-flex gap-2 justify-content-center">
         <Link className="btn btn-outline-secondary" to="/admin">Admin</Link>
+        <Link className="btn btn-outline-primary" to="/transactions">Transakcie</Link>
       </div>
 
       {/* Pätička */}

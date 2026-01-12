@@ -68,4 +68,9 @@ addPerson: (payload) => fetch(`${API_BASE}/persons/`, {
              "X-CSRFToken": (document.cookie.match(/csrftoken=([^;]+)/)||[])[1] || "" },
   body: JSON.stringify(payload)
 }).then(r=>r.json()),
+
+  // transactions management
+  getTransactions: (limit = 20, offset = 0) => request(`/transactions/list?limit=${limit}&offset=${offset}`),
+  updateTransaction: (id, payload) => request(`/transactions/${id}`, { method: "PATCH", data: payload }),
+  deleteTransaction: (id) => request(`/transactions/${id}`, { method: "DELETE" }),
 }
