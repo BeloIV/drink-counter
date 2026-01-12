@@ -358,7 +358,15 @@ const saveCoffeeFilter = async (id) => {
       {!authed ? (
         <form onSubmit={login} className="card p-3 mx-auto" style={{maxWidth:420}}>
           <label className="form-label">Admin PIN</label>
-          <input className="form-control mb-2" value={pin} onChange={e=>setPin(e.target.value)} placeholder="Zadaj PIN" />
+          <input 
+            className="form-control mb-2" 
+            type="text"
+            inputMode="numeric" 
+            pattern="[0-9]*"
+            value={pin} 
+            onChange={e=>setPin(e.target.value)} 
+            placeholder="Zadaj PIN" 
+          />
           <button className="btn btn-primary w-100" type="submit">Prihlásiť</button>
         </form>
       ) : (
