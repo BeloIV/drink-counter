@@ -30,7 +30,7 @@ class ItemSerializer(serializers.ModelSerializer):
             "id", "name",
             "category", "category_id",
             "price", "pricing_mode",
-            "note", "active", "created_at"
+            "note", "color", "active", "created_at"
         ]
 
 

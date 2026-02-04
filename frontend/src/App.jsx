@@ -336,16 +336,30 @@ const addItem = async (item, quantity) => {
       {step === 'item' && (
         <Section title={`Vyber ${selectedCategory === 'Beer' ? 'pivo' : 'kávu'}`}>
           <div className="grid-choices">
-            {categoryItems.map(i => (
-              <button key={i.id} className="choice" disabled={isSubmitting} onClick={() => proceedItem(i)}>
-                <div className="fw-bold">{i.name}</div>
-                <div className="small text-muted">
-                  {i.pricing_mode === 'per_gram'
-                    ? `${Number(i.price).toFixed(3)} €/g`
-                    : `${Number(i.price).toFixed(2)} €`}
-                </div>
-              </button>
-            ))}
+            {categoryItems.map(i => {
+              const bgColor = i.color || '#ffffff'
+              const isLight = bgColor === '#ffffff' || bgColor.toLowerCase() === '#fff'
+              return (
+                <button 
+                  key={i.id} 
+                  className="choice" 
+                  disabled={isSubmitting} 
+                  onClick={() => proceedItem(i)}
+                  style={{ 
+                    backgroundColor: bgColor,
+                    color: isLight ? '#000' : '#fff',
+                    border: isLight ? '2px solid #ddd' : 'none'
+                  }}
+                >
+                  <div className="fw-bold">{i.name}</div>
+                  <div className="small" style={{ color: isLight ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)' }}>
+                    {i.pricing_mode === 'per_gram'
+                      ? `${Number(i.price).toFixed(3)} €/g`
+                      : `${Number(i.price).toFixed(2)} €`}
+                  </div>
+                </button>
+              )
+            })}
           </div>
           <div className="mt-3 d-flex gap-2">
             <button className="btn btn-outline-secondary" onClick={() => setStep('category')}>Späť</button>
