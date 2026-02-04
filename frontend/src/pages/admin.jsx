@@ -15,11 +15,11 @@ export default function Admin() {
   const [filterCat, setFilterCat] = useState("All")
   const [filterStatus, setFilterStatus] = useState("All")
 
-  const [form, setForm] = useState({ name: "", category_id: "", price: "", pricing_mode: "per_item", unit: "pcs" })
+  const [form, setForm] = useState({ name: "", category_id: "", price: "", pricing_mode: "per_item", unit: "pcs", color: "#ffffff" })
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState("")
   const [editId, setEditId] = useState(null)
-  const [editForm, setEditForm] = useState({ name: "", price: "", category_id: "", pricing_mode: "per_item", unit: "pcs" })
+  const [editForm, setEditForm] = useState({ name: "", price: "", category_id: "", pricing_mode: "per_item", unit: "pcs", color: "#ffffff" })
 
   // === KÁVOVÉ FILTRE (globálne) ===
   const [coffeeFilters, setCoffeeFilters] = useState([])
@@ -132,9 +132,10 @@ const login = async (e) => {
       await api.addItem({
         ...form,
         category_id: Number(form.category_id),
-        price: String(form.price)
+        price: String(form.price),
+        color: form.color
       })
-      setForm({ name:"", category_id:"", price:"", pricing_mode:"per_item", unit:"pcs" })
+      setForm({ name:"", category_id:"", price:"", pricing_mode:"per_item", unit:"pcs", color:"#ffffff" })
       await load()
       setMsg("Položka pridaná")
     } catch {
@@ -156,12 +157,13 @@ const login = async (e) => {
       category_id: String(it.category?.id ?? ""),
       pricing_mode: it.pricing_mode || "per_item",
       unit: it.unit || (it.category?.name === "Coffee" ? "g" : "pcs"),
+      color: it.color || "#ffffff",
     })
   }
 
   const cancelEditItem = () => {
     setEditId(null)
-    setEditForm({ name:"", price:"", category_id:"", pricing_mode:"per_item", unit:"pcs" })
+    setEditForm({ name:"", price:"", category_id:"", pricing_mode:"per_item", unit:"pcs", color:"#ffffff" })
   }
 
   const saveEditItem = async (id) => {
@@ -171,6 +173,7 @@ const login = async (e) => {
       category_id: Number(editForm.category_id || 0) || undefined,
       pricing_mode: editForm.pricing_mode,
       unit: editForm.unit,
+      color: editForm.color,
     }
     await api.updateItem(id, payload)
     await load()
@@ -461,6 +464,11 @@ const saveCoffeeFilter = async (id) => {
                                 <input className="form-control" inputMode="decimal" value={editForm.price}
                                        onChange={e=>setEditForm(f=>({...f, price:e.target.value}))} />
                               </div>
+                              <div className="col-12">
+                                <label className="form-label small text-muted mb-1">Farba</label>
+                                <input type="color" className="form-control form-control-color" value={editForm.color}
+                                       onChange={e=>setEditForm(f=>({...f, color:e.target.value}))} />
+                              </div>
                             </div>
                             <div className="d-flex gap-2">
                               <button className="btn btn-success flex-fill" onClick={()=>saveEditItem(it.id)}>
@@ -476,7 +484,19 @@ const saveCoffeeFilter = async (id) => {
                           <>
                             <div className="d-flex justify-content-between align-items-start mb-2">
                               <div>
-                                <h6 className="card-title mb-1">{it.name}</h6>
+                                <h6 className="card-title mb-1">
+                                  <span 
+                                    className="badge me-2" 
+                                    style={{
+                                      backgroundColor: it.color || '#ffffff',
+                                      color: it.color === '#ffffff' ? '#000' : '#fff',
+                                      border: '1px solid #ddd'
+                                    }}
+                                  >
+                                    ⬤
+                                  </span>
+                                  {it.name}
+                                </h6>
                                 <span className="badge bg-secondary me-2">{it.category?.name ?? "—"}</span>
                                 <span className={`badge ${it.active?'bg-success':'bg-warning'}`}>
                                   {it.active?'aktívne':'skryté'}
@@ -556,6 +576,10 @@ const saveCoffeeFilter = async (id) => {
                     <div className="form-text">
                       pri <code>per_gram</code> = €/g, pri <code>per_item</code> = € za kus
                     </div>
+                  </div>
+                  <div className="col-6">
+                    <label className="form-label">Farba</label>
+                    <input type="color" className="form-control form-control-color" value={form.color} onChange={e=>setForm(f=>({...f, color:e.target.value}))} />
                   </div>
                       <div className="col-12 d-flex justify-content-end">
                         <button className="btn btn-primary" disabled={loading} type="submit">Uložiť</button>
