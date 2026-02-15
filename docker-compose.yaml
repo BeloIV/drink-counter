@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:16
+    restart: unless-stopped
     environment:
       POSTGRES_DB: drinkdb
       POSTGRES_USER: drinkuser
@@ -19,6 +20,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    restart: unless-stopped
     environment:
       PYTHONUNBUFFERED: "1"
       POSTGRES_DB: drinkdb
@@ -46,6 +48,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    restart: unless-stopped
     command: >
       sh -c "npm ci && npm run dev -- --host 0.0.0.0"
     volumes:
