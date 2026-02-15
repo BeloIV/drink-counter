@@ -69,6 +69,20 @@ addPerson: (payload) => fetch(`${API_BASE}/persons/`, {
   body: JSON.stringify(payload)
 }).then(r=>r.json()),
 
+  // User management with avatar upload
+  updatePerson: async (id, formData) => {
+    const res = await fetch(`${API_BASE}/persons/${id}/`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "X-CSRFToken": getCSRF() },
+      body: formData // FormData for file upload
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return res.json()
+  },
+
+  deletePerson: (id) => request(`/persons/${id}/`, { method: "DELETE" }),
+
   // transactions management
   getTransactions: (limit = 20, offset = 0) => request(`/transactions/list?limit=${limit}&offset=${offset}`),
   updateTransaction: (id, payload) => request(`/transactions/${id}`, { method: "PATCH", data: payload }),

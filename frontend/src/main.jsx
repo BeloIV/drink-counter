@@ -6,11 +6,13 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import App from './App.jsx'
 import Admin from './pages/admin.jsx'
 import Transactions from './pages/transactions.jsx'
+import Users from './pages/users.jsx'
 
 const router = createBrowserRouter([
   { path: "/", element: <App /> },
   { path: "/admin", element: <Admin /> },
   { path: "/transactions", element: <Transactions /> },
+  { path: "/users", element: <Users /> },
 ])
 
 ReactDOM.createRoot(document.getElementById('root')).render(

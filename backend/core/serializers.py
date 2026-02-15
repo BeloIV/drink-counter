@@ -3,9 +3,11 @@ from .models import Person, Category, Item, Session, Transaction, CoffeePreset
 
 
 class PersonSerializer(serializers.ModelSerializer):
+    avatar = serializers.ImageField(required=False, allow_null=True)
+    
     class Meta:
         model = Person
-        fields = ["id", "name", "is_guest", "active", "created_at","total_beers","total_coffees"]
+        fields = ["id", "name", "email", "avatar", "is_guest", "active", "created_at","total_beers","total_coffees"]
 
 
 class CategorySerializer(serializers.ModelSerializer):

@@ -1,11 +1,248 @@
 body {
   background: #f8f9fa; /* jemné sivé pozadie */
   font-family: system-ui, sans-serif;
+  color: #212529;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 h2 {
   font-weight: 600;
   text-align: center;
+}
+
+/* === TMAVÝ REŽIM === */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #1a1a1a;
+    color: #e9ecef;
+  }
+  
+  .card {
+    background: #2d2d2d;
+    border-color: #404040;
+    color: #e9ecef;
+  }
+  
+  .choice {
+    background: #2d2d2d;
+    border-color: #555;
+    color: #e9ecef;
+  }
+  
+  .choice:hover {
+    border-color: #666;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  
+  .choice.selected {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 3px rgba(13,110,253,.25);
+  }
+  
+  .choice-beer {
+    background: #4a3f1a !important;
+    color: #ffc107;
+  }
+  
+  .choice-coffee {
+    background: #3d2617 !important;
+    color: #ff9966;
+  }
+  
+  /* === Tlačidlá === */
+  .btn-primary {
+    background: #0d6efd;
+    border-color: #0d6efd;
+    color: #fff;
+  }
+  
+  .btn-primary:hover {
+    background: #0b5ed7;
+    border-color: #0a58ca;
+  }
+  
+  .btn-success {
+    background: #198754;
+    border-color: #198754;
+    color: #fff;
+  }
+  
+  .btn-success:hover {
+    background: #157347;
+    border-color: #146c43;
+  }
+  
+  .btn-danger {
+    background: #dc3545;
+    border-color: #dc3545;
+    color: #fff;
+  }
+  
+  .btn-danger:hover {
+    background: #bb2d3b;
+    border-color: #b02a37;
+  }
+  
+  .btn-warning {
+    background: #ffc107;
+    border-color: #ffc107;
+    color: #000;
+  }
+  
+  .btn-warning:hover {
+    background: #ffca2c;
+    border-color: #ffc720;
+  }
+  
+  .btn-info {
+    background: #0dcaf0;
+    border-color: #0dcaf0;
+    color: #000;
+  }
+  
+  .btn-info:hover {
+    background: #31d2f2;
+    border-color: #25cff2;
+  }
+  
+  .btn-secondary {
+    background: #6c757d;
+    border-color: #6c757d;
+    color: #fff;
+  }
+  
+  .btn-secondary:hover {
+    background: #5c636a;
+    border-color: #565e64;
+  }
+  
+  .btn-outline-primary {
+    color: #0d6efd;
+    border-color: #0d6efd;
+  }
+  
+  .btn-outline-primary:hover {
+    background: #0d6efd;
+    color: #fff;
+  }
+  
+  .btn-outline-success {
+    color: #198754;
+    border-color: #198754;
+  }
+  
+  .btn-outline-success:hover {
+    background: #198754;
+    color: #fff;
+  }
+  
+  .btn-outline-danger {
+    color: #dc3545;
+    border-color: #dc3545;
+  }
+  
+  .btn-outline-danger:hover {
+    background: #dc3545;
+    color: #fff;
+  }
+  
+  .btn-outline-secondary {
+    color: #adb5bd;
+    border-color: #404040;
+  }
+  
+  .btn-outline-secondary:hover {
+    background: #404040;
+    color: #fff;
+    border-color: #555;
+  }
+  
+  .steps span {
+    background: #404040;
+    color: #e9ecef;
+  }
+  
+  .steps span.active {
+    background: #0d6efd;
+    color: #fff;
+  }
+  
+  .steps span.done {
+    background: #1e3a5f;
+    color: #9ec5fe;
+  }
+  
+  .form-control, .form-select {
+    background: #2d2d2d;
+    border-color: #404040;
+    color: #e9ecef;
+  }
+  
+  .form-control:focus, .form-select:focus {
+    background: #333;
+    border-color: #0d6efd;
+    color: #fff;
+  }
+  
+  .table {
+    color: #e9ecef;
+  }
+  
+  .table-striped > tbody > tr:nth-of-type(odd) {
+    background: rgba(255, 255, 255, 0.02);
+  }
+  
+  .alert-info {
+    background: #1e3a5f;
+    border-color: #2c5282;
+    color: #9ec5fe;
+  }
+  
+  .alert-success {
+    background: #1a4d2e;
+    border-color: #25613b;
+    color: #a3e4a8;
+  }
+  
+  .alert-danger {
+    background: #5a1a1a;
+    border-color: #7a2525;
+    color: #f5a5a5;
+  }
+  
+  .text-muted {
+    color: #adb5bd !important;
+  }
+  
+  hr {
+    border-top-color: #404040;
+  }
+  
+  .badge.bg-secondary {
+    background: #495057 !important;
+  }
+  
+  .badge.bg-primary {
+    background: #0d6efd !important;
+  }
+  
+  .badge.bg-warning {
+    background: #ffc107 !important;
+    color: #000 !important;
+  }
+  
+  /* Fotky osôb - bez bielych okrajov */
+  .choice {
+    border-color: #555 !important;
+  }
+  
+  .choice:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  
+  .fixed-bottom-button {
+    background: linear-gradient(to top, rgba(26,26,26,1) 70%, rgba(26,26,26,0));
+  }
 }
 
 .logo-header {
@@ -73,6 +310,7 @@ hr {
   padding: .5rem .8rem;
   border-radius: .75rem;
   background: #e9ecef;
+  color: #495057;
   font-size: .9rem;
   font-weight: 500;
   transition: all 0.2s;
@@ -236,7 +474,7 @@ hr {
   background-position: center;
   position: relative;
   overflow: hidden;
-  color: darkgrey;
+  color: #e9ecef;
   font-weight: bold;
   transition: all 0.2s;
 }

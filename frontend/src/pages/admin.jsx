@@ -354,7 +354,14 @@ const saveCoffeeFilter = async (id) => {
     <div className="container py-3">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2 className="mb-0">Admin</h2>
-        <Link to="/" className="btn btn-outline-secondary">Späť</Link>
+        <div className="d-flex gap-2">
+          {authed && (
+            <Link to="/users" className="btn btn-info">
+              👥 Správa userov
+            </Link>
+          )}
+          <Link to="/" className="btn btn-outline-secondary">Späť</Link>
+        </div>
       </div>
       {msg && <div className="alert alert-info py-2">{msg}</div>}
 
