@@ -4,23 +4,7 @@ import { API_BASE } from './config'
 import { api } from './api'
 import './App.css'
 import { FaBeer, FaCoffee } from 'react-icons/fa'
-import dejvoImg from './assets/dejvo.jpg'
-import tomasImg from './assets/tomas.jpeg'
-import stevoImg from './assets/stevo.jpeg'
-import risoImg from './assets/riso.jpg'
-import monkyImg from './assets/monky.jpg'
 import logo from '/favicon.png'
-// meno -> obrázok
-const AVATAR_BY_NAME = {
-  'Dávid': dejvoImg,
-  'Tomáš': tomasImg,
-  'Števo': stevoImg,
-  'Rišo': risoImg,
-  "Monky" : monkyImg,
-}
-
-// fallback (vložíš súbor napr. do public/avatars/default.png)
-const DEFAULT_AVATAR = './assets/default.png'
 
 export default function App() {
   const [persons, setPersons] = useState([])
@@ -59,7 +43,17 @@ export default function App() {
   }, [summary])
 
   const home = persons.filter(p => !p.is_guest)
-  const guests = persons.filter(p => p.is_guest)
+  const guests = persons.filter(p => p.is_guest).sort((a, b) => {
+    // Najprv podľa toho či má avatar (s fotkou idú prví)
+    const hasAvatarA = !!a.avatar
+    const hasAvatarB = !!b.avatar
+    if (hasAvatarA !== hasAvatarB) return hasAvatarB ? 1 : -1
+    
+    // Potom podľa celkového počtu napojov (zostupne)
+    const totalA = (a.total_beers || 0) + (a.total_coffees || 0)
+    const totalB = (b.total_beers || 0) + (b.total_coffees || 0)
+    return totalB - totalA
+  })
 
   // const loadCoffeeFilters = async () => {
   //   const r = await fetch(`${API_BASE}/coffee-filters/`, { credentials: "include" })
@@ -245,13 +239,13 @@ const addItem = async (item, quantity) => {
             <div className="grid-choices">
               {home.map(p => {
                 const selected = !!selectedPersons.find(x => x.id === p.id)
-                const bg = AVATAR_BY_NAME[p.name]
+                const avatarUrl = p.avatar || null
                 return (
                   <button
                     key={p.id}
                     className={`choice ${multi && selected ? 'selected' : ''}`}
                     onClick={() => onPersonClick(p)}
-                    style={bg ? { backgroundImage: `url(${bg})` } : undefined}
+                    style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined}
                   >
                     <div className="overlay">
                       <div className="fw-bold">{p.name}</div>
@@ -268,21 +262,26 @@ const addItem = async (item, quantity) => {
             <div className="grid-choices">
               {guests.map(p => {
                 const selected = !!selectedPersons.find(x => x.id === p.id)
-                const bg = AVATAR_BY_NAME[p.name]
+                const avatarUrl = p.avatar || null
                 return (
                   <button
                     key={p.id}
                     className={`choice ${multi && selected ? 'selected' : ''}`}
                     onClick={() => onPersonClick(p)}
+                    style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined}
                   >
-                    <div className="fw-bold">{p.name}</div>
-                    <div className="small text-muted mt-1">{(debts[p.id] ?? 0).toFixed(2)} €</div>
+                    <div className="overlay">
+                      <div className="fw-bold">{p.name}</div>
+                      <div className="small text-light mt-1">{(debts[p.id] ?? 0).toFixed(2)} €</div>
+                    </div>
                     {multi && selected && <div className="tick">✓</div>}
                   </button>
                 )
               })}
               <button className="choice" onClick={addGuest}>
-                <div className="fw-bold">+ Pridať hosťa</div>
+                <div className="overlay">
+                  <div className="fw-bold">+ Pridať hosťa</div>
+                </div>
               </button>
             </div>
 
@@ -372,7 +371,7 @@ const addItem = async (item, quantity) => {
       {step === 'grams' && (
         <Section title={`Koľko gramov kávy? ${multi ? `(delí sa medzi ${selectedPersons.length} os.)` : ''}`}>
           <div className="grid-choices">
-            {[15,20,30,45].map(g => (
+            {[15,20,30,45,60].map(g => (
               <button key={g} className="choice" onClick={() => addItem(selectedItem, g)} disabled={isSubmitting}>
                 {g} g
                 <div className="small text-muted">

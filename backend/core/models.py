@@ -8,6 +8,8 @@ PRICING_CHOICES = (
 
 class Person(models.Model):
     name = models.CharField(max_length=100)
+    email = models.EmailField(max_length=255, blank=True, null=True)
+    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
     is_guest = models.BooleanField(default=False)
     active = models.BooleanField(default=True)
     total_beers = models.PositiveIntegerField(default=0)

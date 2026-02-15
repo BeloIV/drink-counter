@@ -7,6 +7,24 @@ frontend/src/assets/*.png
 db.sqlite3
 .idea
 
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+
+# Django
 backend/core/migrations/*
+backend/media/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+*.swp
+*.swo
+*~
