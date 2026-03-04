@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { api } from "../api"
-import { API_BASE } from "../config"
+import { ThemeToggle } from "../ThemeToggle"
 
 export default function Users() {
   const [authed, setAuthed] = useState(false)
@@ -124,7 +124,10 @@ export default function Users() {
   if (!authed) {
     return (
       <div className="container">
-        <div className="row justify-content-center align-items-center" style={{ minHeight: "100vh" }}>
+        <div className="d-flex justify-content-end pt-3">
+          <ThemeToggle />
+        </div>
+        <div className="row justify-content-center align-items-center" style={{ minHeight: "90vh" }}>
           <div className="col-12 col-md-6 col-lg-4">
             <div className="card shadow-lg">
               <div className="card-body p-4">
@@ -164,13 +167,14 @@ export default function Users() {
     <div className="container py-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="mb-0">👥 Správa používateľov</h2>
-        <div className="d-flex gap-2">
+        <div className="d-flex gap-2 align-items-center">
           <Link to="/admin" className="btn btn-outline-secondary">
             ← Späť na Admin
           </Link>
           <button onClick={handleLogout} className="btn btn-outline-danger">
             Odhlásiť
           </button>
+          <ThemeToggle />
         </div>
       </div>
 
@@ -190,17 +194,11 @@ export default function Users() {
                   <form onSubmit={handleSave}>
                     <div className="text-center mb-3">
                       {previewUrl && (
-                        <img 
-                          src={previewUrl} 
-                          alt="Preview" 
+                        <img
+                          src={previewUrl}
+                          alt="Preview"
                           loading="lazy"
-                          className="rounded-circle mb-2"
-                          style={{ 
-                            width: 100, 
-                            height: 100, 
-                            objectFit: "cover",
-                            border: "3px solid #007bff"
-                          }} 
+                          className="rounded-circle mb-2 avatar-img-edit"
                         />
                       )}
                       <div>
@@ -272,21 +270,14 @@ export default function Users() {
                 <div className="card-body text-center">
                   <div className="mb-3">
                     {person.avatar ? (
-                      <img 
-                        src={person.avatar} 
+                      <img
+                        src={person.avatar}
                         alt={person.name}
                         loading="lazy"
-                        className="rounded-circle"
-                        style={{ 
-                          width: 100, 
-                          height: 100, 
-                          objectFit: "cover",
-                          border: "3px solid #e9ecef"
-                        }} 
+                        className="rounded-circle avatar-img"
                       />
                     ) : (
-                      <div className="rounded-circle bg-light d-inline-flex align-items-center justify-content-center"
-                           style={{ width: 100, height: 100, fontSize: "2rem" }}>
+                      <div className="rounded-circle bg-light d-inline-flex align-items-center justify-content-center avatar-placeholder">
                         👤
                       </div>
                     )}

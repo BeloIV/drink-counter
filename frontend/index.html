@@ -19,6 +19,14 @@
     <link rel="manifest" href="/manifest.json" />
 
     <title>Drink Counter</title>
+    <!-- Anti-flash: apply saved theme before first paint -->
+    <script>
+      ;(function(){
+        var t = localStorage.getItem('theme')
+        if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        document.documentElement.setAttribute('data-theme', t)
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

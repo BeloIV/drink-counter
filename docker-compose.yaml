@@ -49,8 +49,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     restart: unless-stopped
-    command: >
-      sh -c "npm ci && npm run dev -- --host 0.0.0.0"
+    command: npm run dev -- --host 0.0.0.0
     volumes:
       - ./frontend:/app
       - /app/node_modules
