@@ -1,6 +1,27 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { api } from "../api"
+import { ThemeToggle } from "../ThemeToggle"
+
+function ConfirmModal({ msg, onConfirm, onCancel }) {
+  return (
+    <div
+      onClick={onCancel}
+      style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center' }}
+    >
+      <div className="card shadow-lg pop-in" style={{ maxWidth:340, width:'90%' }} onClick={e=>e.stopPropagation()}>
+        <div className="card-body p-4 text-center">
+          <div style={{ fontSize:'2.2rem', marginBottom:'0.5rem' }}>⚠️</div>
+          <p className="mb-4">{msg}</p>
+          <div className="d-flex gap-2">
+            <button className="btn btn-danger flex-fill" onClick={onConfirm}>Potvrdiť</button>
+            <button className="btn btn-secondary flex-fill" onClick={onCancel}>Zrušiť</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState([])
@@ -9,8 +30,13 @@ export default function Transactions() {
   const [totalCount, setTotalCount] = useState(0)
   const [editId, setEditId] = useState(null)
   const [editForm, setEditForm] = useState({ quantity: "", price_at_time: "" })
-  
+  const [confirmModal, setConfirmModal] = useState({ open: false, msg: "", onConfirm: null })
+  const [errMsg, setErrMsg] = useState("")
+
   const limit = 20
+
+  const showConfirm = (msg, onConfirm) => setConfirmModal({ open: true, msg, onConfirm })
+  const closeConfirm = () => setConfirmModal({ open: false, msg: "", onConfirm: null })
 
   const loadTransactions = async (newOffset = 0) => {
     setLoading(true)
@@ -31,27 +57,29 @@ export default function Transactions() {
   }
 
   useEffect(() => {
+    api.csrf().catch(() => {})
     loadTransactions()
   }, [])
 
-  const handleDelete = async (id) => {
-    if (!confirm("Naozaj vymazať túto transakciu?")) return
-    try {
-      await api.deleteTransaction(id)
-      setTransactions(prev => prev.filter(t => t.id !== id))
-      setTotalCount(prev => prev - 1)
-    } catch (err) {
-      alert("Chyba pri mazaní transakcie")
-      console.error(err)
-    }
+  const handleDelete = (tx) => {
+    showConfirm(`Naozaj vymazať transakciu pre ${tx.person.name} (${tx.item.name})?`, async () => {
+      closeConfirm()
+      try {
+        await api.csrf().catch(() => {})
+        await api.deleteTransaction(tx.id)
+        setTransactions(prev => prev.filter(t => t.id !== tx.id))
+        setTotalCount(prev => prev - 1)
+      } catch (err) {
+        console.error(err)
+        setErrMsg("Chyba pri mazaní — skús sa prihlásiť do adminu a zopakuj.")
+        setTimeout(() => setErrMsg(""), 5000)
+      }
+    })
   }
 
   const startEdit = (tx) => {
     setEditId(tx.id)
-    setEditForm({
-      quantity: tx.quantity,
-      price_at_time: tx.price_at_time
-    })
+    setEditForm({ quantity: tx.quantity, price_at_time: tx.price_at_time })
   }
 
   const cancelEdit = () => {
@@ -61,6 +89,7 @@ export default function Transactions() {
 
   const saveEdit = async (id) => {
     try {
+      await api.csrf().catch(() => {})
       const updated = await api.updateTransaction(id, {
         quantity: editForm.quantity,
         price_at_time: editForm.price_at_time
@@ -68,24 +97,40 @@ export default function Transactions() {
       setTransactions(prev => prev.map(t => t.id === id ? updated : t))
       setEditId(null)
     } catch (err) {
-      alert("Chyba pri úprave transakcie")
       console.error(err)
+      setErrMsg("Chyba pri úprave — skús sa prihlásiť do adminu a zopakuj.")
+      setTimeout(() => setErrMsg(""), 5000)
     }
   }
 
-  const loadMore = () => {
-    const newOffset = offset + limit
-    loadTransactions(newOffset)
-  }
-
+  const loadMore = () => loadTransactions(offset + limit)
   const hasMore = transactions.length < totalCount
 
   return (
     <div className="container py-4">
+
+      {confirmModal.open && (
+        <ConfirmModal
+          msg={confirmModal.msg}
+          onConfirm={confirmModal.onConfirm}
+          onCancel={closeConfirm}
+        />
+      )}
+
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Transakcie</h2>
-        <Link to="/" className="btn btn-outline-secondary">Späť</Link>
+        <div className="d-flex gap-2 align-items-center">
+          <Link to="/" className="btn btn-sm btn-outline-secondary">← Späť</Link>
+          <ThemeToggle />
+        </div>
       </div>
+
+      {errMsg && (
+        <div className="alert alert-danger alert-flash py-2 mb-3 position-relative overflow-hidden">
+          {errMsg}
+          <div className="alert-dismiss-bar" style={{ animationDuration: '5s' }} />
+        </div>
+      )}
 
       <div className="mb-3 text-muted small">
         Zobrazených: {transactions.length} z {totalCount}
@@ -100,11 +145,10 @@ export default function Transactions() {
       ) : (
         <>
           <div className="d-flex flex-column gap-3">
-            {transactions.map(tx => (
-              <div key={tx.id} className="card shadow-sm">
+            {transactions.map((tx, idx) => (
+              <div key={tx.id} className="card shadow-sm item-card-enter" style={{ animationDelay: `${Math.min(idx, 10) * 0.03}s` }}>
                 <div className="card-body">
                   {editId === tx.id ? (
-                    // Edit režim
                     <>
                       <div className="row g-2 mb-3">
                         <div className="col-12">
@@ -137,16 +181,11 @@ export default function Transactions() {
                         </div>
                       </div>
                       <div className="d-flex gap-2">
-                        <button className="btn btn-success flex-fill" onClick={() => saveEdit(tx.id)}>
-                          ✓ Uložiť
-                        </button>
-                        <button className="btn btn-secondary flex-fill" onClick={cancelEdit}>
-                          ✕ Zrušiť
-                        </button>
+                        <button className="btn btn-success flex-fill" onClick={() => saveEdit(tx.id)}>✓ Uložiť</button>
+                        <button className="btn btn-secondary flex-fill" onClick={cancelEdit}>✕ Zrušiť</button>
                       </div>
                     </>
                   ) : (
-                    // Zobrazovací režim
                     <>
                       <div className="d-flex justify-content-between align-items-start mb-2">
                         <div>
@@ -162,28 +201,19 @@ export default function Transactions() {
                           </small>
                         </div>
                       </div>
-                      
+
                       <div className="d-flex justify-content-between align-items-center pt-2 border-top">
                         <small className="text-muted">
                           {new Date(tx.created_at).toLocaleString("sk-SK", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit"
+                            day: "2-digit", month: "2-digit", year: "numeric",
+                            hour: "2-digit", minute: "2-digit"
                           })}
                         </small>
                         <div className="d-flex gap-2">
-                          <button 
-                            className="btn btn-sm btn-outline-primary" 
-                            onClick={() => startEdit(tx)}
-                          >
+                          <button className="btn btn-sm btn-outline-primary" onClick={() => startEdit(tx)}>
                             Upraviť
                           </button>
-                          <button 
-                            className="btn btn-sm btn-outline-danger" 
-                            onClick={() => handleDelete(tx.id)}
-                          >
+                          <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(tx)}>
                             Vymazať
                           </button>
                         </div>
@@ -197,11 +227,7 @@ export default function Transactions() {
 
           {hasMore && (
             <div className="text-center mt-4">
-              <button
-                className="btn btn-primary btn-lg w-100"
-                onClick={loadMore}
-                disabled={loading}
-              >
+              <button className="btn btn-primary btn-lg w-100" onClick={loadMore} disabled={loading}>
                 {loading ? "Načítavam..." : "Načítať ďalšie"}
               </button>
             </div>

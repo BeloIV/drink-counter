@@ -1,17 +1,69 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { API_BASE } from './config'
 import { api } from './api'
 import './App.css'
 import { FaBeer, FaCoffee } from 'react-icons/fa'
 import logo from '/favicon.png'
+import { useTheme } from './useTheme'
+import { getFunnyMessage } from './funnyMessages'
+
+// ── PersonCard — defined outside App so React doesn't remount on every render ──
+function PersonCard({ p, multi, selected, debt, onClick, enterDelay }) {
+  const avatarUrl = p.avatar || null
+  const btnRef = useRef(null)
+  const prevSelected = useRef(selected)
+
+  useEffect(() => {
+    if (selected && !prevSelected.current) {
+      btnRef.current?.classList.add('choice-just-selected')
+      setTimeout(() => btnRef.current?.classList.remove('choice-just-selected'), 250)
+    }
+    prevSelected.current = selected
+  }, [selected])
+
+  return (
+    <button
+      ref={btnRef}
+      className={`choice choice-enter ${!avatarUrl ? 'choice-initials' : ''} ${multi && selected ? 'selected' : ''}`}
+      onClick={onClick}
+      style={avatarUrl
+        ? { backgroundImage: `url(${avatarUrl})`, animationDelay: enterDelay ?? '0s' }
+        : { background: nameGradient(p.name), animationDelay: enterDelay ?? '0s' }}
+    >
+      <div className="overlay">
+        {!avatarUrl && <div className="initials-letter">{getInitials(p.name)}</div>}
+        <div className="fw-bold">{p.name}</div>
+        <div className="small mt-1" style={{ color: 'rgba(255,255,255,0.85)' }}>
+          {debt.toFixed(2)} €
+        </div>
+      </div>
+      {multi && selected && <div className="tick">✓</div>}
+    </button>
+  )
+}
+
+// ── helpers ─────────────────────────────────────────────────────
+function nameGradient(name) {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash)
+    hash |= 0
+  }
+  const h = Math.abs(hash) % 360
+  return `linear-gradient(145deg, hsl(${h},60%,38%), hsl(${(h + 50) % 360},70%,28%))`
+}
+
+function getInitials(name) {
+  return name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2)
+}
+// ────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const { theme, toggle } = useTheme()
   const [persons, setPersons] = useState([])
   const [items, setItems] = useState([])
   const [summary, setSummary] = useState({ total: 0, per_person: [], session: null })
-
-  const [coffeeFilters, setCoffeeFilters] = useState([])
 
   // kroky: person | category | item | grams | done
   const [step, setStep] = useState('person')
@@ -21,16 +73,20 @@ export default function App() {
 
   // multi-select
   const [multi, setMulti] = useState(false)
-  const [selectedPersons, setSelectedPersons] = useState([]) // array of Person
+  const [selectedPersons, setSelectedPersons] = useState([])
 
   // výber nápoja
-  const [selectedCategory, setSelectedCategory] = useState(null) // 'Beer' | 'Coffee'
+  const [selectedCategory, setSelectedCategory] = useState(null)
   const [selectedItem, setSelectedItem] = useState(null)
   const [grams, setGrams] = useState('20')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [notice, setNotice] = useState('')
 
-  // sledovanie scroll pozície - či je užívateľ na spodku
+  // countdown pre auto-reset na "done" kroku
+  const [countdown, setCountdown] = useState(null)
+  const [funnyMsg, setFunnyMsg] = useState(null)
+
+  // sledovanie scroll pozície
   const [isAtBottom, setIsAtBottom] = useState(false)
 
   // dlhy mapované podľa person_id
@@ -44,27 +100,15 @@ export default function App() {
 
   const home = persons.filter(p => !p.is_guest)
   const guests = persons.filter(p => p.is_guest).sort((a, b) => {
-    // Najprv podľa toho či má avatar (s fotkou idú prví)
     const hasAvatarA = !!a.avatar
     const hasAvatarB = !!b.avatar
     if (hasAvatarA !== hasAvatarB) return hasAvatarB ? 1 : -1
-    
-    // Potom podľa celkového počtu napojov (zostupne)
     const totalA = (a.total_beers || 0) + (a.total_coffees || 0)
     const totalB = (b.total_beers || 0) + (b.total_coffees || 0)
     return totalB - totalA
   })
 
-  // const loadCoffeeFilters = async () => {
-  //   const r = await fetch(`${API_BASE}/coffee-filters/`, { credentials: "include" })
-  //   const data = await r.json()
-  //   // zoradíme podľa sort_order, g_min
-  //   (Number(a.g_min) - Number(b.g_min))
-  //   setCoffeeFilters(data)
-  //
-  // }
-
-  const loadPersons = () => fetch(`${API_BASE}/persons/`).then(r=>r.json()).then(setPersons)
+  const loadPersons = () => fetch(`${API_BASE}/persons/`).then(r => r.json()).then(setPersons)
   const loadItems = () =>
     fetch(`${API_BASE}/items/`)
       .then(r => r.json())
@@ -78,31 +122,33 @@ export default function App() {
   // sledovanie scroll pozície
   useEffect(() => {
     const handleScroll = () => {
-      const windowHeight = window.innerHeight
-      const documentHeight = document.documentElement.scrollHeight
-      const scrollTop = window.scrollY || document.documentElement.scrollTop
-      
-      // považujeme za "na spodku", keď je menej ako 100px od spodku
-      const isBottom = (windowHeight + scrollTop) >= (documentHeight - 100)
+      const isBottom =
+        (window.innerHeight + (window.scrollY || document.documentElement.scrollTop)) >=
+        (document.documentElement.scrollHeight - 100)
       setIsAtBottom(isBottom)
     }
-
     window.addEventListener('scroll', handleScroll)
-    handleScroll() // skontroluj hneď na začiatku
-    
+    handleScroll()
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  // auto-reset countdown na "done" kroku
+  useEffect(() => {
+    if (step !== 'done' || countdown === null) return
+    if (countdown <= 0) { resetFlow(); return }
+    const t = setTimeout(() => setCountdown(c => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [step, countdown])
 
   const personTotal = useMemo(() => {
     if (!selectedPerson) return 0
     return debts[selectedPerson.id] ?? 0
   }, [selectedPerson, debts])
 
- const categoryItems = useMemo(() => {
-  if (!selectedCategory) return []
-  return items
-    .filter(i => i.category?.name?.toLowerCase() === selectedCategory.toLowerCase())
-}, [items, selectedCategory])
+  const categoryItems = useMemo(() => {
+    if (!selectedCategory) return []
+    return items.filter(i => i.category?.name?.toLowerCase() === selectedCategory.toLowerCase())
+  }, [items, selectedCategory])
 
   const resetFlow = () => {
     setStep('person')
@@ -111,6 +157,8 @@ export default function App() {
     setSelectedCategory(null)
     setSelectedItem(null)
     setGrams('7')
+    setCountdown(null)
+    setFunnyMsg(null)
   }
 
   // --- výber osôb ---
@@ -126,7 +174,6 @@ export default function App() {
       setStep('category')
       return
     }
-    // multi-mode toggle
     setSelectedPersons(list => {
       const exists = list.find(x => x.id === p.id)
       if (exists) return list.filter(x => x.id !== p.id)
@@ -153,51 +200,53 @@ export default function App() {
   }
 
   // --- odoslanie transakcií ---
-const addItem = async (item, quantity) => {
-  setIsSubmitting(true)
-  try {
-    if (multi && selectedPersons.length > 0) {
-      const n = selectedPersons.length
-      const isPerGram = item.pricing_mode === 'per_gram'
-      const qtyPerPerson = isPerGram ? Number(quantity) / n : undefined
+  const addItem = async (item, quantity) => {
+    setIsSubmitting(true)
+    try {
+      if (multi && selectedPersons.length > 0) {
+        const n = selectedPersons.length
+        const isPerGram = item.pricing_mode === 'per_gram'
+        const qtyPerPerson = isPerGram ? Number(quantity) / n : undefined
 
-      await Promise.all(
-        selectedPersons.map(p => api.addTransaction({
-          person_id: p.id,
-          item_id: item.id,
-          ...(isPerGram ? { quantity: qtyPerPerson } : {})
-        }))
-      )
+        await Promise.all(
+          selectedPersons.map(p => api.addTransaction({
+            person_id: p.id,
+            item_id: item.id,
+            ...(isPerGram ? { quantity: qtyPerPerson } : {})
+          }))
+        )
 
+        await refreshSummary()
+        setNotice(
+          isPerGram
+            ? `Pridané ${Number(quantity)} g (${(Number(quantity) / n).toFixed(2)} g/osoba) pre ${n} ľudí`
+            : `Pridaný 1 ks pre ${n} ľudí`
+        )
+        setTimeout(() => setNotice(''), 3000)
+        setStep('person')
+        return
+      }
+
+      if (!selectedPerson) return
+      await api.addTransaction({
+        person_id: selectedPerson.id,
+        item_id: item.id,
+        ...(quantity !== null && quantity !== undefined ? { quantity: Number(quantity) } : {})
+      })
       await refreshSummary()
-      setNotice(
-        isPerGram
-          ? `Pridané ${Number(quantity)} g (${(Number(quantity)/n).toFixed(2)} g/osoba) pre ${n} ľudí`
-          : `Pridaný 1 ks pre ${n} ľudí`
-      )
-      setStep('person')
-      return
+      setFunnyMsg(getFunnyMessage())
+      setCountdown(5)
+      setStep('done')
+    } finally {
+      setIsSubmitting(false)
     }
-
-    if (!selectedPerson) return
-    await api.addTransaction({
-      person_id: selectedPerson.id,
-      item_id: item.id,
-      ...(quantity !== null && quantity !== undefined ? { quantity: Number(quantity) } : {})
-    })
-    await refreshSummary()
-    setStep('done')
-  } finally {
-    setIsSubmitting(false)
-    if (notice) setTimeout(() => setNotice(''), 2500)
   }
-}
 
   // hosť
   const addGuest = async () => {
     const name = prompt('Meno hosťa:')
     if (!name || !name.trim()) return
-    await api.csrf().catch(()=>{})
+    await api.csrf().catch(() => {})
     await api.addPerson({ name: name.trim(), is_guest: true })
     await loadPersons()
     await refreshSummary()
@@ -205,16 +254,26 @@ const addItem = async (item, quantity) => {
 
   return (
     <div className="container py-3">
-      <button
-      className="btn btn-link mb-3 p-0 text-decoration-none logo-header"
-      onClick={resetFlow}
-    >
-      <img src={logo} alt="Drink Counter logo" />
-      <h2>Drink Counter</h2>
-    </button>
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <button
+          className="btn btn-link p-0 text-decoration-none logo-header"
+          onClick={resetFlow}
+        >
+          <img src={logo} alt="Drink Counter logo" />
+          <h2>Drink Counter</h2>
+        </button>
+        <button className="theme-toggle" onClick={toggle} title="Prepnúť tému">
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
+      </div>
 
       {/* INFO / notice */}
-      {notice && <div className="alert alert-success py-2">{notice}</div>}
+      {notice && (
+        <div className="alert alert-success alert-flash py-2 position-relative overflow-hidden">
+          {notice}
+          <div className="alert-dismiss-bar" style={{ animationDuration: '3s' }} />
+        </div>
+      )}
 
       {/* krokovník */}
       <div className="steps mb-3">
@@ -237,74 +296,53 @@ const addItem = async (item, quantity) => {
 
           <Section title="Domáci">
             <div className="grid-choices">
-              {home.map(p => {
-                const selected = !!selectedPersons.find(x => x.id === p.id)
-                const avatarUrl = p.avatar || null
-                return (
-                  <button
-                    key={p.id}
-                    className={`choice ${multi && selected ? 'selected' : ''}`}
-                    onClick={() => onPersonClick(p)}
-                    style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined}
-                  >
-                    <div className="overlay">
-                      <div className="fw-bold">{p.name}</div>
-                      <div className="small text-light mt-1">{(debts[p.id] ?? 0).toFixed(2)} €</div>
-                    </div>
-                    {multi && selected && <div className="tick">✓</div>}
-                  </button>
-                )
-              })}
+              {home.map((p, idx) => (
+                <PersonCard
+                  key={p.id}
+                  p={p}
+                  multi={multi}
+                  selected={!!selectedPersons.find(x => x.id === p.id)}
+                  debt={debts[p.id] ?? 0}
+                  onClick={() => onPersonClick(p)}
+                  enterDelay={`${idx * 0.05}s`}
+                />
+              ))}
             </div>
           </Section>
 
           <Section title="Hostia">
             <div className="grid-choices">
-              {guests.map(p => {
-                const selected = !!selectedPersons.find(x => x.id === p.id)
-                const avatarUrl = p.avatar || null
-                return (
-                  <button
-                    key={p.id}
-                    className={`choice ${multi && selected ? 'selected' : ''}`}
-                    onClick={() => onPersonClick(p)}
-                    style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined}
-                  >
-                    <div className="overlay">
-                      <div className="fw-bold">{p.name}</div>
-                      <div className="small text-light mt-1">{(debts[p.id] ?? 0).toFixed(2)} €</div>
-                    </div>
-                    {multi && selected && <div className="tick">✓</div>}
-                  </button>
-                )
-              })}
-              <button className="choice" onClick={addGuest}>
+              {guests.map((p, idx) => (
+                <PersonCard
+                  key={p.id}
+                  p={p}
+                  multi={multi}
+                  selected={!!selectedPersons.find(x => x.id === p.id)}
+                  debt={debts[p.id] ?? 0}
+                  onClick={() => onPersonClick(p)}
+                  enterDelay={`${(home.length + idx) * 0.05}s`}
+                />
+              ))}
+              <button className="choice choice-initials" style={{ background: nameGradient('+ Hosť') }} onClick={addGuest}>
                 <div className="overlay">
-                  <div className="fw-bold">+ Pridať hosťa</div>
+                  <div className="initials-letter">+</div>
+                  <div className="fw-bold">Pridať hosťa</div>
                 </div>
               </button>
             </div>
 
-            {/* Tlačidlo v normálnej pozícii keď je na spodku */}
             {multi && selectedPersons.length > 0 && isAtBottom && (
               <div className="mt-3 text-center">
-                <button
-                  className="btn btn-success btn-lg"
-                  onClick={continueFromMulti}
-                >
+                <button className="btn btn-success btn-lg" onClick={continueFromMulti}>
                   Pokračovať ({selectedPersons.length})
                 </button>
               </div>
             )}
           </Section>
 
-          {/* Levitujúce tlačidlo keď NIE je na spodku */}
           {multi && selectedPersons.length > 0 && !isAtBottom && (
             <div className="fixed-bottom-button">
-              <button
-                className="btn btn-success btn-lg"
-                onClick={continueFromMulti}
-              >
+              <button className="btn btn-success btn-lg" onClick={continueFromMulti}>
                 Pokračovať ({selectedPersons.length})
               </button>
             </div>
@@ -317,11 +355,11 @@ const addItem = async (item, quantity) => {
         <Section title={`${multi ? `Vybraní: ${selectedPersons.length}` : `Ahoj, ${selectedPerson?.name}`} – čo piješ?`}>
           <div className="grid-choices">
             <button className="choice choice-beer" onClick={() => pickCategory('Beer')}>
-              <FaBeer size={36} style={{marginBottom:6}} />
+              <FaBeer size={36} style={{ marginBottom: 6 }} />
               <div>Pivo</div>
             </button>
             <button className="choice choice-coffee" onClick={() => pickCategory('Coffee')}>
-              <FaCoffee size={36} style={{marginBottom:6}} />
+              <FaCoffee size={36} style={{ marginBottom: 6 }} />
               <div>Káva</div>
             </button>
           </div>
@@ -335,23 +373,24 @@ const addItem = async (item, quantity) => {
       {step === 'item' && (
         <Section title={`Vyber ${selectedCategory === 'Beer' ? 'pivo' : 'kávu'}`}>
           <div className="grid-choices">
-            {categoryItems.map(i => {
+            {categoryItems.map((i, idx) => {
               const bgColor = i.color || '#ffffff'
               const isLight = bgColor === '#ffffff' || bgColor.toLowerCase() === '#fff'
               return (
-                <button 
-                  key={i.id} 
-                  className="choice" 
-                  disabled={isSubmitting} 
+                <button
+                  key={i.id}
+                  className="choice choice-enter"
+                  disabled={isSubmitting}
                   onClick={() => proceedItem(i)}
-                  style={{ 
+                  style={{
                     backgroundColor: bgColor,
                     color: isLight ? '#000' : '#fff',
-                    border: isLight ? '2px solid #ddd' : 'none'
+                    border: isLight ? '2px solid #ddd' : 'none',
+                    animationDelay: `${idx * 0.06}s`,
                   }}
                 >
                   <div className="fw-bold">{i.name}</div>
-                  <div className="small" style={{ color: isLight ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)' }}>
+                  <div className="small" style={{ color: isLight ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)' }}>
                     {i.pricing_mode === 'per_gram'
                       ? `${Number(i.price).toFixed(3)} €/g`
                       : `${Number(i.price).toFixed(2)} €`}
@@ -371,15 +410,16 @@ const addItem = async (item, quantity) => {
       {step === 'grams' && (
         <Section title={`Koľko gramov kávy? ${multi ? `(delí sa medzi ${selectedPersons.length} os.)` : ''}`}>
           <div className="grid-choices">
-            {[15,20,30,45,60].map(g => (
-              <button key={g} className="choice" onClick={() => addItem(selectedItem, g)} disabled={isSubmitting}>
+            {[15, 20, 30, 45, 60].map((g, idx) => (
+              <button key={g} className="choice choice-enter" onClick={() => addItem(selectedItem, g)} disabled={isSubmitting}
+                style={{ animationDelay: `${idx * 0.05}s` }}>
                 {g} g
                 <div className="small text-muted">
                   ≈ {(Number(selectedItem.price) * g).toFixed(2)} €
                 </div>
               </button>
             ))}
-            <div className="choice">
+            <div className="choice choice-enter" style={{ animationDelay: '0.25s' }}>
               <div className="mb-2">Vlastné</div>
               <div className="input-group">
                 <input
@@ -405,13 +445,29 @@ const addItem = async (item, quantity) => {
       {/* krok 4: potvrdenie pre single */}
       {step === 'done' && !multi && (
         <Section title="Hotovo!">
-          <div className="card p-3 text-center">
-            <div className="fs-5">Aktuálny dlh pre</div>
+          <div className="card p-3 text-center pop-in">
+            <div className="done-check">✓</div>
+            <div className="fs-5 mt-2">Aktuálny dlh pre</div>
             <div className="fs-3 fw-bold mb-2">{selectedPerson?.name}</div>
             <div className="display-6 fw-bold">{Number(personTotal).toFixed(2)} €</div>
+            {funnyMsg && (
+              <div className="funny-msg mt-3">
+                <div className="funny-msg-emoji">{funnyMsg.emoji}</div>
+                <div className="funny-msg-text">{funnyMsg.text}</div>
+              </div>
+            )}
+            <div className="countdown-bar mt-3">
+              <div className="countdown-bar-fill" style={{ animationDuration: '5s' }} />
+            </div>
+            <div className="text-muted small mt-1">Auto-reset za {countdown}s</div>
           </div>
           <div className="mt-3 d-flex flex-wrap gap-2 justify-content-center">
-            <button className="btn btn-primary" onClick={() => setStep(selectedItem?.pricing_mode === 'per_gram' ? 'grams' : 'item')}>Pridať ďalší</button>
+            <button
+              className="btn btn-primary"
+              onClick={() => { setCountdown(null); setStep(selectedItem?.pricing_mode === 'per_gram' ? 'grams' : 'item') }}
+            >
+              Pridať ďalší
+            </button>
             <button className="btn btn-outline-secondary" onClick={resetFlow}>Domov</button>
           </div>
         </Section>
@@ -424,23 +480,22 @@ const addItem = async (item, quantity) => {
       </div>
 
       {/* Pätička */}
-    <footer className="text-center mt-4">
-      <p className="small text-muted">&copy; {new Date().getFullYear()} Drink Counter.</p>
-      <ul className="small text-muted" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-        <li>1 kg sáčok → 28 g</li>
-        <li>500 g sáčok → 19,5 g</li>
-        <li>250 g sáčok → 14 g</li>
-        <li>100 g sáčok → 11 g</li>
-
-      </ul>
-    </footer>
+      <footer className="text-center mt-4">
+        <p className="small text-muted">&copy; {new Date().getFullYear()} Drink Counter.</p>
+        <ul className="small text-muted" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          <li>1 kg sáčok → 28 g</li>
+          <li>500 g sáčok → 19,5 g</li>
+          <li>250 g sáčok → 14 g</li>
+          <li>100 g sáčok → 11 g</li>
+        </ul>
+      </footer>
     </div>
   )
 }
 
 function Section({ title, children }) {
   return (
-    <div className="mb-4">
+    <div className="mb-4 fade-in-up">
       <h4 className="mb-3 text-center">{title}</h4>
       {children}
     </div>
