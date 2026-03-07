@@ -4,6 +4,7 @@ from django.db import models
 PRICING_CHOICES = (
     ("per_item", "per_item"),
     ("per_gram", "per_gram"),
+    ("per_ml", "per_ml"),
 )
 
 class Person(models.Model):

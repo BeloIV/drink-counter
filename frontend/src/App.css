@@ -238,6 +238,14 @@ code {
 }
 .choice-coffee:hover { transform: translateY(-6px) scale(1.04) !important; }
 
+.choice-cold-brew {
+  background: var(--cold-brew-bg) !important;
+  color: var(--cold-brew-color) !important;
+}
+.choice-cold-brew:hover { transform: translateY(-6px) scale(1.04) !important; }
+
+.form-text { color: var(--muted-color) !important; }
+
 /* ── Initials cards (no photo) ── */
 .choice-initials .overlay {
   /* subtle bottom-fade only — coloured gradient background is already readable */

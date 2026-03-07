@@ -23,8 +23,10 @@
   --fixed-grad-end: rgba(248,249,250,0);
   --beer-bg: #fff9e6;
   --coffee-bg: #fff4ec;
+  --cold-brew-bg: #e8f4fd;
   --beer-color: inherit;
   --coffee-color: inherit;
+  --cold-brew-color: inherit;
   --code-bg: #f3f4f6;
   --code-color: #d63384;
   --hr-color: #dee2e6;
@@ -62,8 +64,10 @@
     --fixed-grad-end: rgba(17,24,39,0);
     --beer-bg: #3d3214;
     --coffee-bg: #2d1c0f;
+    --cold-brew-bg: #0c2340;
     --beer-color: #fbbf24;
     --coffee-color: #fb923c;
+    --cold-brew-color: #7dd3fc;
     --code-bg: #374151;
     --code-color: #f9a8d4;
     --hr-color: #374151;
@@ -101,8 +105,10 @@
   --fixed-grad-end: rgba(17,24,39,0);
   --beer-bg: #3d3214;
   --coffee-bg: #2d1c0f;
+  --cold-brew-bg: #0c2340;
   --beer-color: #fbbf24;
   --coffee-color: #fb923c;
+  --cold-brew-color: #7dd3fc;
   --code-bg: #374151;
   --code-color: #f9a8d4;
   --hr-color: #374151;
@@ -139,8 +145,10 @@
   --fixed-grad-end: rgba(248,249,250,0);
   --beer-bg: #fff9e6;
   --coffee-bg: #fff4ec;
+  --cold-brew-bg: #e8f4fd;
   --beer-color: inherit;
   --coffee-color: inherit;
+  --cold-brew-color: inherit;
   --code-bg: #f3f4f6;
   --code-color: #d63384;
   --hr-color: #dee2e6;
