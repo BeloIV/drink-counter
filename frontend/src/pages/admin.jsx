@@ -4,6 +4,8 @@ import { api } from "../api"
 import { API_BASE } from "../config"
 import { ThemeToggle } from "../ThemeToggle"
 
+const PRICING_MODES = ['per_item', 'per_gram', 'per_ml']
+
 function ConfirmModal({ msg, onConfirm, onCancel }) {
   return (
     <div
@@ -39,6 +41,7 @@ export default function Admin() {
   const [form, setForm] = useState({ name: "", category_id: "", price: "", pricing_mode: "per_item", unit: "pcs", color: "#ffffff" })
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState("")
+  const [msgDuration, setMsgDuration] = useState(3500)
   const [editId, setEditId] = useState(null)
   const [editForm, setEditForm] = useState({ name: "", price: "", category_id: "", pricing_mode: "per_item", unit: "pcs", color: "#ffffff" })
 
@@ -143,9 +146,9 @@ const overlapsAny = (all, candidate, skipId = null) => {
   // Auto-dismiss message alert
   useEffect(() => {
     if (!msg) return
-    const t = setTimeout(() => setMsg(""), 3500)
+    const t = setTimeout(() => { setMsg(""); setMsgDuration(3500) }, msgDuration)
     return () => clearTimeout(t)
-  }, [msg])
+  }, [msg, msgDuration])
 
   // Sync displayDebts with debts (don't override mid-animation)
   useEffect(() => {
@@ -210,6 +213,7 @@ const overlapsAny = (all, candidate, skipId = null) => {
     e.preventDefault()
     setLoading(true)
     try {
+      await api.csrf().catch(() => {})
       await api.addItem({
         ...form,
         category_id: Number(form.category_id),
@@ -219,8 +223,14 @@ const overlapsAny = (all, candidate, skipId = null) => {
       setForm({ name:"", category_id:"", price:"", pricing_mode:"per_item", unit:"pcs", color:"#ffffff" })
       await load()
       setMsg("Položka pridaná")
-    } catch {
-      setMsg("Chyba pri ukladaní")
+    } catch (err) {
+      if (err.message?.includes("403")) {
+        sessionStorage.removeItem("adminAuthed")
+        setAuthed(false)
+        setMsg("Session vypršala – prihláste sa znova")
+      } else {
+        setMsg("Chyba pri ukladaní")
+      }
     }
     setLoading(false)
   }
@@ -262,6 +272,44 @@ const overlapsAny = (all, candidate, skipId = null) => {
     setTimeout(() => setSavedId(null), 600)
     cancelEditItem()
     setMsg("Položka upravená")
+  }
+
+  // ===== Cold Brew prefill =====
+  const prefillAsColdBrew = (coffeeItem) => {
+    const coldBrewCat = cats.find(c => c.name.toLowerCase() === 'cold brew')
+    if (!coldBrewCat) { setMsg('Najprv vytvor kategóriu "Cold Brew"'); return }
+
+    const biggestFilter = coffeeFilters.length > 0
+      ? coffeeFilters.reduce((max, f) => Number(f.extra_eur) > Number(max.extra_eur) ? f : max, coffeeFilters[0])
+      : null
+
+    const coffeePrice = Number(coffeeItem.price)  // €/g
+    const coffeeCost = 80 * coffeePrice            // 80g batch
+    const filterCost = biggestFilter ? Number(biggestFilter.extra_eur) : 0
+    const totalCost = coffeeCost + filterCost
+    const rawPerMl = totalCost / 1200
+    const pricePerMl = Math.ceil(rawPerMl * 1000) / 1000  // round up to 3 decimals
+
+    const filterNote = biggestFilter
+      ? ` + filter "${biggestFilter.label || `${biggestFilter.g_min}–${biggestFilter.g_max} g`}" ${filterCost.toFixed(2)} €`
+      : ''
+    setMsgDuration(20000)
+    setMsg(
+      `Kalkulácia: 80 g × ${coffeePrice.toFixed(3)} €/g = ${coffeeCost.toFixed(2)} €` +
+      filterNote +
+      ` ÷ 1200 ml = ${rawPerMl.toFixed(4)} €/ml → zaokrúhlené nahor: ${pricePerMl.toFixed(3)} €/ml`
+    )
+
+    setForm({
+      name: coffeeItem.name,
+      category_id: String(coldBrewCat.id),
+      pricing_mode: 'per_ml',
+      color: coffeeItem.color || '#ffffff',
+      price: String(pricePerMl),
+      unit: 'ml',
+    })
+    setShowAddItem(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   // ===== Osoby =====
@@ -517,7 +565,7 @@ const saveCoffeeFilter = async (id) => {
                       key={c.id}
                       className={`btn btn-sm ${filterCat===c.name?'btn-primary':'btn-outline-primary'} ${filterBounce==='c-'+c.name?'filter-btn-bounce':''}`}
                       onClick={() => setFilterWithBounce(setFilterCat, c.name, 'c-'+c.name)}
-                    >{c.name === 'Beer' ? '🍺' : c.name === 'Coffee' ? '☕' : '📦'} {c.name}</button>
+                    >{c.name === 'Beer' ? '🍺' : c.name === 'Coffee' ? '☕' : c.name === 'Cold Brew' ? '❄️' : '📦'} {c.name}</button>
                   ))}
                 </div>
               </div>
@@ -566,8 +614,7 @@ const saveCoffeeFilter = async (id) => {
                                 <label className="form-label small text-muted mb-1">Režim</label>
                                 <select className="form-select" value={editForm.pricing_mode}
                                   onChange={e=>setEditForm(f=>({...f, pricing_mode:e.target.value}))}>
-                                  <option value="per_item">per_item</option>
-                                  <option value="per_gram">per_gram</option>
+                                  {PRICING_MODES.map(m => <option key={m} value={m}>{m}</option>)}
                                 </select>
                               </div>
                               <div className="col-8">
@@ -618,6 +665,8 @@ const saveCoffeeFilter = async (id) => {
                                 <span className="fw-bold text-primary">
                                   {it.pricing_mode==='per_gram'
                                     ? `${Number(it.price).toFixed(3)} €/g`
+                                    : it.pricing_mode==='per_ml'
+                                    ? `${Number(it.price).toFixed(3)} €/ml`
                                     : `${Number(it.price).toFixed(2)} €`}
                                 </span>
                               </div>
@@ -639,6 +688,14 @@ const saveCoffeeFilter = async (id) => {
                                 Zmazať
                               </button>
                             </div>
+                            {it.category?.name === 'Coffee' && it.pricing_mode === 'per_gram' &&
+                              !items.some(x => x.pricing_mode === 'per_ml' && x.category?.name?.toLowerCase() === 'cold brew' && x.name.toLowerCase() === it.name.toLowerCase()) && (
+                              <div className="mt-2">
+                                <button className="btn btn-sm btn-outline-info w-100" onClick={() => prefillAsColdBrew(it)}>
+                                  ❄️ Pridať ako Cold Brew
+                                </button>
+                              </div>
+                            )}
                           </>
                         )}
                       </div>
@@ -680,14 +737,12 @@ const saveCoffeeFilter = async (id) => {
                       <div className="col-6">
                         <label className="form-label small text-muted mb-1">Režim</label>
                         <select className="form-select" value={form.pricing_mode} onChange={e=>setForm(f=>({...f, pricing_mode:e.target.value}))} required>
-                          <option value="per_item">per_item</option>
-                          <option value="per_gram">per_gram</option>
+                          {PRICING_MODES.map(m => <option key={m} value={m}>{m}</option>)}
                         </select>
                       </div>
                       <div className="col-8">
                         <label className="form-label small text-muted mb-1">Cena</label>
                         <input className="form-control" inputMode="decimal" value={form.price} onChange={e=>setForm(f=>({...f, price:e.target.value}))} required />
-                        <div className="form-text"><code>per_gram</code> = €/g &nbsp;|&nbsp; <code>per_item</code> = €/ks</div>
                       </div>
                       <div className="col-4">
                         <label className="form-label small text-muted mb-1">Farba</label>

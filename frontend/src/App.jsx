@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { API_BASE } from './config'
 import { api } from './api'
 import './App.css'
-import { FaBeer, FaCoffee } from 'react-icons/fa'
+import { FaBeer, FaCoffee, FaSnowflake } from 'react-icons/fa'
 import logo from '/favicon.png'
 import { useTheme } from './useTheme'
 import { getFunnyMessage } from './funnyMessages'
@@ -194,6 +194,9 @@ export default function App() {
     if (i.pricing_mode === 'per_gram') {
       setGrams('7')
       setStep('grams')
+    } else if (i.pricing_mode === 'per_ml') {
+      setGrams('200')
+      setStep('grams')
     } else {
       addItem(i, null)
     }
@@ -205,21 +208,22 @@ export default function App() {
     try {
       if (multi && selectedPersons.length > 0) {
         const n = selectedPersons.length
-        const isPerGram = item.pricing_mode === 'per_gram'
-        const qtyPerPerson = isPerGram ? Number(quantity) / n : undefined
+        const isPerUnit = item.pricing_mode === 'per_gram' || item.pricing_mode === 'per_ml'
+        const unit = item.pricing_mode === 'per_ml' ? 'ml' : 'g'
+        const qtyPerPerson = isPerUnit ? Number(quantity) / n : undefined
 
         await Promise.all(
           selectedPersons.map(p => api.addTransaction({
             person_id: p.id,
             item_id: item.id,
-            ...(isPerGram ? { quantity: qtyPerPerson } : {})
+            ...(isPerUnit ? { quantity: qtyPerPerson } : {})
           }))
         )
 
         await refreshSummary()
         setNotice(
-          isPerGram
-            ? `Pridané ${Number(quantity)} g (${(Number(quantity) / n).toFixed(2)} g/osoba) pre ${n} ľudí`
+          isPerUnit
+            ? `Pridané ${Number(quantity)} ${unit} (${(Number(quantity) / n).toFixed(2)} ${unit}/osoba) pre ${n} ľudí`
             : `Pridaný 1 ks pre ${n} ľudí`
         )
         setTimeout(() => setNotice(''), 3000)
@@ -362,6 +366,10 @@ export default function App() {
               <FaCoffee size={36} style={{ marginBottom: 6 }} />
               <div>Káva</div>
             </button>
+            <button className="choice choice-cold-brew" onClick={() => pickCategory('Cold Brew')}>
+              <FaSnowflake size={36} style={{ marginBottom: 6 }} />
+              <div>Cold Brew</div>
+            </button>
           </div>
           <div className="mt-3">
             <button className="btn btn-outline-secondary" onClick={resetFlow}>Späť</button>
@@ -371,7 +379,7 @@ export default function App() {
 
       {/* krok 3: typ nápoja */}
       {step === 'item' && (
-        <Section title={`Vyber ${selectedCategory === 'Beer' ? 'pivo' : 'kávu'}`}>
+        <Section title={`Vyber ${selectedCategory === 'Beer' ? 'pivo' : selectedCategory === 'Cold Brew' ? 'cold brew' : 'kávu'}`}>
           <div className="grid-choices">
             {categoryItems.map((i, idx) => {
               const bgColor = i.color || '#ffffff'
@@ -393,6 +401,8 @@ export default function App() {
                   <div className="small" style={{ color: isLight ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)' }}>
                     {i.pricing_mode === 'per_gram'
                       ? `${Number(i.price).toFixed(3)} €/g`
+                      : i.pricing_mode === 'per_ml'
+                      ? `${Number(i.price).toFixed(3)} €/ml`
                       : `${Number(i.price).toFixed(2)} €`}
                   </div>
                 </button>
@@ -406,14 +416,14 @@ export default function App() {
         </Section>
       )}
 
-      {/* krok 3b: gramáž pre kávu */}
+      {/* krok 3b: gramáž / ml */}
       {step === 'grams' && (
-        <Section title={`Koľko gramov kávy? ${multi ? `(delí sa medzi ${selectedPersons.length} os.)` : ''}`}>
+        <Section title={`Koľko ${selectedItem?.pricing_mode === 'per_ml' ? 'ml cold brew' : 'gramov kávy'}? ${multi ? `(delí sa medzi ${selectedPersons.length} os.)` : ''}`}>
           <div className="grid-choices">
-            {[15, 20, 30, 45, 60].map((g, idx) => (
+            {(selectedItem?.pricing_mode === 'per_ml' ? [200, 250, 400] : [15, 20, 30, 45, 60]).map((g, idx) => (
               <button key={g} className="choice choice-enter" onClick={() => addItem(selectedItem, g)} disabled={isSubmitting}
                 style={{ animationDelay: `${idx * 0.05}s` }}>
-                {g} g
+                {g} {selectedItem?.pricing_mode === 'per_ml' ? 'ml' : 'g'}
                 <div className="small text-muted">
                   ≈ {(Number(selectedItem.price) * g).toFixed(2)} €
                 </div>
@@ -464,7 +474,7 @@ export default function App() {
           <div className="mt-3 d-flex flex-wrap gap-2 justify-content-center">
             <button
               className="btn btn-primary"
-              onClick={() => { setCountdown(null); setStep(selectedItem?.pricing_mode === 'per_gram' ? 'grams' : 'item') }}
+              onClick={() => { setCountdown(null); setStep(selectedItem?.pricing_mode === 'per_gram' || selectedItem?.pricing_mode === 'per_ml' ? 'grams' : 'item') }}
             >
               Pridať ďalší
             </button>

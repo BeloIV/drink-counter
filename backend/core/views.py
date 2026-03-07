@@ -248,9 +248,9 @@ class TransactionView(APIView):
         item = ser.validated_data["item"]
         qty = ser.validated_data.get("quantity", Decimal("1.000"))
 
-        if item.pricing_mode == "per_gram":
+        if item.pricing_mode in ("per_gram", "per_ml"):
             total = (item.price * qty).quantize(Decimal("0.001"))
-            if (item.category and item.category.name.lower() == "coffee"):
+            if item.pricing_mode == "per_gram" and (item.category and item.category.name.lower() == "coffee"):
                 preset = (CoffeePreset.objects
                           .filter(g_min__lte=qty, g_max__gte=qty)
                           .order_by("g_min", "id")
