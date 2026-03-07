@@ -29,6 +29,7 @@ DEBUG = True
 ALLOWED_HOSTS = [
     "192.168.1.250", "localhost", "127.0.0.1",
     "drinkcounter.bytboyzserver.xyz",
+    "backend",
 ]
 
 

@@ -9,10 +9,12 @@ export default defineConfig({
     proxy: {
       // všetko na /api pošli do Django
       '/api': {
-        target: 'http://192.168.1.250:8001',
+        target: 'http://backend:8001',
         changeOrigin: true,
-        // ak na backende nemáš prefix /api v root-e, nechaj rewrite takto:
-        // rewrite: (path) => path,  // tu netreba meniť
+      },
+      '/media': {
+        target: 'http://backend:8001',
+        changeOrigin: true,
       },
     },
   },

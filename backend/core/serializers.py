@@ -4,7 +4,16 @@ from .models import Person, Category, Item, Session, Transaction, CoffeePreset
 
 class PersonSerializer(serializers.ModelSerializer):
     avatar = serializers.ImageField(required=False, allow_null=True)
-    
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Return relative URL instead of absolute (avoids leaking internal IP via tunnel)
+        if data.get("avatar"):
+            from urllib.parse import urlparse
+            parsed = urlparse(data["avatar"])
+            data["avatar"] = parsed.path
+        return data
+
     class Meta:
         model = Person
         fields = ["id", "name", "email", "avatar", "is_guest", "active", "created_at","total_beers","total_coffees"]
