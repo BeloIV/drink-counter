@@ -21,10 +21,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-o!wu-wv1!5^)*vvlmf&s6cop9e3le%tr2upd(#5qn8vmr)9dvl'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-o!wu-wv1!5^)*vvlmf&s6cop9e3le%tr2upd(#5qn8vmr)9dvl')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
 
 ALLOWED_HOSTS = [
     "192.168.1.250", "localhost", "127.0.0.1",
@@ -49,6 +49,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'core.middleware.SitePasswordMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -141,7 +142,9 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-CORS_ALLOW_ALL_ORIGINS = True
+DATA_UPLOAD_MAX_MEMORY_SIZE = 15 * 1024 * 1024  # 15 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 15 * 1024 * 1024  # 15 MB
+CORS_ALLOW_ALL_ORIGINS = False
 CSRF_TRUSTED_ORIGINS = [
     "http://192.168.1.250:5173",
     "http://192.168.1.250:8001",
@@ -152,8 +155,9 @@ CSRF_TRUSTED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 SESSION_COOKIE_SAMESITE = "Lax"   # pri lokálnom HTTP
 CSRF_COOKIE_SAMESITE = "Lax"
-CSRF_COOKIE_SECURE = False
-SESSION_COOKIE_SECURE = False
+_HTTPS = os.environ.get("HTTPS", "false").lower() == "true"
+CSRF_COOKIE_SECURE = _HTTPS
+SESSION_COOKIE_SECURE = _HTTPS
 CORS_ALLOWED_ORIGINS = [
     "http://192.168.1.250:5173",
     "http://localhost:5173",
@@ -161,6 +165,17 @@ CORS_ALLOWED_ORIGINS = [
 ]
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '200/day',
+        'admin_login': '10/hour',
+        'transactions': '120/minute',
+    },
 }
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Drink Counter API',
@@ -169,3 +184,6 @@ SPECTACULAR_SETTINGS = {
 
 
 ADMIN_PIN = os.getenv("ADMIN_PIN", "1234")
+PAYMENT_IBAN = os.getenv("PAYMENT_IBAN", "SK9365000000003650622489")
+PUBLIC_HOST = os.getenv("PUBLIC_HOST", "drinkcounter.bytboyzserver.xyz")
+SITE_PASSWORD = os.getenv("SITE_PASSWORD", "")

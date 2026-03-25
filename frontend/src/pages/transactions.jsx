@@ -3,6 +3,43 @@ import { Link } from "react-router-dom"
 import { api } from "../api"
 import { ThemeToggle } from "../ThemeToggle"
 
+function AdminLoginModal({ onSuccess, onCancel }) {
+  const [pin, setPin] = useState("")
+  const [err, setErr] = useState("")
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      await api.csrf()
+      await api.login(pin)
+      onSuccess()
+    } catch {
+      setErr("Nesprávny PIN")
+    }
+  }
+
+  return (
+    <div onClick={onCancel} style={{ position:'fixed', inset:0, zIndex:10000, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <form onClick={e => e.stopPropagation()} onSubmit={handleSubmit} className="card shadow-lg pop-in" style={{ maxWidth:320, width:'90%', padding:'2rem' }}>
+        <h5 className="text-center mb-3">Admin prihlásenie</h5>
+        {err && <div className="alert alert-danger py-1 mb-2">{err}</div>}
+        <input
+          type="password"
+          className="form-control mb-3"
+          placeholder="PIN"
+          value={pin}
+          onChange={e => setPin(e.target.value)}
+          autoFocus
+        />
+        <div className="d-flex gap-2">
+          <button type="submit" className="btn btn-primary flex-fill">Prihlásiť</button>
+          <button type="button" className="btn btn-secondary flex-fill" onClick={onCancel}>Zrušiť</button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
 function ConfirmModal({ msg, onConfirm, onCancel }) {
   return (
     <div
@@ -32,6 +69,8 @@ export default function Transactions() {
   const [editForm, setEditForm] = useState({ quantity: "", price_at_time: "" })
   const [confirmModal, setConfirmModal] = useState({ open: false, msg: "", onConfirm: null })
   const [errMsg, setErrMsg] = useState("")
+  const [loginModal, setLoginModal] = useState(false)
+  const [pendingAction, setPendingAction] = useState(null)
 
   const limit = 20
 
@@ -70,9 +109,13 @@ export default function Transactions() {
         setTransactions(prev => prev.filter(t => t.id !== tx.id))
         setTotalCount(prev => prev - 1)
       } catch (err) {
-        console.error(err)
-        setErrMsg("Chyba pri mazaní — skús sa prihlásiť do adminu a zopakuj.")
-        setTimeout(() => setErrMsg(""), 5000)
+        if (err.status === 403) {
+          setPendingAction(() => () => handleDelete(tx))
+          setLoginModal(true)
+        } else {
+          setErrMsg("Chyba pri mazaní.")
+          setTimeout(() => setErrMsg(""), 4000)
+        }
       }
     })
   }
@@ -97,9 +140,13 @@ export default function Transactions() {
       setTransactions(prev => prev.map(t => t.id === id ? updated : t))
       setEditId(null)
     } catch (err) {
-      console.error(err)
-      setErrMsg("Chyba pri úprave — skús sa prihlásiť do adminu a zopakuj.")
-      setTimeout(() => setErrMsg(""), 5000)
+      if (err.status === 403) {
+        setPendingAction(() => () => saveEdit(id))
+        setLoginModal(true)
+      } else {
+        setErrMsg("Chyba pri úprave.")
+        setTimeout(() => setErrMsg(""), 4000)
+      }
     }
   }
 
@@ -114,6 +161,16 @@ export default function Transactions() {
           msg={confirmModal.msg}
           onConfirm={confirmModal.onConfirm}
           onCancel={closeConfirm}
+        />
+      )}
+
+      {loginModal && (
+        <AdminLoginModal
+          onSuccess={() => {
+            setLoginModal(false)
+            if (pendingAction) { pendingAction(); setPendingAction(null) }
+          }}
+          onCancel={() => { setLoginModal(false); setPendingAction(null) }}
         />
       )}
 

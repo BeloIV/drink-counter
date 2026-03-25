@@ -1,6 +1,6 @@
 asgiref==3.9.1
 attrs==25.3.0
-Django==5.2.6
+Django==5.1
 django-cors-headers==4.7.0
 djangorestframework==3.16.1
 drf-spectacular==0.28.0
@@ -14,7 +14,7 @@ rpds-py==0.27.1
 sqlparse==0.5.3
 typing_extensions==4.15.0
 uritemplate==4.2.0
-Django>=4.2
+Django>=5.1
 psycopg2-binary>=2.9
 qrcode
 Pillow

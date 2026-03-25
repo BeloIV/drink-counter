@@ -7,6 +7,7 @@ import App from './App.jsx'
 import Admin from './pages/admin.jsx'
 import Transactions from './pages/transactions.jsx'
 import Users from './pages/users.jsx'
+import SiteAuth from './SiteAuth.jsx'
 
 const router = createBrowserRouter([
   { path: "/", element: <App /> },
@@ -16,5 +17,7 @@ const router = createBrowserRouter([
 ])
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <RouterProvider router={router} />
+  <SiteAuth>
+    <RouterProvider router={router} />
+  </SiteAuth>
 )

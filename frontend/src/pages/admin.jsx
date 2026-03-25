@@ -137,10 +137,7 @@ const overlapsAny = (all, candidate, skipId = null) => {
 
   useEffect(() => {
     api.csrf().catch(() => {})
-    if (sessionStorage.getItem("adminAuthed") === "true") {
-      setAuthed(true)
-      load()
-    }
+    api.adminCheck().then(() => { setAuthed(true); load() }).catch(() => {})
   }, [])
 
   // Auto-dismiss message alert
@@ -191,7 +188,6 @@ const overlapsAny = (all, candidate, skipId = null) => {
     try {
       await api.csrf()
       await api.login(pin)
-      sessionStorage.setItem("adminAuthed", "true")
       setAuthed(true)
       await load()
       setMsg("Prihlásený")
@@ -203,7 +199,6 @@ const overlapsAny = (all, candidate, skipId = null) => {
 
   const logout = async () => {
     await api.logout()
-    sessionStorage.removeItem("adminAuthed")
     setAuthed(false)
     setMsg("Odhlásený")
   }
@@ -334,8 +329,7 @@ const overlapsAny = (all, candidate, skipId = null) => {
 
   // ===== Kávové filtre (globálne CRUD) =====
   const loadCoffeeFilters = async () => {
-    const r = await fetch(`${API_BASE}/coffee-filters/`, { credentials: "include" })
-    const data = await r.json()
+    const data = await api.getCoffeeFilters()
     setCoffeeFilters(data)
   }
 
@@ -358,25 +352,12 @@ const addCoffeeFilter = async (e) => {
       }
     }
 
-    await api.csrf().catch(()=>{});
-    const res = await fetch(`${API_BASE}/coffee-filters/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        label: (cfForm.label || "").trim() || null,
-        g_min: normDec(cfForm.g_min, 3),
-        g_max: normDec(cfForm.g_max, 3),
-        extra_eur: normDec(cfForm.extra_eur, 3), // backend Decimal(3 places OK)
-
-      }),
-    });
-
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(`Server: ${res.status} ${txt}`);
-    }
-
+    await api.addCoffeeFilter({
+      label: (cfForm.label || "").trim() || null,
+      g_min: normDec(cfForm.g_min, 3),
+      g_max: normDec(cfForm.g_max, 3),
+      extra_eur: normDec(cfForm.extra_eur, 3),
+    })
     setCfForm({ label: "", g_min: "", g_max: "", extra_eur: ""});
     await loadCoffeeFilters();
     setMsg("Kávový filter pridaný");
@@ -422,36 +403,16 @@ const saveCoffeeFilter = async (id) => {
       }
     }
 
-    await api.csrf().catch(() => {}); // Ensure CSRF token is fetched
-    const csrfToken = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("csrftoken="))
-      ?.split("=")[1]; // Retrieve CSRF token from cookies
-
-    const res = await fetch(`${API_BASE}/coffee-filters/${id}/`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": csrfToken, // Include CSRF token in headers
-      },
-      credentials: "include",
-      body: JSON.stringify({
-        label: (cfEditForm.label || "").trim() || null,
-        g_min: normDec(cfEditForm.g_min, 3),
-        g_max: normDec(cfEditForm.g_max, 3),
-        extra_eur: normDec(cfEditForm.extra_eur, 3),
-        sort_order: normInt(cfEditForm.sort_order),
-        active: !!cfEditForm.active,
-        color: (cfEditForm.color || "").trim() || null,
-        note: (cfEditForm.note || "").trim() || null,
-      }),
-    });
-
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(`Server: ${res.status} ${txt}`);
-    }
-
+    await api.updateCoffeeFilter(id, {
+      label: (cfEditForm.label || "").trim() || null,
+      g_min: normDec(cfEditForm.g_min, 3),
+      g_max: normDec(cfEditForm.g_max, 3),
+      extra_eur: normDec(cfEditForm.extra_eur, 3),
+      sort_order: normInt(cfEditForm.sort_order),
+      active: !!cfEditForm.active,
+      color: (cfEditForm.color || "").trim() || null,
+      note: (cfEditForm.note || "").trim() || null,
+    })
     await loadCoffeeFilters();
     cancelEditCoffeeFilter();
     setMsg("Kávový filter upravený");
@@ -465,8 +426,7 @@ const saveCoffeeFilter = async (id) => {
   const deleteCoffeeFilter = (f) => {
     showConfirm(`Zmazať filter ${f.label ? `"${f.label}"` : `${f.g_min}–${f.g_max} g`}?`, async () => {
       closeConfirm()
-      await api.csrf().catch(() => {})
-      await fetch(`${API_BASE}/coffee-filters/${f.id}/`, { method: "DELETE", credentials: "include" })
+      await api.deleteCoffeeFilter(f.id)
       await loadCoffeeFilters()
       setMsg("Kávový filter zmazaný")
     })

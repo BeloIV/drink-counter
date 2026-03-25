@@ -26,7 +26,11 @@ async function request(path, { method = "GET", data } = {}) {
     if (token) opts.headers["X-CSRFToken"] = token
   }
   const res = await fetch(`${API_BASE}${path}`, opts)
-  if (!res.ok) throw new Error(await res.text())
+  if (!res.ok) {
+    const err = new Error(await res.text())
+    err.status = res.status
+    throw err
+  }
   return res.status === 204 ? null : res.json()
 }
 async function postJson(path, data) {
@@ -49,6 +53,7 @@ export const api = {
   addTransaction: (payload) => postJson("/transactions", payload),// <— dôležité
   login: (pin) => request("/auth/admin-login", { method: "POST", data: { pin } }),
   logout: () => request("/auth/admin-logout", { method: "POST" }),
+  adminCheck: () => request("/auth/admin-check"),
 
   categories: () => request("/categories/"),
   addCategory: (payload) => request("/categories/", { method: "POST", data: payload }),
@@ -59,15 +64,9 @@ export const api = {
   deleteItem: (id) => request(`/items/${id}/`, { method: "DELETE" }),
   resetDebt: (personId) => request(`/persons/${personId}/reset-debt`, { method:"POST" }),
   persons: () => request("/persons/"),
-   sessionActive: () => fetch(`${API_BASE}/session/active`, { credentials: "include" }).then(r=>r.json()),
+  sessionActive: () => request("/session/active"),
   // pridaj tieto funkcie do exportu api:
-addPerson: (payload) => fetch(`${API_BASE}/persons/`, {
-  method: "POST",
-  credentials: "include",
-  headers: { "Content-Type": "application/json",
-             "X-CSRFToken": (document.cookie.match(/csrftoken=([^;]+)/)||[])[1] || "" },
-  body: JSON.stringify(payload)
-}).then(r=>r.json()),
+addPerson: (payload) => request("/persons/", { method: "POST", data: payload }),
 
   // User management with avatar upload
   updatePerson: async (id, formData) => {
@@ -87,4 +86,10 @@ addPerson: (payload) => fetch(`${API_BASE}/persons/`, {
   getTransactions: (limit = 20, offset = 0) => request(`/transactions/list?limit=${limit}&offset=${offset}`),
   updateTransaction: (id, payload) => request(`/transactions/${id}`, { method: "PATCH", data: payload }),
   deleteTransaction: (id) => request(`/transactions/${id}`, { method: "DELETE" }),
+
+  // coffee filters
+  getCoffeeFilters: () => request("/coffee-filters/"),
+  addCoffeeFilter: (payload) => request("/coffee-filters/", { method: "POST", data: payload }),
+  updateCoffeeFilter: (id, payload) => request(`/coffee-filters/${id}/`, { method: "PATCH", data: payload }),
+  deleteCoffeeFilter: (id) => request(`/coffee-filters/${id}/`, { method: "DELETE" }),
 }

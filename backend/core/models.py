@@ -1,6 +1,9 @@
 from decimal import Decimal
 from django.db import models
 
+CATEGORY_COFFEE = "coffee"
+CATEGORY_BEER = "beer"
+
 PRICING_CHOICES = (
     ("per_item", "per_item"),
     ("per_gram", "per_gram"),
@@ -60,14 +63,6 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"{self.person.name} -> {self.item.name} x{self.quantity} = {self.price_at_time} €"
-
-
-class ResetEvent(models.Model):
-    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name="resets")
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Reset at {self.created_at}"
 
 
 # === Nový globálny model pre filtre kávy ===
