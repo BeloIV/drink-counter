@@ -75,6 +75,11 @@ class TransactionSerializer(serializers.ModelSerializer):
         fields = ["id", "session", "person", "item", "quantity", "price_at_time", "created_at"]
 
 
+class TransactionPatchSerializer(serializers.Serializer):
+    quantity = serializers.DecimalField(max_digits=8, decimal_places=3, required=False, min_value="0.001")
+    price_at_time = serializers.DecimalField(max_digits=10, decimal_places=3, required=False, min_value="0.000")
+
+
 class AdminLoginSerializer(serializers.Serializer):
     pin = serializers.CharField()
 

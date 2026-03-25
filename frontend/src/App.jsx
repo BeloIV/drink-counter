@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { API_BASE } from './config'
 import { api } from './api'
 import './App.css'
 import { FaBeer, FaCoffee, FaSnowflake } from 'react-icons/fa'
@@ -10,7 +9,7 @@ import { getFunnyMessage } from './funnyMessages'
 
 // ── PersonCard — defined outside App so React doesn't remount on every render ──
 function PersonCard({ p, multi, selected, debt, onClick, enterDelay }) {
-  const avatarUrl = p.avatar || null
+  const avatarUrl = p.avatar?.startsWith('/media/') ? p.avatar : null
   const btnRef = useRef(null)
   const prevSelected = useRef(selected)
 
@@ -108,16 +107,11 @@ export default function App() {
     return totalB - totalA
   })
 
-  const loadPersons = () => fetch(`${API_BASE}/persons/`).then(r => r.json()).then(setPersons)
-  const loadItems = () =>
-    fetch(`${API_BASE}/items/`)
-      .then(r => r.json())
-      .then(data => setItems(data.filter(i => i.active)))
-  const refreshSummary = () => fetch(`${API_BASE}/session/active`).then(r => r.json()).then(setSummary)
+  const loadPersons = () => api.persons().then(setPersons)
+  const loadItems = () => api.items('?active=true').then(data => setItems(Array.isArray(data) ? data : []))
+  const refreshSummary = () => api.sessionActive().then(setSummary)
 
-  useEffect(() => { loadPersons() }, [])
-  useEffect(() => { loadItems() }, [])
-  useEffect(() => { refreshSummary() }, [])
+  useEffect(() => { Promise.all([loadPersons(), loadItems(), refreshSummary()]) }, [])
 
   // sledovanie scroll pozície
   useEffect(() => {

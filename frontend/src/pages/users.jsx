@@ -15,11 +15,7 @@ export default function Users() {
   const [previewUrl, setPreviewUrl] = useState(null)
 
   useEffect(() => {
-    const s = sessionStorage.getItem("adminAuthed")
-    if (s === "true") {
-      setAuthed(true)
-      loadPersons()
-    }
+    api.adminCheck().then(() => { setAuthed(true); loadPersons() }).catch(() => {})
   }, [])
 
   const loadPersons = async () => {
@@ -32,7 +28,6 @@ export default function Users() {
     try {
       await api.csrf()
       await api.login(pin)
-      sessionStorage.setItem("adminAuthed", "true")
       setAuthed(true)
       loadPersons()
     } catch (err) {
@@ -42,7 +37,7 @@ export default function Users() {
 
   const handleLogout = async () => {
     await api.logout()
-    sessionStorage.removeItem("adminAuthed")
+
     setAuthed(false)
   }
 
@@ -53,7 +48,7 @@ export default function Users() {
       email: person.email || "", 
       avatar: null 
     })
-    setPreviewUrl(person.avatar || null)
+    setPreviewUrl(person.avatar?.startsWith('/media/') ? person.avatar : null)
     setMsg("")
   }
 
@@ -66,12 +61,19 @@ export default function Users() {
 
   const handleFileChange = (e) => {
     const file = e.target.files[0]
-    if (file) {
-      setEditForm({ ...editForm, avatar: file })
-      // Vytvor preview URL
-      const url = URL.createObjectURL(file)
-      setPreviewUrl(url)
+    if (!file) return
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    if (!allowed.includes(file.type)) {
+      setMsg("❌ Len obrázky (JPEG, PNG, WEBP, GIF)")
+      return
     }
+    if (file.size > 15 * 1024 * 1024) {
+      setMsg("❌ Max. veľkosť súboru je 15 MB")
+      return
+    }
+    setEditForm({ ...editForm, avatar: file })
+    const url = URL.createObjectURL(file)
+    setPreviewUrl(prev => { if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev); return url })
   }
 
   const handleSave = async (e) => {

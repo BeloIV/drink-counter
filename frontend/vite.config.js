@@ -7,14 +7,32 @@ export default defineConfig({
     host: true,
     allowedHosts: ['drinkcounter.bytboyzserver.xyz'],
     proxy: {
-      // všetko na /api pošli do Django
       '/api': {
         target: 'http://backend:8001',
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            proxyReq.setHeader('X-Forwarded-Host', req.headers.host || '')
+          })
+        },
       },
       '/media': {
         target: 'http://backend:8001',
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            proxyReq.setHeader('X-Forwarded-Host', req.headers.host || '')
+          })
+        },
+      },
+      '/__site-login__': {
+        target: 'http://backend:8001',
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            proxyReq.setHeader('X-Forwarded-Host', req.headers.host || '')
+          })
+        },
       },
     },
   },

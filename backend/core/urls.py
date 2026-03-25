@@ -6,7 +6,7 @@ from .views import (
     PersonViewSet, CategoryViewSet, ItemViewSet,
     SessionActiveView, SessionResetView,
     TransactionView, TransactionListView, TransactionDetailView, TransactionUndoView,
-    AdminLoginView, AdminLogoutView,ResetPersonDebtView,
+    AdminLoginView, AdminLogoutView, AdminCheckView, ResetPersonDebtView,
 CoffeePresetViewSet, GeneratePayBySquareView
 )
 
@@ -28,6 +28,7 @@ urlpatterns = [
     path("transactions/undo", TransactionUndoView.as_view()),
     path("auth/admin-login", AdminLoginView.as_view()),
     path("auth/admin-logout", AdminLogoutView.as_view()),
+    path("auth/admin-check", AdminCheckView.as_view()),
     path("health", HealthView.as_view()),
     path("auth/csrf", CsrfView.as_view()),
     path("persons/<int:pk>/reset-debt", ResetPersonDebtView.as_view()),
