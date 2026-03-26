@@ -86,6 +86,7 @@ addPerson: (payload) => request("/persons/", { method: "POST", data: payload }),
   getTransactions: (limit = 20, offset = 0) => request(`/transactions/list?limit=${limit}&offset=${offset}`),
   updateTransaction: (id, payload) => request(`/transactions/${id}`, { method: "PATCH", data: payload }),
   deleteTransaction: (id) => request(`/transactions/${id}`, { method: "DELETE" }),
+  undoTransaction: (personId) => request("/transactions/undo", { method: "POST", data: { person_id: personId } }),
 
   // coffee filters
   getCoffeeFilters: () => request("/coffee-filters/"),
