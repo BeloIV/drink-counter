@@ -301,7 +301,6 @@ class TransactionView(APIView):
 
 
 class TransactionUndoView(APIView):
-    permission_classes = [IsAdminSession]
 
     def post(self, request):
         s = get_active_session()

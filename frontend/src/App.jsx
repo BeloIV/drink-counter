@@ -33,7 +33,13 @@ function PersonCard({ p, multi, selected, debt, onClick, enterDelay }) {
       <div className="overlay">
         {!avatarUrl && <div className="initials-letter">{getInitials(p.name)}</div>}
         <div className="fw-bold">{p.name}</div>
-        <div className="small mt-1" style={{ color: 'rgba(255,255,255,0.85)' }}>
+        <div
+          className="small mt-1 fw-bold"
+          style={{
+            color: debt >= 20 ? '#ff6b6b' : debt >= 10 ? '#ffa94d' : 'rgba(255,255,255,0.85)',
+            textShadow: debt >= 10 ? '0 1px 4px rgba(0,0,0,0.9)' : 'none',
+          }}
+        >
           {debt.toFixed(2)} €
         </div>
       </div>
@@ -84,6 +90,7 @@ export default function App() {
   // countdown pre auto-reset na "done" kroku
   const [countdown, setCountdown] = useState(null)
   const [funnyMsg, setFunnyMsg] = useState(null)
+  const [isUndoing, setIsUndoing] = useState(false)
 
   // sledovanie scroll pozície
   const [isAtBottom, setIsAtBottom] = useState(false)
@@ -143,6 +150,21 @@ export default function App() {
     if (!selectedCategory) return []
     return items.filter(i => i.category?.name?.toLowerCase() === selectedCategory.toLowerCase())
   }, [items, selectedCategory])
+
+  const undoLast = async () => {
+    if (!selectedPerson || isUndoing) return
+    setIsUndoing(true)
+    try {
+      await api.undoTransaction(selectedPerson.id)
+      await refreshSummary()
+      resetFlow()
+    } catch {
+      setNotice('Undo sa nepodarilo')
+      setTimeout(() => setNotice(''), 3000)
+    } finally {
+      setIsUndoing(false)
+    }
+  }
 
   const resetFlow = () => {
     setStep('person')
@@ -471,6 +493,13 @@ export default function App() {
               onClick={() => { setCountdown(null); setStep(selectedItem?.pricing_mode === 'per_gram' || selectedItem?.pricing_mode === 'per_ml' ? 'grams' : 'item') }}
             >
               Pridať ďalší
+            </button>
+            <button
+              className="btn btn-outline-danger"
+              onClick={undoLast}
+              disabled={isUndoing}
+            >
+              {isUndoing ? 'Ruším…' : '↩ Undo'}
             </button>
             <button className="btn btn-outline-secondary" onClick={resetFlow}>Domov</button>
           </div>
