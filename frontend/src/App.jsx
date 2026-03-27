@@ -34,9 +34,9 @@ function PersonCard({ p, multi, selected, debt, onClick, enterDelay }) {
         {!avatarUrl && <div className="initials-letter">{getInitials(p.name)}</div>}
         <div className="fw-bold">{p.name}</div>
         <div
-          className="small mt-1 fw-bold"
+          className={`small mt-1 fw-bold debt-value${debt >= 30 ? ' debt-pulse-fast' : debt >= 25 ? ' debt-pulse-slow' : ''}`}
           style={{
-            color: debt >= 20 ? '#ff6b6b' : debt >= 10 ? '#ffa94d' : 'rgba(255,255,255,0.85)',
+            color: debt >= 20 ? '#ff4444' : debt >= 10 ? '#ffa94d' : 'rgba(255,255,255,0.85)',
             textShadow: debt >= 10 ? '0 1px 4px rgba(0,0,0,0.9)' : 'none',
           }}
         >
@@ -91,6 +91,8 @@ export default function App() {
   const [countdown, setCountdown] = useState(null)
   const [funnyMsg, setFunnyMsg] = useState(null)
   const [isUndoing, setIsUndoing] = useState(false)
+  const [showDebtModal, setShowDebtModal] = useState(false)
+  const [pendingAdd, setPendingAdd] = useState(null) // {item, quantity}
 
   // sledovanie scroll pozície
   const [isAtBottom, setIsAtBottom] = useState(false)
@@ -214,7 +216,7 @@ export default function App() {
       setGrams('200')
       setStep('grams')
     } else {
-      addItem(i, null)
+      maybeAddItem(i, null)
     }
   }
 
@@ -260,6 +262,19 @@ export default function App() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // kontrola dlhu pred pridaním
+  const maybeAddItem = (item, quantity) => {
+    const currentDebt = multi
+      ? Math.max(...selectedPersons.map(p => debts[p.id] ?? 0))
+      : (debts[selectedPerson?.id] ?? 0)
+    if (currentDebt >= 35) {
+      setPendingAdd({ item, quantity })
+      setShowDebtModal(true)
+      return
+    }
+    addItem(item, quantity)
   }
 
   // hosť
@@ -437,7 +452,7 @@ export default function App() {
         <Section title={`Koľko ${selectedItem?.pricing_mode === 'per_ml' ? 'ml cold brew' : 'gramov kávy'}? ${multi ? `(delí sa medzi ${selectedPersons.length} os.)` : ''}`}>
           <div className="grid-choices">
             {(selectedItem?.pricing_mode === 'per_ml' ? [200, 250, 400] : [15, 20, 30, 45, 60]).map((g, idx) => (
-              <button key={g} className="choice choice-enter" onClick={() => addItem(selectedItem, g)} disabled={isSubmitting}
+              <button key={g} className="choice choice-enter" onClick={() => maybeAddItem(selectedItem, g)} disabled={isSubmitting}
                 style={{ animationDelay: `${idx * 0.05}s` }}>
                 {g} {selectedItem?.pricing_mode === 'per_ml' ? 'ml' : 'g'}
                 <div className="small text-muted">
@@ -454,7 +469,7 @@ export default function App() {
                   value={grams}
                   onChange={e => setGrams(e.target.value)}
                 />
-                <button className="btn btn-primary" onClick={() => addItem(selectedItem, grams)} disabled={isSubmitting}>OK</button>
+                <button className="btn btn-primary" onClick={() => maybeAddItem(selectedItem, grams)} disabled={isSubmitting}>OK</button>
               </div>
               <div className="small text-muted mt-2">
                 {(Number(selectedItem?.price || 0) * Number(grams || 0)).toFixed(2)} €
@@ -511,6 +526,43 @@ export default function App() {
         <Link className="btn btn-outline-secondary" to="/admin">Admin</Link>
         <Link className="btn btn-outline-primary" to="/transactions">Transakcie</Link>
       </div>
+
+      {/* Modal: vysoký dlh ≥35 */}
+      {showDebtModal && (
+        <div className="debt-modal-overlay" onClick={() => setShowDebtModal(false)}>
+          <div className="debt-modal pop-in" onClick={e => e.stopPropagation()}>
+            <div className="debt-modal-icon">⚠️</div>
+            <div className="debt-modal-title">Vysoký dlh!</div>
+            <div className="debt-modal-body">
+              {multi
+                ? 'Niektorý z vybraných ľudí má dlh nad 35 €.'
+                : `${selectedPerson?.name} má dlh ${(debts[selectedPerson?.id] ?? 0).toFixed(2)} €.`}
+              <br />Najprv zaplaťte, prosím.
+            </div>
+            <div className="debt-modal-actions">
+              <button
+                className="btn btn-danger"
+                onClick={() => {
+                  setShowDebtModal(false)
+                  setPendingAdd(null)
+                }}
+              >
+                Zatvoriť
+              </button>
+              <button
+                className="btn btn-outline-secondary"
+                onClick={() => {
+                  setShowDebtModal(false)
+                  addItem(pendingAdd.item, pendingAdd.quantity)
+                  setPendingAdd(null)
+                }}
+              >
+                Aj tak pridať
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pätička */}
       <footer className="text-center mt-4">
