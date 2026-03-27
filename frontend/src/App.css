@@ -533,6 +533,43 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
+@keyframes debt-pulse-slow-anim {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.55; transform: scale(1.08); }
+}
+@keyframes debt-pulse-fast-anim {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(1.14); }
+}
+.debt-pulse-slow { animation: debt-pulse-slow-anim 1.6s ease-in-out infinite; }
+.debt-pulse-fast { animation: debt-pulse-fast-anim 0.7s ease-in-out infinite; }
+
+/* Modal: vysoký dlh */
+.debt-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(3px);
+}
+.debt-modal {
+  background: var(--card-bg);
+  border: 2px solid #ff4444;
+  border-radius: 16px;
+  padding: 2rem 1.5rem 1.5rem;
+  max-width: 340px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 0 32px rgba(255,68,68,0.35);
+}
+.debt-modal-icon  { font-size: 2.8rem; margin-bottom: 0.5rem; }
+.debt-modal-title { font-size: 1.4rem; font-weight: 700; color: #ff4444; margin-bottom: 0.6rem; }
+.debt-modal-body  { font-size: 0.95rem; margin-bottom: 1.4rem; opacity: 0.9; line-height: 1.5; }
+.debt-modal-actions { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+
 /* Alert dismiss progress bar */
 .alert-dismiss-bar {
   position: absolute;
