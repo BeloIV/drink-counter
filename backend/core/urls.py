@@ -7,7 +7,8 @@ from .views import (
     SessionActiveView, SessionResetView,
     TransactionView, TransactionListView, TransactionDetailView, TransactionUndoView,
     AdminLoginView, AdminLogoutView, AdminCheckView, ResetPersonDebtView,
-CoffeePresetViewSet, GeneratePayBySquareView
+    CoffeePresetViewSet, GeneratePayBySquareView,
+    ItemSettleView, ItemSetStockView, StatsView,
 )
 
 
@@ -33,5 +34,7 @@ urlpatterns = [
     path("auth/csrf", CsrfView.as_view()),
     path("persons/<int:pk>/reset-debt", ResetPersonDebtView.as_view()),
     path("persons/<int:pk>/pay-by-square/", GeneratePayBySquareView.as_view(), name="pay-by-square"),
-
+    path("items/<int:pk>/set-stock", ItemSetStockView.as_view(), name="item-set-stock"),
+    path("items/<int:pk>/settle", ItemSettleView.as_view(), name="item-settle"),
+    path("stats", StatsView.as_view()),
 ]

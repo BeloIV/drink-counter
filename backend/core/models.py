@@ -39,6 +39,7 @@ class Item(models.Model):
     note = models.CharField(max_length=200, blank=True, null=True)
     color = models.CharField(max_length=7, default="#ffffff")  # farba pre UI (hex format)
     active = models.BooleanField(default=True)
+    stock_quantity = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True)  # zostatok zásoby (g/ml/ks), null = nesleduje sa
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

@@ -62,6 +62,12 @@ export default function Admin() {
     extra_eur: "",
   })
 
+  // === STOCK / SETTLE MODALS ===
+  const [stockModal, setStockModal] = useState(null) // { item, onConfirm }
+  const [stockInput, setStockInput] = useState("")
+  const [settleModal, setSettleModal] = useState(null) // { item }
+  const [settleLoading, setSettleLoading] = useState(false)
+
   // === COLLAPSE STATE ===
   const [showAddItem, setShowAddItem] = useState(false)
   const [showCoffeeFilters, setShowCoffeeFilters] = useState(false)
@@ -96,6 +102,19 @@ const normInt = (v) => {
   const n = parseInt(v, 10);
   return Number.isNaN(n) ? 0 : n;
 };
+
+const stockUnit = (it) => {
+  if (it.pricing_mode === 'per_gram') return 'g'
+  if (it.pricing_mode === 'per_ml') return 'ml'
+  return 'ks'
+}
+
+const stockColor = (qty, unit) => {
+  const n = Number(qty)
+  if (unit === 'g') return n > 200 ? '#198754' : n > 50 ? '#fd7e14' : '#dc3545'
+  if (unit === 'ml') return n > 200 ? '#198754' : n > 50 ? '#fd7e14' : '#dc3545'
+  return n > 5 ? '#198754' : n > 1 ? '#fd7e14' : '#dc3545'
+}
 
 // základná validácia intervalu a prirážky
 const validateCoffeeFilter = ({ g_min, g_max, extra_eur }) => {
@@ -231,8 +250,25 @@ const overlapsAny = (all, candidate, skipId = null) => {
   }
 
   const toggleActiveItem = async (it) => {
-    await api.updateItem(it.id, { active: !it.active })
-    await load()
+    if (!it.active) {
+      // Aktivujeme → spýtaj sa na zásobu
+      setStockInput("")
+      setStockModal({
+        item: it,
+        onConfirm: async (stockQty) => {
+          setStockModal(null)
+          const payload = { active: true }
+          if (stockQty !== null) payload.stock_quantity = String(stockQty)
+          await api.updateItem(it.id, payload)
+          await load()
+          setMsg("Položka aktivovaná")
+        }
+      })
+    } else {
+      // Deaktivujeme
+      await api.updateItem(it.id, { active: false })
+      await load()
+    }
   }
 
   const startEditItem = (it) => {
@@ -244,12 +280,13 @@ const overlapsAny = (all, candidate, skipId = null) => {
       pricing_mode: it.pricing_mode || "per_item",
       unit: it.unit || (it.category?.name === "Coffee" ? "g" : "pcs"),
       color: it.color || "#ffffff",
+      stock_quantity: it.stock_quantity !== null && it.stock_quantity !== undefined ? String(it.stock_quantity) : null,
     })
   }
 
   const cancelEditItem = () => {
     setEditId(null)
-    setEditForm({ name:"", price:"", category_id:"", pricing_mode:"per_item", unit:"pcs", color:"#ffffff" })
+    setEditForm({ name:"", price:"", category_id:"", pricing_mode:"per_item", unit:"pcs", color:"#ffffff", stock_quantity: null })
   }
 
   const saveEditItem = async (id) => {
@@ -260,6 +297,7 @@ const overlapsAny = (all, candidate, skipId = null) => {
       pricing_mode: editForm.pricing_mode,
       unit: editForm.unit,
       color: editForm.color,
+      stock_quantity: editForm.stock_quantity !== null && editForm.stock_quantity !== "" ? String(editForm.stock_quantity) : null,
     }
     await api.updateItem(id, payload)
     await load()
@@ -267,6 +305,26 @@ const overlapsAny = (all, candidate, skipId = null) => {
     setTimeout(() => setSavedId(null), 600)
     cancelEditItem()
     setMsg("Položka upravená")
+  }
+
+  // ===== Settle =====
+  const openSettle = (it) => {
+    setSettleModal({ item: it })
+  }
+
+  const doSettle = async () => {
+    if (!settleModal) return
+    setSettleLoading(true)
+    try {
+      await api.csrf().catch(() => {})
+      const result = await api.settleItem(settleModal.item.id)
+      setSettleModal(null)
+      await load()
+      setMsg(`Rozrátané: ${result.remaining_value} € medzi ${result.count} domácich`)
+    } catch (e) {
+      setMsg(`Chyba pri rozrátaní: ${e.message || e}`)
+    }
+    setSettleLoading(false)
   }
 
   // ===== Cold Brew prefill =====
@@ -443,6 +501,78 @@ const saveCoffeeFilter = async (id) => {
         />
       )}
 
+      {/* ── Stock nastavenie modal ── */}
+      {stockModal && (
+        <div onClick={() => setStockModal(null)} style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <div className="card shadow-lg pop-in" style={{ maxWidth:360, width:'90%' }} onClick={e=>e.stopPropagation()}>
+            <div className="card-body p-4">
+              <div style={{ fontSize:'2rem', textAlign:'center', marginBottom:'0.5rem' }}>📦</div>
+              <h6 className="text-center mb-1">Aktivovať: <strong>{stockModal.item.name}</strong></h6>
+              <p className="text-muted small text-center mb-3">Koľko naskladniť? ({stockUnit(stockModal.item)})</p>
+              <input
+                className="form-control mb-3"
+                type="number"
+                min="0"
+                step="any"
+                placeholder={`Množstvo v ${stockUnit(stockModal.item)}`}
+                value={stockInput}
+                onChange={e => setStockInput(e.target.value)}
+                autoFocus
+              />
+              <div className="d-flex gap-2">
+                <button className="btn btn-success flex-fill" onClick={() => {
+                  const n = Number(stockInput.replace(',', '.'))
+                  if (!stockInput || isNaN(n) || n < 0) { setMsg("Zadaj platné množstvo"); return }
+                  stockModal.onConfirm(n)
+                }}>
+                  ✓ Aktivovať so zásobou
+                </button>
+                <button className="btn btn-outline-secondary" onClick={() => stockModal.onConfirm(null)}>
+                  Bez sledovania
+                </button>
+              </div>
+              <button className="btn btn-link btn-sm w-100 mt-2 text-muted" onClick={() => setStockModal(null)}>Zrušiť</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Settle modal ── */}
+      {settleModal && (() => {
+        const it = settleModal.item
+        const remaining = Number(it.stock_quantity || 0)
+        const value = (remaining * Number(it.price)).toFixed(2)
+        const unit = stockUnit(it)
+        const domestic = persons.filter(p => !p.is_guest && p.active)
+        const perPerson = domestic.length > 0 ? (Number(value) / domestic.length).toFixed(2) : '—'
+        return (
+          <div onClick={() => setSettleModal(null)} style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <div className="card shadow-lg pop-in" style={{ maxWidth:400, width:'90%' }} onClick={e=>e.stopPropagation()}>
+              <div className="card-body p-4">
+                <div style={{ fontSize:'2rem', textAlign:'center', marginBottom:'0.5rem' }}>⚖️</div>
+                <h6 className="text-center mb-3">Rozrátať zostatok</h6>
+                <table className="table table-sm mb-3">
+                  <tbody>
+                    <tr><td className="text-muted">Položka</td><td><strong>{it.name}</strong></td></tr>
+                    <tr><td className="text-muted">Zostatok</td><td><strong>{remaining.toFixed(1)} {unit}</strong></td></tr>
+                    <tr><td className="text-muted">Hodnota</td><td><strong>{value} €</strong></td></tr>
+                    <tr><td className="text-muted">Domáci</td><td>{domestic.map(p => p.name).join(', ') || '—'}</td></tr>
+                    <tr><td className="text-muted">Každý zaplatí</td><td><strong>{perPerson} €</strong></td></tr>
+                  </tbody>
+                </table>
+                <p className="text-muted small mb-3">Vytvorí sa transakcia pre každého domáceho a položka sa deaktivuje.</p>
+                <div className="d-flex gap-2">
+                  <button className="btn btn-warning flex-fill" disabled={settleLoading} onClick={doSettle}>
+                    {settleLoading ? '...' : '⚖️ Rozrátať'}
+                  </button>
+                  <button className="btn btn-secondary flex-fill" onClick={() => setSettleModal(null)}>Zrušiť</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* ── Hlavička ── */}
       <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <h2 className="mb-0">Admin</h2>
@@ -594,6 +724,21 @@ const saveCoffeeFilter = async (id) => {
                                 <input type="color" className="form-control form-control-color w-100" value={editForm.color}
                                   onChange={e=>setEditForm(f=>({...f, color:e.target.value}))} />
                               </div>
+                              <div className="col-12">
+                                <label className="form-label small text-muted mb-1">
+                                  📦 Zásoba ({editForm.pricing_mode === 'per_gram' ? 'g' : editForm.pricing_mode === 'per_ml' ? 'ml' : 'ks'}) <span className="text-muted">(prázdne = nesleduje sa)</span>
+                                </label>
+                                <input
+                                  className="form-control"
+                                  type="number"
+                                  min="0"
+                                  step="any"
+                                  inputMode="decimal"
+                                  value={editForm.stock_quantity ?? ""}
+                                  onChange={e => setEditForm(f => ({ ...f, stock_quantity: e.target.value === "" ? null : e.target.value }))}
+                                  placeholder="napr. 1000"
+                                />
+                              </div>
                             </div>
                             <div className="d-flex gap-2">
                               <button className="btn btn-success flex-fill" onClick={()=>saveEditItem(it.id)}>✓ Uložiť</button>
@@ -631,6 +776,19 @@ const saveCoffeeFilter = async (id) => {
                                 </span>
                               </div>
                             </div>
+                            {/* Zásoby */}
+                            {it.stock_quantity !== null && it.stock_quantity !== undefined && (
+                              <div className="d-flex align-items-center gap-2 mt-2 mb-1 px-1">
+                                <span className="text-muted small">📦 Zostatok:</span>
+                                <span className="fw-bold" style={{ color: stockColor(it.stock_quantity, stockUnit(it)) }}>
+                                  {Number(it.stock_quantity).toFixed(1)} {stockUnit(it)}
+                                </span>
+                                {Number(it.stock_quantity) <= 0 && (
+                                  <span className="badge bg-danger ms-1">VYČERPANÉ</span>
+                                )}
+                              </div>
+                            )}
+
                             <div className="d-flex gap-2 pt-2 border-top">
                               <button className="btn btn-sm btn-outline-primary flex-fill" onClick={()=>startEditItem(it)}>
                                 Upraviť
@@ -648,6 +806,14 @@ const saveCoffeeFilter = async (id) => {
                                 Zmazať
                               </button>
                             </div>
+                            {/* Settle tlačidlo */}
+                            {it.stock_quantity !== null && it.stock_quantity !== undefined && Number(it.stock_quantity) > 0 && (
+                              <div className="mt-2">
+                                <button className="btn btn-sm btn-outline-warning w-100" onClick={() => openSettle(it)}>
+                                  ⚖️ Rozrátať zostatok ({Number(it.stock_quantity).toFixed(1)} {stockUnit(it)})
+                                </button>
+                              </div>
+                            )}
                             {it.category?.name === 'Coffee' && it.pricing_mode === 'per_gram' &&
                               !items.some(x => x.pricing_mode === 'per_ml' && x.category?.name?.toLowerCase() === 'cold brew' && x.name.toLowerCase() === it.name.toLowerCase()) && (
                               <div className="mt-2">

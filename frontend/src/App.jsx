@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from './api'
 import './App.css'
@@ -7,24 +7,13 @@ import logo from '/favicon.png'
 import { useTheme } from './useTheme'
 import { getFunnyMessage } from './funnyMessages'
 
-// ── PersonCard — defined outside App so React doesn't remount on every render ──
-function PersonCard({ p, multi, selected, debt, onClick, enterDelay }) {
+// ── PersonCard — memo = re-renderuje len ked sa jej vlastné props zmenia ──
+const PersonCard = memo(function PersonCard({ p, multi, selected, debt, onClick, enterDelay }) {
   const avatarUrl = p.avatar?.startsWith('/media/') ? p.avatar : null
-  const btnRef = useRef(null)
-  const prevSelected = useRef(selected)
-
-  useEffect(() => {
-    if (selected && !prevSelected.current) {
-      btnRef.current?.classList.add('choice-just-selected')
-      setTimeout(() => btnRef.current?.classList.remove('choice-just-selected'), 250)
-    }
-    prevSelected.current = selected
-  }, [selected])
 
   return (
     <button
-      ref={btnRef}
-      className={`choice choice-enter ${!avatarUrl ? 'choice-initials' : ''} ${multi && selected ? 'selected' : ''}`}
+      className={`choice choice-enter ${!avatarUrl ? 'choice-initials' : ''} ${multi ? (selected ? 'multi-selected' : 'multi-dim') : ''}`}
       onClick={onClick}
       style={avatarUrl
         ? { backgroundImage: `url(${avatarUrl})`, animationDelay: enterDelay ?? '0s' }
@@ -43,10 +32,14 @@ function PersonCard({ p, multi, selected, debt, onClick, enterDelay }) {
           {debt.toFixed(2)} €
         </div>
       </div>
-      {multi && selected && <div className="tick">✓</div>}
+      {multi && (
+        <div className={`multi-check ${selected ? 'multi-check-on' : ''}`}>
+          {selected ? '✓' : ''}
+        </div>
+      )}
     </button>
   )
-}
+})
 
 // ── helpers ─────────────────────────────────────────────────────
 function nameGradient(name) {
@@ -93,9 +86,8 @@ export default function App() {
   const [isUndoing, setIsUndoing] = useState(false)
   const [showDebtModal, setShowDebtModal] = useState(false)
   const [pendingAdd, setPendingAdd] = useState(null) // {item, quantity}
-
-  // sledovanie scroll pozície
-  const [isAtBottom, setIsAtBottom] = useState(false)
+  const [stockWarning, setStockWarning] = useState(null) // { item, quantity, onConfirm }
+  const [lastOrder, setLastOrder] = useState(null)
 
   // dlhy mapované podľa person_id
   const debts = useMemo(() => {
@@ -122,19 +114,6 @@ export default function App() {
 
   useEffect(() => { Promise.all([loadPersons(), loadItems(), refreshSummary()]) }, [])
 
-  // sledovanie scroll pozície
-  useEffect(() => {
-    const handleScroll = () => {
-      const isBottom =
-        (window.innerHeight + (window.scrollY || document.documentElement.scrollTop)) >=
-        (document.documentElement.scrollHeight - 100)
-      setIsAtBottom(isBottom)
-    }
-    window.addEventListener('scroll', handleScroll)
-    handleScroll()
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
-
   // auto-reset countdown na "done" kroku
   useEffect(() => {
     if (step !== 'done' || countdown === null) return
@@ -158,7 +137,7 @@ export default function App() {
     setIsUndoing(true)
     try {
       await api.undoTransaction(selectedPerson.id)
-      await refreshSummary()
+      await Promise.all([refreshSummary(), loadItems()])
       resetFlow()
     } catch {
       setNotice('Undo sa nepodarilo')
@@ -177,16 +156,17 @@ export default function App() {
     setGrams('7')
     setCountdown(null)
     setFunnyMsg(null)
+    setLastOrder(null)
   }
 
   // --- výber osôb ---
-  const toggleMulti = () => {
+  const toggleMulti = useCallback(() => {
     setMulti(m => !m)
     setSelectedPersons([])
     setSelectedPerson(null)
-  }
+  }, [])
 
-  const onPersonClick = (p) => {
+  const onPersonClick = useCallback((p) => {
     if (!multi) {
       setSelectedPerson(p)
       setStep('category')
@@ -197,12 +177,12 @@ export default function App() {
       if (exists) return list.filter(x => x.id !== p.id)
       return [...list, p]
     })
-  }
+  }, [multi])
 
-  const continueFromMulti = () => {
+  const continueFromMulti = useCallback(() => {
     if (selectedPersons.length === 0) return
     setStep('category')
-  }
+  }, [selectedPersons.length])
 
   // --- výber kategórie a itemu ---
   const pickCategory = (c) => { setSelectedCategory(c); setSelectedItem(null); setStep('item') }
@@ -238,7 +218,7 @@ export default function App() {
           }))
         )
 
-        await refreshSummary()
+        await Promise.all([refreshSummary(), loadItems()])
         setNotice(
           isPerUnit
             ? `Pridané ${Number(quantity)} ${unit} (${(Number(quantity) / n).toFixed(2)} ${unit}/osoba) pre ${n} ľudí`
@@ -250,12 +230,13 @@ export default function App() {
       }
 
       if (!selectedPerson) return
-      await api.addTransaction({
+      const tx = await api.addTransaction({
         person_id: selectedPerson.id,
         item_id: item.id,
         ...(quantity !== null && quantity !== undefined ? { quantity: Number(quantity) } : {})
       })
-      await refreshSummary()
+      setLastOrder(tx)
+      await Promise.all([refreshSummary(), loadItems()])
       setFunnyMsg(getFunnyMessage())
       setCountdown(5)
       setStep('done')
@@ -266,6 +247,23 @@ export default function App() {
 
   // kontrola dlhu pred pridaním
   const maybeAddItem = (item, quantity) => {
+    // Stock check
+    if (item.stock_quantity !== null && item.stock_quantity !== undefined) {
+      const needed = item.pricing_mode === 'per_item'
+        ? (multi ? selectedPersons.length : 1)
+        : Number(quantity || 0)
+      if (needed > Number(item.stock_quantity)) {
+        setStockWarning({
+          item,
+          quantity,
+          available: Number(item.stock_quantity),
+          needed,
+          onConfirm: () => { setStockWarning(null); addItem(item, quantity) }
+        })
+        return
+      }
+    }
+    // Debt check
     const currentDebt = multi
       ? Math.max(...selectedPersons.map(p => debts[p.id] ?? 0))
       : (debts[selectedPerson?.id] ?? 0)
@@ -325,9 +323,10 @@ export default function App() {
           <div className="d-flex justify-content-between align-items-center mb-2">
             <h5 className="m-0">Vyber osobu</h5>
             <button className={`btn btn-sm ${multi ? 'btn-primary' : 'btn-outline-primary'}`} onClick={toggleMulti}>
-              {multi ? 'Viac osôb: zapnuté' : 'Viac osôb'}
+              {multi ? '👥 Viac osôb' : 'Viac osôb'}
             </button>
           </div>
+
 
           <Section title="Domáci">
             <div className="grid-choices">
@@ -365,17 +364,9 @@ export default function App() {
                 </div>
               </button>
             </div>
-
-            {multi && selectedPersons.length > 0 && isAtBottom && (
-              <div className="mt-3 text-center">
-                <button className="btn btn-success btn-lg" onClick={continueFromMulti}>
-                  Pokračovať ({selectedPersons.length})
-                </button>
-              </div>
-            )}
           </Section>
 
-          {multi && selectedPersons.length > 0 && !isAtBottom && (
+          {multi && selectedPersons.length > 0 && (
             <div className="fixed-bottom-button">
               <button className="btn btn-success btn-lg" onClick={continueFromMulti}>
                 Pokračovať ({selectedPersons.length})
@@ -389,18 +380,24 @@ export default function App() {
       {step === 'category' && (
         <Section title={`${multi ? `Vybraní: ${selectedPersons.length}` : `Ahoj, ${selectedPerson?.name}`} – čo piješ?`}>
           <div className="grid-choices">
-            <button className="choice choice-beer" onClick={() => pickCategory('Beer')}>
-              <FaBeer size={36} style={{ marginBottom: 6 }} />
-              <div>Pivo</div>
-            </button>
-            <button className="choice choice-coffee" onClick={() => pickCategory('Coffee')}>
-              <FaCoffee size={36} style={{ marginBottom: 6 }} />
-              <div>Káva</div>
-            </button>
-            <button className="choice choice-cold-brew" onClick={() => pickCategory('Cold Brew')}>
-              <FaSnowflake size={36} style={{ marginBottom: 6 }} />
-              <div>Cold Brew</div>
-            </button>
+            {items.some(i => i.category?.name?.toLowerCase() === 'beer') && (
+              <button className="choice choice-beer" onClick={() => pickCategory('Beer')}>
+                <FaBeer size={36} style={{ marginBottom: 6 }} />
+                <div>Pivo</div>
+              </button>
+            )}
+            {items.some(i => i.category?.name?.toLowerCase() === 'coffee') && (
+              <button className="choice choice-coffee" onClick={() => pickCategory('Coffee')}>
+                <FaCoffee size={36} style={{ marginBottom: 6 }} />
+                <div>Káva</div>
+              </button>
+            )}
+            {items.some(i => i.category?.name?.toLowerCase() === 'cold brew') && (
+              <button className="choice choice-cold-brew" onClick={() => pickCategory('Cold Brew')}>
+                <FaSnowflake size={36} style={{ marginBottom: 6 }} />
+                <div>Cold Brew</div>
+              </button>
+            )}
           </div>
           <div className="mt-3">
             <button className="btn btn-outline-secondary" onClick={resetFlow}>Späť</button>
@@ -436,6 +433,17 @@ export default function App() {
                       ? `${Number(i.price).toFixed(3)} €/ml`
                       : `${Number(i.price).toFixed(2)} €`}
                   </div>
+                  {i.stock_quantity !== null && i.stock_quantity !== undefined && (
+                    <div className="small mt-1" style={{
+                      color: Number(i.stock_quantity) < (i.pricing_mode === 'per_item' ? 3 : 50)
+                        ? '#fd7e14'
+                        : isLight ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.7)',
+                      fontWeight: Number(i.stock_quantity) < (i.pricing_mode === 'per_item' ? 3 : 50) ? '600' : 'normal',
+                    }}>
+                      📦 {Number(i.stock_quantity).toFixed(0)}{' '}
+                      {i.pricing_mode === 'per_gram' ? 'g' : i.pricing_mode === 'per_ml' ? 'ml' : 'ks'}
+                    </div>
+                  )}
                 </button>
               )
             })}
@@ -491,6 +499,15 @@ export default function App() {
             <div className="fs-5 mt-2">Aktuálny dlh pre</div>
             <div className="fs-3 fw-bold mb-2">{selectedPerson?.name}</div>
             <div className="display-6 fw-bold">{Number(personTotal).toFixed(2)} €</div>
+            {lastOrder && (
+              <div className="mt-2 mb-1 text-muted small">
+                {lastOrder.item?.name}
+                {lastOrder.item?.pricing_mode === 'per_gram' && ` · ${Number(lastOrder.quantity).toFixed(0)} g`}
+                {lastOrder.item?.pricing_mode === 'per_ml' && ` · ${Number(lastOrder.quantity).toFixed(0)} ml`}
+                {' · '}
+                <span className="text-success fw-bold">+{Number(lastOrder.price_at_time).toFixed(2)} €</span>
+              </div>
+            )}
             {funnyMsg && (
               <div className="funny-msg mt-3">
                 <div className="funny-msg-emoji">{funnyMsg.emoji}</div>
@@ -525,7 +542,26 @@ export default function App() {
       <div className="mt-4 text-center d-flex gap-2 justify-content-center">
         <Link className="btn btn-outline-secondary" to="/admin">Admin</Link>
         <Link className="btn btn-outline-primary" to="/transactions">Transakcie</Link>
+        <Link className="btn btn-outline-secondary" to="/stats">📊 Štatistiky</Link>
       </div>
+
+      {/* Modal: málo zásoby */}
+      {stockWarning && (
+        <div className="debt-modal-overlay" onClick={() => setStockWarning(null)}>
+          <div className="debt-modal pop-in" style={{ borderColor: '#fd7e14', boxShadow: '0 0 32px rgba(253,126,20,0.35)' }} onClick={e => e.stopPropagation()}>
+            <div className="debt-modal-icon">⚠️</div>
+            <div className="debt-modal-title" style={{ color: '#fd7e14' }}>Málo zásoby!</div>
+            <div className="debt-modal-body">
+              Dostupné: <strong>{stockWarning.available.toFixed(0)} {stockWarning.item.pricing_mode === 'per_gram' ? 'g' : stockWarning.item.pricing_mode === 'per_ml' ? 'ml' : 'ks'}</strong><br />
+              Potrebné: <strong>{stockWarning.needed.toFixed(0)} {stockWarning.item.pricing_mode === 'per_gram' ? 'g' : stockWarning.item.pricing_mode === 'per_ml' ? 'ml' : 'ks'}</strong>
+            </div>
+            <div className="debt-modal-actions">
+              <button className="btn btn-warning" onClick={stockWarning.onConfirm}>Aj tak pridať</button>
+              <button className="btn btn-outline-secondary" onClick={() => setStockWarning(null)}>Zrušiť</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal: vysoký dlh ≥35 */}
       {showDebtModal && (
@@ -580,7 +616,7 @@ export default function App() {
 
 function Section({ title, children }) {
   return (
-    <div className="mb-4 fade-in-up">
+    <div className="mb-4 step-zoom-in">
       <h4 className="mb-3 text-center">{title}</h4>
       {children}
     </div>

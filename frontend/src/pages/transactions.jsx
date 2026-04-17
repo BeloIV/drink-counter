@@ -144,8 +144,14 @@ export default function Transactions() {
         setPendingAction(() => () => saveEdit(id))
         setLoginModal(true)
       } else {
-        setErrMsg("Chyba pri úprave.")
-        setTimeout(() => setErrMsg(""), 4000)
+        try {
+          const detail = JSON.parse(err.message)
+          const msg = Object.entries(detail).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`).join(" | ")
+          setErrMsg(msg)
+        } catch {
+          setErrMsg("Chyba pri úprave.")
+        }
+        setTimeout(() => setErrMsg(""), 6000)
       }
     }
   }

@@ -42,7 +42,7 @@ class ItemSerializer(serializers.ModelSerializer):
             "id", "name",
             "category", "category_id",
             "price", "pricing_mode",
-            "note", "color", "active", "created_at"
+            "note", "color", "active", "stock_quantity", "created_at"
         ]
 
 
@@ -77,8 +77,8 @@ class TransactionSerializer(serializers.ModelSerializer):
 
 
 class TransactionPatchSerializer(serializers.Serializer):
-    quantity = serializers.DecimalField(max_digits=8, decimal_places=3, required=False, min_value=Decimal("0.001"))
-    price_at_time = serializers.DecimalField(max_digits=10, decimal_places=3, required=False, min_value=Decimal("0.000"))
+    quantity = serializers.DecimalField(max_digits=14, decimal_places=6, required=False)
+    price_at_time = serializers.DecimalField(max_digits=16, decimal_places=6, required=False)
 
 
 class AdminLoginSerializer(serializers.Serializer):
