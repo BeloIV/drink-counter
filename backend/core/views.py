@@ -1,5 +1,5 @@
 import base64
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from io import BytesIO
 
 import qrcode
@@ -25,7 +25,7 @@ from .permissions import ReadOnlyOrAdmin, IsAdminSession
 from .serializers import (
     PersonSerializer, CategorySerializer, ItemSerializer,
     SessionSerializer, TransactionCreateSerializer, TransactionSerializer,
-    TransactionPatchSerializer, AdminLoginSerializer, CoffeePresetSerializer
+    TransactionPatchSerializer, AdminLoginSerializer, CoffeePresetSerializer,
 )
 
 
@@ -229,10 +229,10 @@ class TransactionDetailView(APIView):
 
         update_fields = []
         if "quantity" in ser.validated_data:
-            tx.quantity = ser.validated_data["quantity"]
+            tx.quantity = ser.validated_data["quantity"].quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
             update_fields.append("quantity")
         if "price_at_time" in ser.validated_data:
-            tx.price_at_time = ser.validated_data["price_at_time"]
+            tx.price_at_time = ser.validated_data["price_at_time"].quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
             update_fields.append("price_at_time")
 
         if update_fields:
@@ -248,6 +248,7 @@ class TransactionDetailView(APIView):
         data = TransactionSerializer(tx).data
         with transaction.atomic():
             _decrement_person_counters(tx)
+            _restore_item_stock(tx)
             tx.delete()
         return Response({"deleted": data})
 
@@ -294,6 +295,15 @@ class TransactionView(APIView):
                     total_beers=F("total_beers") + 1
                 )
 
+            # odpočítaj zásobu
+            item.refresh_from_db(fields=["stock_quantity"])
+            if item.stock_quantity is not None:
+                new_stock = max(Decimal("0"), item.stock_quantity - qty)
+                update_stock = {"stock_quantity": new_stock}
+                if new_stock <= Decimal("0"):
+                    update_stock["active"] = False
+                Item.objects.filter(pk=item.pk).update(**update_stock)
+
         # ak potrebuješ aktuálne hodnoty v odpovedi:
         person.refresh_from_db(fields=["total_beers", "total_coffees"])
 
@@ -313,6 +323,7 @@ class TransactionUndoView(APIView):
         data = TransactionSerializer(t).data
         with transaction.atomic():
             _decrement_person_counters(t)
+            _restore_item_stock(t)
             t.delete()
         return Response({"undone": data})
 
@@ -334,6 +345,140 @@ def _decrement_person_counters(tx):
         Person.objects.filter(pk=tx.person_id).update(
             total_beers=Greatest(F("total_beers") - 1, 0)
         )
+
+
+def _restore_item_stock(tx):
+    """Vráti zásobu položky späť po zmazaní transakcie."""
+    item = tx.item
+    # Refresh priamo z DB aby sme mali aktuálnu hodnotu (nie stale in-memory)
+    item.refresh_from_db(fields=["stock_quantity", "active"])
+    if item.stock_quantity is None:
+        return
+    new_stock = item.stock_quantity + tx.quantity
+    update_kwargs = {"stock_quantity": new_stock}
+    # reaktivuj len ak bola deaktivovaná (pravdepodobne auto-deaktiváciou pri stock=0)
+    if not item.active and new_stock > Decimal("0"):
+        update_kwargs["active"] = True
+    Item.objects.filter(pk=item.pk).update(**update_kwargs)
+
+
+class StatsView(APIView):
+    def get(self, request):
+        from django.db.models import Sum, Count, Avg
+
+        persons_stats = list(
+            Person.objects.annotate(
+                total_spent=Sum("transactions__price_at_time"),
+                tx_count=Count("transactions"),
+            ).values("id", "name", "is_guest", "total_beers", "total_coffees", "total_spent", "tx_count")
+            .order_by("-total_spent")
+        )
+
+        top_items = list(
+            Transaction.objects.values(
+                "item__name", "item__category__name"
+            ).annotate(
+                count=Count("id"),
+                total_qty=Sum("quantity"),
+                total_eur=Sum("price_at_time"),
+            ).order_by("-count")[:10]
+        )
+
+        grand = Transaction.objects.aggregate(
+            total=Sum("price_at_time"),
+            count=Count("id"),
+        )
+
+        return Response({
+            "persons": persons_stats,
+            "top_items": top_items,
+            "grand_total": str(grand["total"] or 0),
+            "grand_count": grand["count"] or 0,
+        })
+
+
+# ===== Inventory / Stock =====
+class ItemSetStockView(APIView):
+    """POST: nastaví zásobu na položke"""
+    permission_classes = [IsAdminSession]
+
+    def post(self, request, pk):
+        try:
+            item = Item.objects.get(pk=pk)
+        except Item.DoesNotExist:
+            return Response({"error": "Item not found"}, status=404)
+
+        raw = request.data.get("stock_quantity")
+        if raw is None:
+            return Response({"error": "stock_quantity required"}, status=400)
+
+        try:
+            qty = Decimal(str(raw)).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
+            if qty < 0:
+                raise ValueError
+        except Exception:
+            return Response({"error": "stock_quantity must be a non-negative number"}, status=400)
+
+        Item.objects.filter(pk=pk).update(stock_quantity=qty)
+        item.refresh_from_db()
+        return Response(ItemSerializer(item).data)
+
+
+class ItemSettleView(APIView):
+    """POST: rozrátá zostatok zásoby medzi domácich užívateľov ako nové transakcie"""
+    permission_classes = [IsAdminSession]
+
+    def post(self, request, pk):
+        try:
+            item = Item.objects.get(pk=pk)
+        except Item.DoesNotExist:
+            return Response({"error": "Item not found"}, status=404)
+
+        if item.stock_quantity is None or item.stock_quantity <= Decimal("0"):
+            return Response({"error": "No stock to settle"}, status=400)
+
+        domestic = list(Person.objects.filter(is_guest=False, active=True).order_by("id"))
+        if not domestic:
+            return Response({"error": "No domestic users found"}, status=400)
+
+        remaining = item.stock_quantity
+        remaining_value = (remaining * item.price).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
+        count = len(domestic)
+        per_person = (remaining_value / count).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
+        qty_per_person = (remaining / count).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
+
+        s = get_active_session()
+        created = []
+
+        with transaction.atomic():
+            total_assigned = Decimal("0")
+            for i, person in enumerate(domestic):
+                if i == count - 1:
+                    # posledný dostane zvyšok (korrektúra zaokrúhlovania)
+                    share = (remaining_value - total_assigned).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
+                    qty_share = (remaining - (qty_per_person * i)).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
+                else:
+                    share = per_person
+                    qty_share = qty_per_person
+                    total_assigned += share
+
+                t = Transaction.objects.create(
+                    session=s,
+                    person=person,
+                    item=item,
+                    quantity=qty_share,
+                    price_at_time=share,
+                )
+                created.append(t)
+
+            Item.objects.filter(pk=pk).update(stock_quantity=Decimal("0"), active=False)
+
+        return Response({
+            "settled": TransactionSerializer(created, many=True).data,
+            "remaining_value": str(remaining_value),
+            "per_person": str(per_person),
+            "count": count,
+        }, status=status.HTTP_201_CREATED)
 
 
 # ===== Reset / Admin / Misc =====

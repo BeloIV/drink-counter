@@ -93,4 +93,11 @@ addPerson: (payload) => request("/persons/", { method: "POST", data: payload }),
   addCoffeeFilter: (payload) => request("/coffee-filters/", { method: "POST", data: payload }),
   updateCoffeeFilter: (id, payload) => request(`/coffee-filters/${id}/`, { method: "PATCH", data: payload }),
   deleteCoffeeFilter: (id) => request(`/coffee-filters/${id}/`, { method: "DELETE" }),
+
+  // stock / inventory
+  setStock: (id, stock_quantity) => request(`/items/${id}/set-stock`, { method: "POST", data: { stock_quantity } }),
+  settleItem: (id) => request(`/items/${id}/settle`, { method: "POST" }),
+
+  // stats
+  stats: () => request("/stats"),
 }

@@ -7,6 +7,7 @@ import App from './App.jsx'
 import Admin from './pages/admin.jsx'
 import Transactions from './pages/transactions.jsx'
 import Users from './pages/users.jsx'
+import Stats from './pages/stats.jsx'
 import SiteAuth from './SiteAuth.jsx'
 
 const router = createBrowserRouter([
@@ -14,6 +15,7 @@ const router = createBrowserRouter([
   { path: "/admin", element: <Admin /> },
   { path: "/transactions", element: <Transactions /> },
   { path: "/users", element: <Users /> },
+  { path: "/stats", element: <Stats /> },
 ])
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -21,3 +23,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <RouterProvider router={router} />
   </SiteAuth>
 )
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {})
+  })
+}
