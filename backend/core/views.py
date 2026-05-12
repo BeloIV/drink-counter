@@ -199,13 +199,20 @@ class TransactionListView(APIView):
     """GET: list transactions with pagination (limit/offset)"""
     def get(self, request):
         try:
-            limit = max(1, min(int(request.query_params.get("limit", 20)), 200))
+            limit = max(1, min(int(request.query_params.get("limit", 20)), 500))
             offset = max(0, int(request.query_params.get("offset", 0)))
         except (ValueError, TypeError):
             return Response({"error": "limit and offset must be integers"}, status=400)
-        
-        transactions = Transaction.objects.select_related("person", "item__category").order_by("-created_at")[offset:offset+limit]
-        total_count = Transaction.objects.count()
+
+        qs = Transaction.objects.select_related("person", "item__category").order_by("-created_at")
+        person_id = request.query_params.get("person_id")
+        if person_id:
+            ids = [i.strip() for i in person_id.split(",") if i.strip().isdigit()]
+            if ids:
+                qs = qs.filter(person_id__in=ids)
+
+        transactions = qs[offset:offset+limit]
+        total_count = qs.count()
         
         return Response({
             "results": TransactionSerializer(transactions, many=True).data,
@@ -273,7 +280,7 @@ class TransactionView(APIView):
                 if preset:
                     total = (total + preset.extra_eur).quantize(Decimal("0.001"))
         else:
-            total = item.price.quantize(Decimal("0.001"))
+            total = (item.price * qty).quantize(Decimal("0.001"))
 
         cat = (item.category.name.lower() if item.category and item.category.name else None)
 
@@ -292,22 +299,30 @@ class TransactionView(APIView):
                 )
             elif cat == CATEGORY_BEER:
                 Person.objects.filter(pk=person.pk).update(
-                    total_beers=F("total_beers") + 1
+                    total_beers=F("total_beers") + int(qty)
                 )
 
-            # odpočítaj zásobu
-            item.refresh_from_db(fields=["stock_quantity"])
+            # odpočítaj zásobu atomicky (bez race condition pri viacerých requestoch)
             if item.stock_quantity is not None:
-                new_stock = max(Decimal("0"), item.stock_quantity - qty)
-                update_stock = {"stock_quantity": new_stock}
-                if new_stock <= Decimal("0"):
-                    update_stock["active"] = False
-                Item.objects.filter(pk=item.pk).update(**update_stock)
+                Item.objects.filter(pk=item.pk).update(
+                    stock_quantity=Greatest(F("stock_quantity") - qty, Decimal("0"))
+                )
+                item.refresh_from_db(fields=["stock_quantity"])
+                if item.stock_quantity <= Decimal("0"):
+                    Item.objects.filter(pk=item.pk).update(active=False)
 
-        # ak potrebuješ aktuálne hodnoty v odpovedi:
+            # brew_count pre coffee per_gram — signál každých 10 varení
+            trigger_check = False
+            if cat == CATEGORY_COFFEE and item.pricing_mode == "per_gram":
+                Item.objects.filter(pk=item.pk).update(brew_count=F("brew_count") + 1)
+                item.refresh_from_db(fields=["brew_count"])
+                trigger_check = (item.brew_count % 10 == 0)
+
         person.refresh_from_db(fields=["total_beers", "total_coffees"])
 
-        return Response(TransactionSerializer(t).data, status=status.HTTP_201_CREATED)
+        data = TransactionSerializer(t).data
+        data["trigger_check"] = trigger_check
+        return Response(data, status=status.HTTP_201_CREATED)
 
 
 class TransactionUndoView(APIView):
@@ -343,7 +358,7 @@ def _decrement_person_counters(tx):
         )
     elif cat == CATEGORY_BEER:
         Person.objects.filter(pk=tx.person_id).update(
-            total_beers=Greatest(F("total_beers") - 1, 0)
+            total_beers=Greatest(F("total_beers") - int(tx.quantity), 0)
         )
 
 
