@@ -7,6 +7,141 @@ import logo from '/favicon.png'
 import { useTheme } from './useTheme'
 import { getFunnyMessage } from './funnyMessages'
 
+// ── bag tare weights (g) ──────────────────────────────────────────────────────
+const BAG_SIZES = [
+  { label: '1 kg sáčok', tare: 28 },
+  { label: '500 g sáčok', tare: 19.5 },
+  { label: '250 g sáčok', tare: 14 },
+  { label: '100 g sáčok', tare: 11 },
+  { label: 'Bez sáčka', tare: 0 },
+]
+
+function CoffeeCheckModal({ item, onClose, onUpdated }) {
+  const [measured, setMeasured] = useState('')
+  const [bagIdx, setBagIdx] = useState(0)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const tare = BAG_SIZES[bagIdx].tare
+  const measuredNum = parseFloat(String(measured).replace(',', '.'))
+  const net = isNaN(measuredNum) ? null : Math.max(0, measuredNum - tare)
+  const systemStock = item ? Number(item.stock_quantity) : 0
+  const diff = net !== null ? net - systemStock : null
+
+  const [saveErr, setSaveErr] = useState('')
+
+  const handleSave = async () => {
+    if (net === null || !item) return
+    setSaving(true)
+    setSaveErr('')
+    try {
+      await api.csrf().catch(() => {})
+      await api.setStock(item.id, net)
+      setSaved(true)
+      setTimeout(onUpdated, 800)
+    } catch (e) {
+      setSaving(false)
+      setSaveErr(e?.status === 403
+        ? 'Potrebné admin prihlásenie — zásobu uprav v Admin paneli.'
+        : 'Chyba pri ukladaní.')
+    }
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{ position:'fixed', inset:0, zIndex:10000, background:'rgba(0,0,0,0.65)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
+    >
+      <div className="card shadow-lg pop-in" style={{ maxWidth:400, width:'100%' }} onClick={e => e.stopPropagation()}>
+        <div className="card-body p-4">
+          <div style={{ fontSize:'2rem', textAlign:'center', marginBottom:'0.25rem' }}>⚖️</div>
+          <h5 className="text-center mb-1">Kontrola zásoby kávy</h5>
+          <p className="text-muted small text-center mb-3">Každých 10 šálok — odváž sáčok a skontrolujme zásoby.</p>
+
+          <p className="text-center fw-semibold mb-3">☕ {item.name}</p>
+
+          <div className="mb-3">
+            <label className="form-label small text-muted mb-1">Veľkosť sáčka (tara)</label>
+            <div className="d-flex flex-wrap gap-1">
+              {BAG_SIZES.map((b, idx) => (
+                <button
+                  key={idx}
+                  className={`btn btn-sm ${bagIdx === idx ? 'btn-primary' : 'btn-outline-secondary'}`}
+                  onClick={() => setBagIdx(idx)}
+                >
+                  {b.label}
+                  <span className="ms-1 text-muted" style={{ fontSize: 10 }}>({b.tare}g)</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label small text-muted mb-1">Nameraná hmotnosť sáčka (g)</label>
+            <input
+              className="form-control"
+              type="number"
+              inputMode="decimal"
+              placeholder="napr. 320"
+              value={measured}
+              onChange={e => setMeasured(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          {net !== null && (
+            <table className="table table-sm mb-3">
+              <tbody>
+                <tr>
+                  <td className="text-muted">Namerané</td>
+                  <td className="fw-semibold">{measuredNum.toFixed(1)} g</td>
+                </tr>
+                <tr>
+                  <td className="text-muted">Tara sáčka</td>
+                  <td>− {tare} g</td>
+                </tr>
+                <tr className="table-info">
+                  <td className="fw-bold">Čistá káva</td>
+                  <td className="fw-bold">{net.toFixed(1)} g</td>
+                </tr>
+                <tr>
+                  <td className="text-muted">Systém hovorí</td>
+                  <td>{systemStock.toFixed(1)} g</td>
+                </tr>
+                <tr className={diff === 0 ? 'table-success' : Math.abs(diff) < 20 ? 'table-warning' : 'table-danger'}>
+                  <td className="fw-bold">Rozdiel</td>
+                  <td className="fw-bold">
+                    {diff > 0 ? '+' : ''}{diff.toFixed(1)} g
+                    {' '}
+                    <span style={{ fontSize: 12, opacity: 0.8 }}>
+                      {diff === 0 ? '✓ Sedí' : diff > 0 ? '(viac než systém)' : '(menej než systém)'}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          )}
+
+          {saveErr && (
+            <div className="alert alert-danger py-2 small mb-2">{saveErr}</div>
+          )}
+          <div className="d-flex gap-2">
+            {net !== null && !saved && (
+              <button className="btn btn-success flex-fill" disabled={saving} onClick={handleSave}>
+                {saving ? '...' : '📦 Aktualizovať zásobu'}
+              </button>
+            )}
+            {saved && <div className="btn btn-success flex-fill disabled">✓ Uložené</div>}
+            <button className="btn btn-outline-secondary flex-fill" onClick={onClose}>
+              Zavrieť
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── PersonCard — memo = re-renderuje len ked sa jej vlastné props zmenia ──
 const PersonCard = memo(function PersonCard({ p, multi, selected, debt, onClick, enterDelay }) {
   const avatarUrl = p.avatar?.startsWith('/media/') ? p.avatar : null
@@ -88,6 +223,14 @@ export default function App() {
   const [pendingAdd, setPendingAdd] = useState(null) // {item, quantity}
   const [stockWarning, setStockWarning] = useState(null) // { item, quantity, onConfirm }
   const [lastOrder, setLastOrder] = useState(null)
+  const [coffeeCheckModal, setCoffeeCheckModal] = useState(null) // { coffeeItems }
+
+  // per_item qty picker (beer/ks items)
+  const [itemQty, setItemQty] = useState({})
+  const [itemQtyVersion, setItemQtyVersion] = useState({})
+  const itemQtyRef = useRef({})
+  const itemTimerRef = useRef({})
+  const maybeAddItemRef = useRef(null)
 
   // dlhy mapované podľa person_id
   const debts = useMemo(() => {
@@ -147,7 +290,64 @@ export default function App() {
     }
   }
 
+  const clearItemQty = (id) => {
+    if (itemTimerRef.current[id]) { clearTimeout(itemTimerRef.current[id]); delete itemTimerRef.current[id] }
+    delete itemQtyRef.current[id]
+    setItemQty(prev => { const { [id]: _, ...rest } = prev; return rest })
+    setItemQtyVersion(prev => { const { [id]: _, ...rest } = prev; return rest })
+  }
+
+  const scheduleItemSubmit = (item) => {
+    const id = item.id
+    if (itemTimerRef.current[id]) clearTimeout(itemTimerRef.current[id])
+    itemTimerRef.current[id] = setTimeout(() => {
+      const qty = itemQtyRef.current[id]
+      delete itemTimerRef.current[id]
+      delete itemQtyRef.current[id]
+      setItemQty(prev => { const { [id]: _, ...rest } = prev; return rest })
+      setItemQtyVersion(prev => { const { [id]: _, ...rest } = prev; return rest })
+      if (qty) maybeAddItemRef.current(item, qty)
+    }, 5000)
+  }
+
+  const onItemClick = (item) => {
+    if (item.pricing_mode !== 'per_item') { proceedItem(item); return }
+    const id = item.id
+    const newQty = (itemQtyRef.current[id] || 0) + 1
+    itemQtyRef.current[id] = newQty
+    setItemQty(prev => ({ ...prev, [id]: newQty }))
+    setItemQtyVersion(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }))
+    scheduleItemSubmit(item)
+  }
+
+  const onItemMinus = (item, e) => {
+    e.stopPropagation()
+    const id = item.id
+    const cur = itemQtyRef.current[id] || 0
+    if (cur <= 1) { clearItemQty(id); return }
+    const newQty = cur - 1
+    itemQtyRef.current[id] = newQty
+    setItemQty(prev => ({ ...prev, [id]: newQty }))
+    setItemQtyVersion(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }))
+    scheduleItemSubmit(item)
+  }
+
+  const onItemPlus = (item, e) => {
+    e.stopPropagation()
+    const id = item.id
+    const newQty = (itemQtyRef.current[id] || 0) + 1
+    itemQtyRef.current[id] = newQty
+    setItemQty(prev => ({ ...prev, [id]: newQty }))
+    setItemQtyVersion(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }))
+    scheduleItemSubmit(item)
+  }
+
   const resetFlow = () => {
+    Object.keys(itemTimerRef.current).forEach(id => clearTimeout(itemTimerRef.current[id]))
+    itemTimerRef.current = {}
+    itemQtyRef.current = {}
+    setItemQty({})
+    setItemQtyVersion({})
     setStep('person')
     setSelectedPerson(null)
     setSelectedPersons([])
@@ -210,7 +410,7 @@ export default function App() {
         const unit = item.pricing_mode === 'per_ml' ? 'ml' : 'g'
         const qtyPerPerson = isPerUnit ? Number(quantity) / n : undefined
 
-        await Promise.all(
+        const results = await Promise.all(
           selectedPersons.map(p => api.addTransaction({
             person_id: p.id,
             item_id: item.id,
@@ -226,6 +426,9 @@ export default function App() {
         )
         setTimeout(() => setNotice(''), 3000)
         setStep('person')
+
+        const triggerTx = results.find(tx => tx.trigger_check && tx.item?.stock_quantity !== null)
+        if (triggerTx) setCoffeeCheckModal({ item: triggerTx.item })
         return
       }
 
@@ -240,6 +443,12 @@ export default function App() {
       setFunnyMsg(getFunnyMessage())
       setCountdown(5)
       setStep('done')
+
+      // backend signalizuje každých 10 varení tej konkrétnej kávy
+      // tx.item.stock_quantity je už po odpočítaní aktuálnej šálky — správny aktuálny stav
+      if (tx.trigger_check && tx.item?.stock_quantity !== null) {
+        setCoffeeCheckModal({ item: tx.item })
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -249,8 +458,9 @@ export default function App() {
   const maybeAddItem = (item, quantity) => {
     // Stock check
     if (item.stock_quantity !== null && item.stock_quantity !== undefined) {
+      const perItemCount = quantity ? Number(quantity) : (multi ? selectedPersons.length : 1)
       const needed = item.pricing_mode === 'per_item'
-        ? (multi ? selectedPersons.length : 1)
+        ? perItemCount
         : Number(quantity || 0)
       if (needed > Number(item.stock_quantity)) {
         setStockWarning({
@@ -275,6 +485,8 @@ export default function App() {
     addItem(item, quantity)
   }
 
+  maybeAddItemRef.current = maybeAddItem
+
   // hosť
   const addGuest = async () => {
     const name = prompt('Meno hosťa:')
@@ -287,6 +499,13 @@ export default function App() {
 
   return (
     <div className="container py-3">
+      {coffeeCheckModal && (
+        <CoffeeCheckModal
+          item={coffeeCheckModal.item}
+          onClose={() => setCoffeeCheckModal(null)}
+          onUpdated={async () => { setCoffeeCheckModal(null); await loadItems() }}
+        />
+      )}
       <div className="d-flex justify-content-between align-items-center mb-3">
         <button
           className="btn btn-link p-0 text-decoration-none logo-header"
@@ -412,37 +631,77 @@ export default function App() {
             {categoryItems.map((i, idx) => {
               const bgColor = i.color || '#ffffff'
               const isLight = bgColor === '#ffffff' || bgColor.toLowerCase() === '#fff'
+              const qty = itemQty[i.id]
               return (
                 <button
                   key={i.id}
                   className="choice choice-enter"
                   disabled={isSubmitting}
-                  onClick={() => proceedItem(i)}
+                  onClick={() => onItemClick(i)}
                   style={{
                     backgroundColor: bgColor,
                     color: isLight ? '#000' : '#fff',
                     border: isLight ? '2px solid #ddd' : 'none',
                     animationDelay: `${idx * 0.06}s`,
+                    position: 'relative',
                   }}
                 >
-                  <div className="fw-bold">{i.name}</div>
-                  <div className="small" style={{ color: isLight ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)' }}>
-                    {i.pricing_mode === 'per_gram'
-                      ? `${Number(i.price).toFixed(3)} €/g`
-                      : i.pricing_mode === 'per_ml'
-                      ? `${Number(i.price).toFixed(3)} €/ml`
-                      : `${Number(i.price).toFixed(2)} €`}
-                  </div>
-                  {i.stock_quantity !== null && i.stock_quantity !== undefined && (
-                    <div className="small mt-1" style={{
-                      color: Number(i.stock_quantity) < (i.pricing_mode === 'per_item' ? 3 : 50)
-                        ? '#fd7e14'
-                        : isLight ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.7)',
-                      fontWeight: Number(i.stock_quantity) < (i.pricing_mode === 'per_item' ? 3 : 50) ? '600' : 'normal',
-                    }}>
-                      📦 {Number(i.stock_quantity).toFixed(0)}{' '}
-                      {i.pricing_mode === 'per_gram' ? 'g' : i.pricing_mode === 'per_ml' ? 'ml' : 'ks'}
+                  {qty ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: 6 }}>
+                      <div className="fw-semibold small" style={{ opacity: 0.75 }}>{i.name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <button
+                          onClick={(e) => onItemMinus(i, e)}
+                          style={{
+                            width: 32, height: 32, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                            background: isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.18)',
+                            color: isLight ? '#000' : '#fff', fontSize: 20, lineHeight: 1,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}
+                        >−</button>
+                        <span style={{ fontSize: '1.8rem', fontWeight: 800, minWidth: 36, textAlign: 'center' }}>{qty}</span>
+                        <button
+                          onClick={(e) => onItemPlus(i, e)}
+                          style={{
+                            width: 32, height: 32, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                            background: isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.18)',
+                            color: isLight ? '#000' : '#fff', fontSize: 20, lineHeight: 1,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}
+                        >+</button>
+                      </div>
+                      <div style={{ opacity: 0.65, fontSize: 11 }}>
+                        = {(Number(i.price) * qty).toFixed(2)} €
+                      </div>
+                      <div style={{ width: '75%', height: 3, background: isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.2)', borderRadius: 99, overflow: 'hidden', marginTop: 2 }}>
+                        <div
+                          key={itemQtyVersion[i.id]}
+                          style={{ height: '100%', borderRadius: 99, background: isLight ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.8)', animation: 'shrink-bar 5s linear forwards' }}
+                        />
+                      </div>
                     </div>
+                  ) : (
+                    <>
+                      <div className="fw-bold">{i.name}</div>
+                      <div className="small" style={{ color: isLight ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)' }}>
+                        {i.pricing_mode === 'per_gram'
+                          ? `${Number(i.price).toFixed(3)} €/g`
+                          : i.pricing_mode === 'per_ml'
+                          ? `${Number(i.price).toFixed(3)} €/ml`
+                          : `${Number(i.price).toFixed(2)} €`}
+                      </div>
+                      {i.stock_quantity !== null && i.stock_quantity !== undefined && (
+                        <div className="small mt-1" style={{
+                          color: Number(i.stock_quantity) < (i.pricing_mode === 'per_item' ? 3 : 50)
+                            ? '#fd7e14'
+                            : isLight ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.7)',
+                          fontWeight: Number(i.stock_quantity) < (i.pricing_mode === 'per_item' ? 3 : 50) ? '600' : 'normal',
+                        }}>
+                          📦 {Number(i.stock_quantity).toFixed(0)}{' '}
+                          {i.pricing_mode === 'per_gram' ? 'g' : i.pricing_mode === 'per_ml' ? 'ml' : 'ks'}
+                        </div>
+                      )}
+                    </>
                   )}
                 </button>
               )
@@ -504,6 +763,7 @@ export default function App() {
                 {lastOrder.item?.name}
                 {lastOrder.item?.pricing_mode === 'per_gram' && ` · ${Number(lastOrder.quantity).toFixed(0)} g`}
                 {lastOrder.item?.pricing_mode === 'per_ml' && ` · ${Number(lastOrder.quantity).toFixed(0)} ml`}
+                {lastOrder.item?.pricing_mode === 'per_item' && Number(lastOrder.quantity) > 1 && ` · ${Number(lastOrder.quantity).toFixed(0)} ks`}
                 {' · '}
                 <span className="text-success fw-bold">+{Number(lastOrder.price_at_time).toFixed(2)} €</span>
               </div>
