@@ -231,6 +231,7 @@ export default function App() {
   const itemQtyRef = useRef({})
   const itemTimerRef = useRef({})
   const maybeAddItemRef = useRef(null)
+  const goToCategoryRef = useRef(null)
 
   // dlhy mapované podľa person_id
   const debts = useMemo(() => {
@@ -360,6 +361,9 @@ export default function App() {
   }
 
   // --- výber osôb ---
+  const multiRef = useRef(multi)
+  multiRef.current = multi
+
   const toggleMulti = useCallback(() => {
     setMulti(m => !m)
     setSelectedPersons([])
@@ -367,9 +371,9 @@ export default function App() {
   }, [])
 
   const onPersonClick = useCallback((p) => {
-    if (!multi) {
+    if (!multiRef.current) {
       setSelectedPerson(p)
-      setStep('category')
+      goToCategoryRef.current()
       return
     }
     setSelectedPersons(list => {
@@ -377,15 +381,40 @@ export default function App() {
       if (exists) return list.filter(x => x.id !== p.id)
       return [...list, p]
     })
-  }, [multi])
+  }, [])
 
   const continueFromMulti = useCallback(() => {
     if (selectedPersons.length === 0) return
-    setStep('category')
+    goToCategoryRef.current()
   }, [selectedPersons.length])
 
+  const clearAllItemQty = () => {
+    Object.keys(itemTimerRef.current).forEach(id => clearTimeout(itemTimerRef.current[id]))
+    itemTimerRef.current = {}
+    itemQtyRef.current = {}
+    setItemQty({})
+    setItemQtyVersion({})
+  }
+
   // --- výber kategórie a itemu ---
+  const availableCategories = useMemo(() => {
+    const cats = []
+    if (items.some(i => i.category?.name?.toLowerCase() === 'beer')) cats.push('Beer')
+    if (items.some(i => i.category?.name?.toLowerCase() === 'coffee')) cats.push('Coffee')
+    if (items.some(i => i.category?.name?.toLowerCase() === 'cold brew')) cats.push('Cold Brew')
+    return cats
+  }, [items])
+
   const pickCategory = (c) => { setSelectedCategory(c); setSelectedItem(null); setStep('item') }
+
+  const goToCategory = () => {
+    if (availableCategories.length === 1) {
+      pickCategory(availableCategories[0])
+    } else {
+      setStep('category')
+    }
+  }
+  goToCategoryRef.current = goToCategory
 
   const proceedItem = (i) => {
     setSelectedItem(i)
@@ -527,22 +556,44 @@ export default function App() {
         </div>
       )}
 
-      {/* krokovník */}
-      <div className="steps mb-3">
-        <span className={step === 'person' ? 'active' : (selectedPerson || selectedPersons.length) ? 'done' : ''}>Osoba</span>
-        <span className={step === 'category' ? 'active' : selectedCategory ? 'done' : ''}>Kategória</span>
-        <span className={step === 'item' || step === 'grams' ? 'active' : step === 'done' ? 'done' : ''}>Typ</span>
-        <span className={step === 'grams' ? 'active' : ''}>Gramáž</span>
-        <span className={step === 'done' ? 'active' : ''}>Dlh</span>
-      </div>
+      {/* krokovník — skrytý na prvej obrazovke */}
+      {step !== 'person' && (
+        <div className="steps mb-3">
+          <span className={step === 'category' ? 'active' : selectedCategory ? 'done' : 'done'}>Osoba</span>
+          <span className={step === 'category' ? 'active' : selectedCategory ? 'done' : ''}>Kategória</span>
+          <span className={step === 'item' || step === 'grams' ? 'active' : step === 'done' ? 'done' : ''}>Typ</span>
+          <span className={step === 'grams' ? 'active' : ''}>Gramáž</span>
+          <span className={step === 'done' ? 'active' : ''}>Dlh</span>
+        </div>
+      )}
 
       {/* krok 1: výber osôb */}
       {step === 'person' && (
         <>
-          <div className="d-flex justify-content-between align-items-center mb-2">
+          <div className="d-flex justify-content-between align-items-center mb-3">
             <h5 className="m-0">Vyber osobu</h5>
-            <button className={`btn btn-sm ${multi ? 'btn-primary' : 'btn-outline-primary'}`} onClick={toggleMulti}>
-              {multi ? '👥 Viac osôb' : 'Viac osôb'}
+            <button
+              onClick={toggleMulti}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 18px', borderRadius: 12, cursor: 'pointer',
+                fontSize: '1rem', fontWeight: 600, lineHeight: 1,
+                border: `2px solid ${multi ? '#0d6efd' : 'rgba(128,128,128,0.35)'}`,
+                background: multi ? 'rgba(13,110,253,0.12)' : 'transparent',
+                color: multi ? '#0d6efd' : 'var(--body-color)',
+                transition: 'all 0.15s',
+              }}
+            >
+              <span style={{
+                width: 20, height: 20, borderRadius: 5, flexShrink: 0,
+                border: `2px solid ${multi ? '#0d6efd' : 'rgba(128,128,128,0.5)'}`,
+                background: multi ? '#0d6efd' : 'transparent',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.15s',
+              }}>
+                {multi && <span style={{ color: '#fff', fontSize: 12, fontWeight: 900, lineHeight: 1 }}>✓</span>}
+              </span>
+              Viac osôb
             </button>
           </div>
 
@@ -708,7 +759,7 @@ export default function App() {
             })}
           </div>
           <div className="mt-3 d-flex gap-2">
-            <button className="btn btn-outline-secondary" onClick={() => setStep('category')}>Späť</button>
+            <button className="btn btn-outline-secondary" onClick={() => { clearAllItemQty(); availableCategories.length === 1 ? resetFlow() : setStep('category') }}>Späť</button>
             <button className="btn btn-outline-secondary" onClick={resetFlow}>Zmeniť osobu</button>
           </div>
         </Section>
