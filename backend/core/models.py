@@ -40,6 +40,7 @@ class Item(models.Model):
     color = models.CharField(max_length=7, default="#ffffff")  # farba pre UI (hex format)
     active = models.BooleanField(default=True)
     stock_quantity = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True)  # zostatok zásoby (g/ml/ks), null = nesleduje sa
+    brew_count = models.PositiveIntegerField(default=0)  # interný počítadlo varení, nikde sa nezobrazuje
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
