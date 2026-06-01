@@ -20,12 +20,13 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
-from .models import Category, Item, Session, CoffeePreset, Person, Transaction, CATEGORY_COFFEE, CATEGORY_BEER
+from .models import Category, Item, Session, CoffeePreset, Person, Transaction, BrewBatch, BrewBatchIngredient, CATEGORY_COFFEE, CATEGORY_BEER
 from .permissions import ReadOnlyOrAdmin, IsAdminSession
 from .serializers import (
     PersonSerializer, CategorySerializer, ItemSerializer,
     SessionSerializer, TransactionCreateSerializer, TransactionSerializer,
     TransactionPatchSerializer, AdminLoginSerializer, CoffeePresetSerializer,
+    BrewBatchCreateSerializer, BrewBatchSerializer,
 )
 
 
@@ -540,6 +541,75 @@ class AdminCheckView(APIView):
 
     def get(self, request):
         return Response({"ok": True})
+
+
+class BrewBatchView(APIView):
+    permission_classes = [IsAdminSession]
+
+    def get(self, request):
+        batches = BrewBatch.objects.select_related(
+            "output_item"
+        ).prefetch_related(
+            "ingredients__coffee"
+        ).order_by("-created_at")[:30]
+        return Response(BrewBatchSerializer(batches, many=True).data)
+
+    def post(self, request):
+        ser = BrewBatchCreateSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        d = ser.validated_data
+
+        ingredients = d["ingredients"]  # list of {coffee: Item, grams: Decimal}
+        output = d["output_item"]
+        output_ml = d["output_ml"]
+
+        # Validate stock for each ingredient
+        for idx, ing in enumerate(ingredients):
+            coffee = ing["coffee"]
+            grams = ing["grams"]
+            if coffee.stock_quantity is not None and coffee.stock_quantity < grams:
+                return Response(
+                    {"error": f"Nedostatok zásoby pre {coffee.name}: {coffee.stock_quantity} g < {grams} g"},
+                    status=400,
+                )
+
+        with transaction.atomic():
+            # Deduct each coffee's stock
+            for ing in ingredients:
+                coffee = ing["coffee"]
+                grams = ing["grams"]
+                if coffee.stock_quantity is not None:
+                    Item.objects.filter(pk=coffee.pk).update(
+                        stock_quantity=Greatest(F("stock_quantity") - grams, Decimal("0"))
+                    )
+                    coffee.refresh_from_db(fields=["stock_quantity"])
+                    if coffee.stock_quantity <= Decimal("0"):
+                        Item.objects.filter(pk=coffee.pk).update(active=False)
+
+            # Add ml to output item (activate if was inactive)
+            if output.stock_quantity is None:
+                Item.objects.filter(pk=output.pk).update(stock_quantity=output_ml, active=True)
+            else:
+                Item.objects.filter(pk=output.pk).update(
+                    stock_quantity=F("stock_quantity") + output_ml,
+                    active=True,
+                )
+
+            batch = BrewBatch.objects.create(
+                output_item=output,
+                output_ml=output_ml,
+                note=d.get("note") or "",
+            )
+            for sort_idx, ing in enumerate(ingredients):
+                BrewBatchIngredient.objects.create(
+                    batch=batch,
+                    coffee=ing["coffee"],
+                    grams=ing["grams"],
+                    sort_order=sort_idx,
+                )
+
+        batch.refresh_from_db()
+        return Response(BrewBatchSerializer(batch).data, status=status.HTTP_201_CREATED)
 
 
 class HealthView(APIView):

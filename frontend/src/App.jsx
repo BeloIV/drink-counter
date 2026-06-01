@@ -1,11 +1,10 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { api } from './api'
 import './App.css'
 import { FaBeer, FaCoffee, FaSnowflake } from 'react-icons/fa'
 import logo from '/favicon.png'
-import { useTheme } from './useTheme'
 import { getFunnyMessage } from './funnyMessages'
+import { NavDrawer, HamburgerBtn } from './NavDrawer'
 
 // ── bag tare weights (g) ──────────────────────────────────────────────────────
 const BAG_SIZES = [
@@ -16,36 +15,15 @@ const BAG_SIZES = [
   { label: 'Bez sáčka', tare: 0 },
 ]
 
-function CoffeeCheckModal({ item, onClose, onUpdated }) {
+function CoffeeCheckModal({ item, onClose }) {
   const [measured, setMeasured] = useState('')
   const [bagIdx, setBagIdx] = useState(0)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
 
   const tare = BAG_SIZES[bagIdx].tare
   const measuredNum = parseFloat(String(measured).replace(',', '.'))
   const net = isNaN(measuredNum) ? null : Math.max(0, measuredNum - tare)
   const systemStock = item ? Number(item.stock_quantity) : 0
   const diff = net !== null ? net - systemStock : null
-
-  const [saveErr, setSaveErr] = useState('')
-
-  const handleSave = async () => {
-    if (net === null || !item) return
-    setSaving(true)
-    setSaveErr('')
-    try {
-      await api.csrf().catch(() => {})
-      await api.setStock(item.id, net)
-      setSaved(true)
-      setTimeout(onUpdated, 800)
-    } catch (e) {
-      setSaving(false)
-      setSaveErr(e?.status === 403
-        ? 'Potrebné admin prihlásenie — zásobu uprav v Admin paneli.'
-        : 'Chyba pri ukladaní.')
-    }
-  }
 
   return (
     <div
@@ -122,20 +100,15 @@ function CoffeeCheckModal({ item, onClose, onUpdated }) {
             </table>
           )}
 
-          {saveErr && (
-            <div className="alert alert-danger py-2 small mb-2">{saveErr}</div>
+          {diff !== null && diff !== 0 && (
+            <div className="alert alert-warning py-2 small mb-3">
+              Ak zásoby nesedia, uprav ich v <strong>Admin → položka → zásoby</strong>.
+            </div>
           )}
-          <div className="d-flex gap-2">
-            {net !== null && !saved && (
-              <button className="btn btn-success flex-fill" disabled={saving} onClick={handleSave}>
-                {saving ? '...' : '📦 Aktualizovať zásobu'}
-              </button>
-            )}
-            {saved && <div className="btn btn-success flex-fill disabled">✓ Uložené</div>}
-            <button className="btn btn-outline-secondary flex-fill" onClick={onClose}>
-              Zavrieť
-            </button>
-          </div>
+
+          <button className="btn btn-outline-secondary w-100" onClick={onClose}>
+            Zavrieť
+          </button>
         </div>
       </div>
     </div>
@@ -193,7 +166,7 @@ function getInitials(name) {
 // ────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { theme, toggle } = useTheme()
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const [persons, setPersons] = useState([])
   const [items, setItems] = useState([])
   const [summary, setSummary] = useState({ total: 0, per_person: [], session: null })
@@ -396,6 +369,22 @@ export default function App() {
     setItemQtyVersion({})
   }
 
+  const submitAllPending = useCallback(() => {
+    const pendingIds = Object.keys(itemQtyRef.current)
+    if (!pendingIds.length) return
+    pendingIds.forEach(id => {
+      if (itemTimerRef.current[id]) { clearTimeout(itemTimerRef.current[id]); delete itemTimerRef.current[id] }
+    })
+    const toSubmit = pendingIds.map(id => ({
+      qty: itemQtyRef.current[id],
+      item: categoryItems.find(i => String(i.id) === id),
+    })).filter(x => x.qty && x.item)
+    itemQtyRef.current = {}
+    setItemQty({})
+    setItemQtyVersion({})
+    toSubmit.forEach(({ item, qty }) => maybeAddItemRef.current(item, qty))
+  }, [categoryItems])
+
   // --- výber kategórie a itemu ---
   const availableCategories = useMemo(() => {
     const cats = []
@@ -437,20 +426,27 @@ export default function App() {
         const n = selectedPersons.length
         const isPerUnit = item.pricing_mode === 'per_gram' || item.pricing_mode === 'per_ml'
         const unit = item.pricing_mode === 'per_ml' ? 'ml' : 'g'
-        const qtyPerPerson = isPerUnit ? Number(quantity) / n : undefined
+        // cold brew (per_ml): každý dostane plnú hodnotu; káva (per_gram): rozdelí sa medzi ľudí
+        const qtyEach = item.pricing_mode === 'per_ml'
+          ? Number(quantity)
+          : item.pricing_mode === 'per_gram'
+          ? Number(quantity) / n
+          : undefined
 
         const results = await Promise.all(
           selectedPersons.map(p => api.addTransaction({
             person_id: p.id,
             item_id: item.id,
-            ...(isPerUnit ? { quantity: qtyPerPerson } : {})
+            ...(isPerUnit ? { quantity: qtyEach } : {})
           }))
         )
 
         await Promise.all([refreshSummary(), loadItems()])
         setNotice(
-          isPerUnit
-            ? `Pridané ${Number(quantity)} ${unit} (${(Number(quantity) / n).toFixed(2)} ${unit}/osoba) pre ${n} ľudí`
+          item.pricing_mode === 'per_ml'
+            ? `Pridané ${Number(quantity)} ml/osoba pre ${n} ľudí`
+            : item.pricing_mode === 'per_gram'
+            ? `Pridané ${Number(quantity)} g → ${qtyEach.toFixed(1)} g/osoba pre ${n} ľudí`
             : `Pridaný 1 ks pre ${n} ľudí`
         )
         setTimeout(() => setNotice(''), 3000)
@@ -490,6 +486,8 @@ export default function App() {
       const perItemCount = quantity ? Number(quantity) : (multi ? selectedPersons.length : 1)
       const needed = item.pricing_mode === 'per_item'
         ? perItemCount
+        : item.pricing_mode === 'per_ml' && multi
+        ? Number(quantity || 0) * (multi ? selectedPersons.length : 1)
         : Number(quantity || 0)
       if (needed > Number(item.stock_quantity)) {
         setStockWarning({
@@ -528,11 +526,11 @@ export default function App() {
 
   return (
     <div className="container py-3">
+      <NavDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       {coffeeCheckModal && (
         <CoffeeCheckModal
           item={coffeeCheckModal.item}
           onClose={() => setCoffeeCheckModal(null)}
-          onUpdated={async () => { setCoffeeCheckModal(null); await loadItems() }}
         />
       )}
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -543,9 +541,7 @@ export default function App() {
           <img src={logo} alt="Drink Counter logo" />
           <h2>Drink Counter</h2>
         </button>
-        <button className="theme-toggle" onClick={toggle} title="Prepnúť tému">
-          {theme === 'dark' ? '☀️' : '🌙'}
-        </button>
+        <HamburgerBtn onClick={() => setDrawerOpen(true)} />
       </div>
 
       {/* INFO / notice */}
@@ -646,6 +642,14 @@ export default function App() {
         </>
       )}
 
+      {step === 'item' && Object.keys(itemQty).length > 0 && (
+        <div className="fixed-bottom-button">
+          <button className="btn btn-success btn-lg" onClick={submitAllPending} disabled={isSubmitting}>
+            ✓ Pridať ({Object.values(itemQty).reduce((s, q) => s + q, 0)} ks)
+          </button>
+        </div>
+      )}
+
       {/* krok 2: kategória */}
       {step === 'category' && (
         <Section title={`${multi ? `Vybraní: ${selectedPersons.length}` : `Ahoj, ${selectedPerson?.name}`} – čo piješ?`}>
@@ -690,7 +694,7 @@ export default function App() {
                   disabled={isSubmitting}
                   onClick={() => onItemClick(i)}
                   style={{
-                    backgroundColor: bgColor,
+                    background: bgColor,
                     color: isLight ? '#000' : '#fff',
                     border: isLight ? '2px solid #ddd' : 'none',
                     animationDelay: `${idx * 0.06}s`,
@@ -767,17 +771,31 @@ export default function App() {
 
       {/* krok 3b: gramáž / ml */}
       {step === 'grams' && (
-        <Section title={`Koľko ${selectedItem?.pricing_mode === 'per_ml' ? 'ml cold brew' : 'gramov kávy'}? ${multi ? `(delí sa medzi ${selectedPersons.length} os.)` : ''}`}>
+        <Section title={
+          selectedItem?.pricing_mode === 'per_ml'
+            ? `Koľko ml cold brew? ${multi ? `(každý dostane toľko)` : ''}`
+            : `Koľko gramov kávy? ${multi && selectedPersons.length > 1 ? `(rozdelí sa medzi ${selectedPersons.length} ľudí)` : ''}`
+        }>
           <div className="grid-choices">
-            {(selectedItem?.pricing_mode === 'per_ml' ? [200, 250, 400] : [15, 20, 30, 45, 60]).map((g, idx) => (
+            {(selectedItem?.pricing_mode === 'per_ml' ? [200, 250, 400] : [15, 20, 30, 45, 60]).map((g, idx) => {
+              const n = multi ? selectedPersons.length : 1
+              const eachG = selectedItem?.pricing_mode === 'per_gram' && n > 1 ? g / n : g
+              const totalPrice = selectedItem?.pricing_mode === 'per_gram'
+                ? Number(selectedItem.price) * eachG
+                : Number(selectedItem.price) * g
+              return (
               <button key={g} className="choice choice-enter" onClick={() => maybeAddItem(selectedItem, g)} disabled={isSubmitting}
                 style={{ animationDelay: `${idx * 0.05}s` }}>
                 {g} {selectedItem?.pricing_mode === 'per_ml' ? 'ml' : 'g'}
+                {selectedItem?.pricing_mode === 'per_gram' && n > 1 && (
+                  <div className="small text-muted">{eachG.toFixed(1)} g/os.</div>
+                )}
                 <div className="small text-muted">
-                  ≈ {(Number(selectedItem.price) * g).toFixed(2)} €
+                  ≈ {totalPrice.toFixed(2)} €/os.
                 </div>
               </button>
-            ))}
+            )})}
+
             <div className="choice choice-enter" style={{ animationDelay: '0.25s' }}>
               <div className="mb-2">Vlastné</div>
               <div className="input-group">
@@ -849,13 +867,6 @@ export default function App() {
         </Section>
       )}
 
-      {/* odkaz na admin */}
-      <div className="mt-4 text-center d-flex gap-2 justify-content-center">
-        <Link className="btn btn-outline-secondary" to="/admin">Admin</Link>
-        <Link className="btn btn-outline-primary" to="/transactions">Transakcie</Link>
-        <Link className="btn btn-outline-secondary" to="/stats">📊 Štatistiky</Link>
-      </div>
-
       {/* Modal: málo zásoby */}
       {stockWarning && (
         <div className="debt-modal-overlay" onClick={() => setStockWarning(null)}>
@@ -914,12 +925,6 @@ export default function App() {
       {/* Pätička */}
       <footer className="text-center mt-4">
         <p className="small text-muted">&copy; {new Date().getFullYear()} Drink Counter.</p>
-        <ul className="small text-muted" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-          <li>1 kg sáčok → 28 g</li>
-          <li>500 g sáčok → 19,5 g</li>
-          <li>250 g sáčok → 14 g</li>
-          <li>100 g sáčok → 11 g</li>
-        </ul>
       </footer>
     </div>
   )

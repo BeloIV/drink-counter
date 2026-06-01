@@ -1,6 +1,6 @@
 from decimal import Decimal
 from rest_framework import serializers
-from .models import Person, Category, Item, Session, Transaction, CoffeePreset
+from .models import Person, Category, Item, Session, Transaction, CoffeePreset, BrewBatch, BrewBatchIngredient
 
 
 class PersonSerializer(serializers.ModelSerializer):
@@ -79,6 +79,40 @@ class TransactionSerializer(serializers.ModelSerializer):
 class TransactionPatchSerializer(serializers.Serializer):
     quantity = serializers.DecimalField(max_digits=14, decimal_places=6, required=False)
     price_at_time = serializers.DecimalField(max_digits=16, decimal_places=6, required=False)
+
+
+class BrewBatchIngredientInputSerializer(serializers.Serializer):
+    coffee_id = serializers.PrimaryKeyRelatedField(source="coffee", queryset=Item.objects.all())
+    grams = serializers.DecimalField(max_digits=8, decimal_places=3, min_value=Decimal("0.001"))
+
+
+class BrewBatchCreateSerializer(serializers.Serializer):
+    ingredients = BrewBatchIngredientInputSerializer(many=True)
+    output_item_id = serializers.PrimaryKeyRelatedField(source="output_item", queryset=Item.objects.all())
+    output_ml = serializers.DecimalField(max_digits=8, decimal_places=3, min_value=Decimal("0.001"))
+    note = serializers.CharField(max_length=200, required=False, allow_blank=True)
+
+    def validate_ingredients(self, value):
+        if not value:
+            raise serializers.ValidationError("Aspoň jeden ingredient je povinný.")
+        return value
+
+
+class BrewBatchIngredientSerializer(serializers.ModelSerializer):
+    coffee = ItemSerializer(read_only=True)
+
+    class Meta:
+        model = BrewBatchIngredient
+        fields = ["coffee", "grams", "sort_order"]
+
+
+class BrewBatchSerializer(serializers.ModelSerializer):
+    ingredients = BrewBatchIngredientSerializer(many=True, read_only=True)
+    output_item = ItemSerializer(read_only=True)
+
+    class Meta:
+        model = BrewBatch
+        fields = ["id", "ingredients", "output_item", "output_ml", "note", "created_at"]
 
 
 class AdminLoginSerializer(serializers.Serializer):
