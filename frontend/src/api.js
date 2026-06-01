@@ -100,4 +100,8 @@ addPerson: (payload) => request("/persons/", { method: "POST", data: payload }),
 
   // stats
   stats: () => request("/stats"),
+
+  // brew batches
+  getBrewBatches: () => request("/brew-batches"),
+  createBrewBatch: (payload) => request("/brew-batches", { method: "POST", data: payload }),
 }

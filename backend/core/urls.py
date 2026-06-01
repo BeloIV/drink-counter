@@ -9,6 +9,7 @@ from .views import (
     AdminLoginView, AdminLogoutView, AdminCheckView, ResetPersonDebtView,
     CoffeePresetViewSet, GeneratePayBySquareView,
     ItemSettleView, ItemSetStockView, StatsView,
+    BrewBatchView,
 )
 
 
@@ -37,4 +38,5 @@ urlpatterns = [
     path("items/<int:pk>/set-stock", ItemSetStockView.as_view(), name="item-set-stock"),
     path("items/<int:pk>/settle", ItemSettleView.as_view(), name="item-settle"),
     path("stats", StatsView.as_view()),
+    path("brew-batches", BrewBatchView.as_view(), name="brew-batches"),
 ]

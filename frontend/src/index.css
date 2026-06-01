@@ -199,6 +199,170 @@ button, a, input, select { touch-action: manipulation; }
 
 .text-center { text-align: center; }
 
+/* ── Hamburger button ── */
+.hamburger-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  padding: 4px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.hamburger-btn:hover { background: var(--muted-bg); }
+.hamburger-line {
+  width: 22px;
+  height: 2.5px;
+  background: var(--body-color);
+  border-radius: 99px;
+}
+
+/* ── Nav Drawer ── */
+.nav-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1040;
+  background: transparent;
+  pointer-events: none;
+  transition: background 0.25s;
+}
+.nav-overlay--on {
+  background: rgba(0,0,0,0.5);
+  pointer-events: all;
+}
+.nav-drawer {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 280px;
+  max-width: 85vw;
+  z-index: 1050;
+  background: var(--card-bg);
+  border-left: 1px solid var(--card-border);
+  box-shadow: -4px 0 24px rgba(0,0,0,0.18);
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.nav-drawer--open { transform: translateX(0); }
+.nav-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1rem 0.875rem;
+  border-bottom: 1px solid var(--card-border);
+  flex-shrink: 0;
+}
+.nav-drawer-logo {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.nav-drawer-close {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  color: var(--muted-color);
+  padding: 4px 8px;
+  border-radius: 6px;
+  line-height: 1;
+  transition: background 0.15s;
+}
+.nav-drawer-close:hover { background: var(--muted-bg); }
+.nav-drawer-theme {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  color: var(--body-color);
+  font-size: 0.95rem;
+  text-align: left;
+  transition: background 0.15s;
+}
+.nav-drawer-theme:hover { background: var(--muted-bg); }
+.nav-drawer-sep {
+  height: 1px;
+  background: var(--card-border);
+  margin: 0.25rem 0;
+  flex-shrink: 0;
+}
+.nav-drawer-section-label {
+  padding: 0.5rem 1rem 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted-color);
+}
+.nav-drawer-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 1rem;
+  color: var(--body-color);
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: background 0.12s;
+}
+.nav-drawer-item:hover { background: var(--muted-bg); color: var(--body-color); }
+.nav-drawer-item--active {
+  background: rgba(13,110,253,0.1);
+  color: #0d6efd;
+  font-weight: 600;
+}
+.nav-drawer-icon { width: 22px; text-align: center; flex-shrink: 0; }
+.nav-drawer-tare {
+  padding: 0.25rem 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.nav-drawer-tare-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--muted-color);
+}
+
+/* ── Brew batch card ── */
+.brew-summary-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: 999px;
+  background: rgba(13,110,253,0.08);
+  border: 1px solid rgba(13,110,253,0.2);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #0d6efd;
+  flex-wrap: wrap;
+  text-align: center;
+}
+.brew-history-item {
+  padding: 0.5rem 0.625rem;
+  border-radius: 8px;
+  background: var(--muted-bg);
+  font-size: 0.82rem;
+}
+.brew-history-meta {
+  font-size: 0.72rem;
+  color: var(--muted-color);
+  margin-top: 0.2rem;
+}
+
 .min-h-100vh {
   min-height: 100vh;
   min-height: 100dvh;

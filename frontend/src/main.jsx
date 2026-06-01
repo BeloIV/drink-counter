@@ -8,10 +8,12 @@ import Admin from './pages/admin.jsx'
 import Transactions from './pages/transactions.jsx'
 import Users from './pages/users.jsx'
 import Stats from './pages/stats.jsx'
+import Brew from './pages/brew.jsx'
 import SiteAuth from './SiteAuth.jsx'
 
 const router = createBrowserRouter([
   { path: "/", element: <App /> },
+  { path: "/brew", element: <Brew /> },
   { path: "/admin", element: <Admin /> },
   { path: "/transactions", element: <Transactions /> },
   { path: "/users", element: <Users /> },

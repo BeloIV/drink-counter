@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react"
-import { Link } from "react-router-dom"
 import { api } from "../api"
-import { API_BASE } from "../config"
-import { ThemeToggle } from "../ThemeToggle"
+import { NavDrawer, HamburgerBtn } from "../NavDrawer"
 
 const PRICING_MODES = ['per_item', 'per_gram', 'per_ml']
 
@@ -71,6 +69,23 @@ export default function Admin() {
   // === COLLAPSE STATE ===
   const [showAddItem, setShowAddItem] = useState(false)
   const [showCoffeeFilters, setShowCoffeeFilters] = useState(false)
+  const [showBrewBatch, setShowBrewBatch] = useState(false)
+
+  // === BREW BATCH ===
+  const [brewBatches, setBrewBatches] = useState([])
+  const [brewForm, setBrewForm] = useState({
+    primary_coffee_id: "",
+    primary_grams: "",
+    secondary_coffee_id: "",
+    secondary_grams: "",
+    output_item_id: "",
+    output_ml: "",
+    note: "",
+  })
+  const [brewLoading, setBrewLoading] = useState(false)
+
+  // === NAV DRAWER ===
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   // === ANIMATION STATE ===
   const [deletingId, setDeletingId] = useState(null)
@@ -80,6 +95,7 @@ export default function Admin() {
   const [dotPulseKey, setDotPulseKey] = useState(0)
   const [displayDebts, setDisplayDebts] = useState({})
   const prevColorRef = useRef(null)
+  const [coldBrewModal, setColdBrewModal] = useState(null) // { item, payload, label }
 
   // --- helpers na čísla/validáciu ---
 const toFixedStr = (v, places = 3) => {
@@ -151,7 +167,41 @@ const overlapsAny = (all, candidate, skipId = null) => {
     const map = {}
     ;(s?.per_person ?? []).forEach(row => { map[row.person_id] = Number(row.total_eur || 0) })
     setDebts(map)
-    await loadCoffeeFilters()
+    await Promise.all([loadCoffeeFilters(), loadBrewBatches()])
+  }
+
+  const loadBrewBatches = async () => {
+    try {
+      const data = await api.getBrewBatches()
+      setBrewBatches(data)
+    } catch (_) {}
+  }
+
+  const submitBrewBatch = async (e) => {
+    e.preventDefault()
+    setBrewLoading(true)
+    try {
+      await api.csrf().catch(() => {})
+      const ingredients = [{ coffee_id: Number(brewForm.primary_coffee_id), grams: normDec(brewForm.primary_grams) }]
+      if (brewForm.secondary_coffee_id) {
+        ingredients.push({ coffee_id: Number(brewForm.secondary_coffee_id), grams: normDec(brewForm.secondary_grams) })
+      }
+      const payload = {
+        ingredients,
+        output_item_id: Number(brewForm.output_item_id),
+        output_ml: normDec(brewForm.output_ml),
+      }
+      if (brewForm.note.trim()) payload.note = brewForm.note.trim()
+      await api.createBrewBatch(payload)
+      setBrewForm({ primary_coffee_id: "", primary_grams: "", secondary_coffee_id: "", secondary_grams: "", output_item_id: "", output_ml: "", note: "" })
+      await Promise.all([load(), loadBrewBatches()])
+      setMsg("Cold Brew vyrobený — zásoby aktualizované")
+    } catch (err) {
+      let errMsg = err.message || String(err)
+      try { const parsed = JSON.parse(errMsg); errMsg = parsed.error || errMsg } catch (_) {}
+      setMsg("Chyba: " + errMsg)
+    }
+    setBrewLoading(false)
   }
 
   useEffect(() => {
@@ -327,42 +377,57 @@ const overlapsAny = (all, candidate, skipId = null) => {
     setSettleLoading(false)
   }
 
-  // ===== Cold Brew prefill =====
+  // ===== Cold Brew priame vytvorenie =====
   const prefillAsColdBrew = (coffeeItem) => {
     const coldBrewCat = cats.find(c => c.name.toLowerCase() === 'cold brew')
     if (!coldBrewCat) { setMsg('Najprv vytvor kategóriu "Cold Brew"'); return }
 
-    const biggestFilter = coffeeFilters.length > 0
-      ? coffeeFilters.reduce((max, f) => Number(f.extra_eur) > Number(max.extra_eur) ? f : max, coffeeFilters[0])
-      : null
+    const sortedFilters = [...coffeeFilters].sort((a, b) => Number(b.extra_eur) - Number(a.extra_eur))
+    const top2Filters = sortedFilters.slice(0, 2)
+    const filterCost = top2Filters.reduce((s, f) => s + Number(f.extra_eur), 0)
 
-    const coffeePrice = Number(coffeeItem.price)  // €/g
-    const coffeeCost = 80 * coffeePrice            // 80g batch
-    const filterCost = biggestFilter ? Number(biggestFilter.extra_eur) : 0
+    const coffeePrice = Number(coffeeItem.price)
+    const coffeeCost = 80 * coffeePrice
     const totalCost = coffeeCost + filterCost
     const rawPerMl = totalCost / 1200
-    const pricePerMl = Math.ceil(rawPerMl * 1000) / 1000  // round up to 3 decimals
+    const pricePerMl = Math.ceil(rawPerMl * 1000) / 1000
 
-    const filterNote = biggestFilter
-      ? ` + filter "${biggestFilter.label || `${biggestFilter.g_min}–${biggestFilter.g_max} g`}" ${filterCost.toFixed(2)} €`
+    const filterNote = filterCost > 0
+      ? ` + filtre ${filterCost.toFixed(2)} € (${top2Filters.map(f => f.label || `${f.g_min}-${f.g_max}g`).join(' + ')})`
       : ''
-    setMsgDuration(20000)
-    setMsg(
-      `Kalkulácia: 80 g × ${coffeePrice.toFixed(3)} €/g = ${coffeeCost.toFixed(2)} €` +
-      filterNote +
-      ` ÷ 1200 ml = ${rawPerMl.toFixed(4)} €/ml → zaokrúhlené nahor: ${pricePerMl.toFixed(3)} €/ml`
-    )
 
-    setForm({
-      name: coffeeItem.name,
-      category_id: String(coldBrewCat.id),
-      pricing_mode: 'per_ml',
-      color: coffeeItem.color || '#ffffff',
-      price: String(pricePerMl),
-      unit: 'ml',
+    const label =
+      `❄️ Pridať "${coffeeItem.name}" ako Cold Brew\n\n` +
+      `80 g × ${coffeePrice.toFixed(3)} €/g = ${coffeeCost.toFixed(2)} €${filterNote} ÷ 1200 ml\n` +
+      `→ cena: ${pricePerMl.toFixed(3)} €/ml`
+
+    setColdBrewModal({
+      item: coffeeItem,
+      payload: {
+        name: coffeeItem.name,
+        category_id: coldBrewCat.id,
+        pricing_mode: 'per_ml',
+        price: String(pricePerMl),
+        color: coffeeItem.color || '#ffffff',
+      },
+      label,
     })
-    setShowAddItem(true)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const confirmColdBrew = async () => {
+    if (!coldBrewModal) return
+    const { payload } = coldBrewModal
+    setColdBrewModal(null)
+    setLoading(true)
+    try {
+      await api.csrf().catch(() => {})
+      await api.addItem(payload)
+      await load()
+      setMsg(`Cold Brew "${payload.name}" pridaný (${payload.price} €/ml)`)
+    } catch (err) {
+      setMsg('Chyba pri vytváraní Cold Brew: ' + (err.message || err))
+    }
+    setLoading(false)
   }
 
   // ===== Osoby =====
@@ -492,6 +557,7 @@ const saveCoffeeFilter = async (id) => {
 
   return (
     <div className="container py-3">
+      <NavDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
       {confirmModal.open && (
         <ConfirmModal
@@ -499,6 +565,27 @@ const saveCoffeeFilter = async (id) => {
           onConfirm={confirmModal.onConfirm}
           onCancel={closeConfirm}
         />
+      )}
+
+      {/* ── Cold Brew modal ── */}
+      {coldBrewModal && (
+        <div
+          onClick={() => setColdBrewModal(null)}
+          style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center' }}
+        >
+          <div className="card shadow-lg pop-in" style={{ maxWidth:360, width:'92%' }} onClick={e=>e.stopPropagation()}>
+            <div className="card-body p-4 text-center">
+              <div style={{ fontSize:'2rem', marginBottom:'0.5rem' }}>❄️</div>
+              {coldBrewModal.label.split('\n').map((line, i) => (
+                <p key={i} className={i === 0 ? 'fw-semibold mb-2' : 'text-muted small mb-1'}>{line}</p>
+              ))}
+              <div className="d-flex gap-2 mt-3">
+                <button className="btn btn-info flex-fill" onClick={confirmColdBrew} disabled={loading}>Vytvoriť</button>
+                <button className="btn btn-secondary flex-fill" onClick={() => setColdBrewModal(null)}>Zrušiť</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Stock nastavenie modal ── */}
@@ -574,17 +661,13 @@ const saveCoffeeFilter = async (id) => {
       })()}
 
       {/* ── Hlavička ── */}
-      <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <div className="d-flex justify-content-between align-items-center mb-3">
         <h2 className="mb-0">Admin</h2>
-        <div className="d-flex gap-2 align-items-center flex-wrap">
-          {authed && (
-            <Link to="/users" className="btn btn-sm btn-info">👥 Useri</Link>
-          )}
+        <div className="d-flex align-items-center gap-2">
           {authed && (
             <button onClick={logout} className="btn btn-sm btn-outline-danger">Odhlásiť</button>
           )}
-          <Link to="/" className="btn btn-sm btn-outline-secondary">← Späť</Link>
-          <ThemeToggle />
+          <HamburgerBtn onClick={() => setDrawerOpen(true)} />
         </div>
       </div>
 
@@ -878,6 +961,185 @@ const saveCoffeeFilter = async (id) => {
                         <button className="btn btn-primary w-100" disabled={loading} type="submit">Uložiť položku</button>
                       </div>
                     </form>
+                  </div>
+                )}
+              </div>
+
+              {/* Cold Brew výroba */}
+              <div className="card mb-3">
+                <div
+                  className="card-header text-white d-flex justify-content-between align-items-center"
+                  style={{cursor:'pointer', background:'linear-gradient(135deg,#0062cc,#0ea5e9)'}}
+                  onClick={()=>setShowBrewBatch(!showBrewBatch)}
+                >
+                  <span className="fw-semibold">❄️ Vyrobiť Cold Brew</span>
+                  <span className="opacity-75" style={{fontSize:'0.8rem'}}>{showBrewBatch ? '▼' : '▶'}</span>
+                </div>
+                {showBrewBatch && (
+                  <div className="card-body p-3">
+                    <form onSubmit={submitBrewBatch}>
+
+                      {/* ── Zdroje ── */}
+                      <div className="mb-3">
+                        <div className="text-muted small fw-bold mb-2" style={{letterSpacing:'0.04em'}}>☕ ZDROJE KÁVY</div>
+                        {/* Primárna */}
+                        <div className="d-flex gap-2 mb-2">
+                          <div style={{flex:'1 1 0', minWidth:0}}>
+                            <select
+                              className="form-select form-select-sm"
+                              value={brewForm.primary_coffee_id}
+                              onChange={e => setBrewForm(f => ({ ...f, primary_coffee_id: e.target.value }))}
+                              required
+                            >
+                              <option value="">— káva —</option>
+                              {items.filter(i => i.category?.name?.toLowerCase() === 'coffee' && i.pricing_mode === 'per_gram').map(i => (
+                                <option key={i.id} value={i.id}>
+                                  {i.name}{i.stock_quantity !== null ? ` (${Number(i.stock_quantity).toFixed(0)}g)` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div style={{width:80, flexShrink:0}}>
+                            <input
+                              className="form-control form-control-sm text-center"
+                              type="number" min="1" step="any" inputMode="decimal"
+                              placeholder="g"
+                              value={brewForm.primary_grams}
+                              onChange={e => setBrewForm(f => ({ ...f, primary_grams: e.target.value }))}
+                              required
+                            />
+                          </div>
+                        </div>
+                        {/* Sekundárna (blend) */}
+                        <div className="d-flex gap-2">
+                          <div style={{flex:'1 1 0', minWidth:0}}>
+                            <select
+                              className="form-select form-select-sm"
+                              value={brewForm.secondary_coffee_id}
+                              onChange={e => setBrewForm(f => ({ ...f, secondary_coffee_id: e.target.value, secondary_grams: e.target.value ? f.secondary_grams : '' }))}
+                            >
+                              <option value="">+ blend (voliteľné)</option>
+                              {items.filter(i => i.category?.name?.toLowerCase() === 'coffee' && i.pricing_mode === 'per_gram' && String(i.id) !== String(brewForm.primary_coffee_id)).map(i => (
+                                <option key={i.id} value={i.id}>
+                                  {i.name}{i.stock_quantity !== null ? ` (${Number(i.stock_quantity).toFixed(0)}g)` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div style={{width:80, flexShrink:0}}>
+                            {brewForm.secondary_coffee_id ? (
+                              <input
+                                className="form-control form-control-sm text-center"
+                                type="number" min="1" step="any" inputMode="decimal"
+                                placeholder="g"
+                                value={brewForm.secondary_grams}
+                                onChange={e => setBrewForm(f => ({ ...f, secondary_grams: e.target.value }))}
+                                required
+                              />
+                            ) : (
+                              <input className="form-control form-control-sm" disabled placeholder="g" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ── Výstup ── */}
+                      <div className="mb-3">
+                        <div className="text-muted small fw-bold mb-2" style={{letterSpacing:'0.04em'}}>❄️ VÝSTUP</div>
+                        <div className="d-flex gap-2">
+                          <div style={{flex:'1 1 0', minWidth:0}}>
+                            <select
+                              className="form-select form-select-sm"
+                              value={brewForm.output_item_id}
+                              onChange={e => setBrewForm(f => ({ ...f, output_item_id: e.target.value }))}
+                              required
+                            >
+                              <option value="">— cold brew item —</option>
+                              {items.filter(i => i.category?.name?.toLowerCase() === 'cold brew').map(i => (
+                                <option key={i.id} value={i.id}>
+                                  {i.name}{i.stock_quantity !== null ? ` (${Number(i.stock_quantity).toFixed(0)}ml)` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div style={{width:80, flexShrink:0}}>
+                            <input
+                              className="form-control form-control-sm text-center"
+                              type="number" min="1" step="any" inputMode="decimal"
+                              placeholder="ml"
+                              value={brewForm.output_ml}
+                              onChange={e => setBrewForm(f => ({ ...f, output_ml: e.target.value }))}
+                              required
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ── Live summary ── */}
+                      {(() => {
+                        const p1 = items.find(i => String(i.id) === String(brewForm.primary_coffee_id))
+                        const p2 = brewForm.secondary_coffee_id ? items.find(i => String(i.id) === String(brewForm.secondary_coffee_id)) : null
+                        const g1 = Number(brewForm.primary_grams) || 0
+                        const g2 = Number(brewForm.secondary_grams) || 0
+                        const ml = Number(brewForm.output_ml) || 0
+                        const cost1 = p1 ? Number(p1.price) * g1 : 0
+                        const cost2 = p2 ? Number(p2.price) * g2 : 0
+                        const totalCost = cost1 + cost2
+                        const totalG = g1 + g2
+                        if (!p1 || !g1 || !ml) return null
+                        return (
+                          <div className="brew-summary-pill mb-3">
+                            <span>☕ {totalG}g</span>
+                            <span style={{opacity:0.5}}>→</span>
+                            <span>❄️ {ml}ml</span>
+                            <span style={{opacity:0.4}}>·</span>
+                            <span>{totalCost.toFixed(2)} €</span>
+                            <span style={{opacity:0.4}}>·</span>
+                            <span>{(totalCost / ml * 1000).toFixed(3)} €/ml</span>
+                          </div>
+                        )
+                      })()}
+
+                      {/* ── Poznámka + submit ── */}
+                      <input
+                        className="form-control form-control-sm mb-2"
+                        placeholder="Poznámka (voliteľné)"
+                        value={brewForm.note}
+                        onChange={e => setBrewForm(f => ({ ...f, note: e.target.value }))}
+                      />
+                      <button
+                        className="btn btn-sm w-100 text-white fw-semibold"
+                        style={{background:'linear-gradient(135deg,#0062cc,#0ea5e9)'}}
+                        type="submit"
+                        disabled={brewLoading}
+                      >
+                        {brewLoading ? '⏳ Vyrábam…' : '❄️ Vyrobiť Cold Brew'}
+                      </button>
+                    </form>
+
+                    {/* ── História ── */}
+                    {brewBatches.length > 0 && (
+                      <div className="mt-3">
+                        <div className="text-muted small fw-bold mb-2" style={{letterSpacing:'0.04em'}}>POSLEDNÉ VARENIA</div>
+                        <div className="d-flex flex-column gap-1">
+                          {brewBatches.slice(0, 5).map(b => (
+                            <div key={b.id} className="brew-history-item">
+                              <div className="fw-semibold">
+                                {(b.ingredients || []).map((ing, i) => (
+                                  <span key={i}>{i > 0 && <span className="text-muted"> + </span>}☕ {ing.coffee?.name} {ing.grams}g</span>
+                                ))}
+                                <span className="text-muted mx-1">→</span>
+                                ❄️ {b.output_item?.name} <span style={{color:'#0ea5e9'}}>{b.output_ml}ml</span>
+                              </div>
+                              <div className="brew-history-meta">
+                                {new Date(b.created_at).toLocaleString('sk-SK', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})}
+                                {b.note && <span> · {b.note}</span>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

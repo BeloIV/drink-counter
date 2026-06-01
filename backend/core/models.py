@@ -37,7 +37,7 @@ class Item(models.Model):
     price = models.DecimalField(max_digits=8, decimal_places=3, default=Decimal("0.000"))  # jednotková cena
     pricing_mode = models.CharField(max_length=16, choices=PRICING_CHOICES, default="per_item")
     note = models.CharField(max_length=200, blank=True, null=True)
-    color = models.CharField(max_length=7, default="#ffffff")  # farba pre UI (hex format)
+    color = models.CharField(max_length=200, default="#ffffff")  # farba pre UI; môže byť hex alebo CSS gradient pre blend cold brew
     active = models.BooleanField(default=True)
     stock_quantity = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True)  # zostatok zásoby (g/ml/ks), null = nesleduje sa
     brew_count = models.PositiveIntegerField(default=0)  # interný počítadlo varení, nikde sa nezobrazuje
@@ -67,7 +67,39 @@ class Transaction(models.Model):
         return f"{self.person.name} -> {self.item.name} x{self.quantity} = {self.price_at_time} €"
 
 
-# === Nový globálny model pre filtre kávy ===
+class BrewBatch(models.Model):
+    """Výroba cold brew: odčíta zásoby zdrojových káv, pridá zásobu výstupnému itemu."""
+    output_item = models.ForeignKey(
+        Item, on_delete=models.PROTECT, related_name="brew_batches_as_output"
+    )
+    output_ml = models.DecimalField(max_digits=8, decimal_places=3)
+    note = models.CharField(max_length=200, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        ingredients = ", ".join(
+            f"{i.coffee.name} {i.grams}g" for i in self.ingredients.all()
+        )
+        return f"{ingredients} → {self.output_item.name} {self.output_ml}ml"
+
+
+class BrewBatchIngredient(models.Model):
+    """Jeden ingredient (káva + gramáž) v rámci BrewBatch."""
+    batch = models.ForeignKey(BrewBatch, on_delete=models.CASCADE, related_name="ingredients")
+    coffee = models.ForeignKey(Item, on_delete=models.PROTECT)
+    grams = models.DecimalField(max_digits=8, decimal_places=3)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+
+    def __str__(self):
+        return f"{self.coffee.name} {self.grams}g"
+
+
 class CoffeePreset(models.Model):
     """
     Globálny filter pre kávu: ak množstvo (g) spadne do intervalu, pripočíta sa extra_eur.
