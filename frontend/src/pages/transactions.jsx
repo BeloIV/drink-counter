@@ -18,6 +18,11 @@ function getInitials(name) {
   return name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2)
 }
 
+function toggleSign(value) {
+  const str = String(value ?? '')
+  return str.startsWith('-') ? str.slice(1) : `-${str}`
+}
+
 function Avatar({ person, size = 40, style = {} }) {
   const avatarUrl = person?.avatar?.startsWith('/media/') ? person.avatar : null
   const base = {
@@ -300,8 +305,8 @@ export default function Transactions() {
     try {
       await api.csrf().catch(() => {})
       const updated = await api.updateTransaction(id, {
-        quantity: editForm.quantity,
-        price_at_time: editForm.price_at_time
+        quantity: String(editForm.quantity).replace(',', '.'),
+        price_at_time: String(editForm.price_at_time).replace(',', '.')
       })
       setTransactions(prev => prev.map(t => t.id === id ? updated : t))
       setEditId(null)
@@ -340,13 +345,21 @@ export default function Transactions() {
             <div className="row g-2 mb-3">
               <div className="col-6">
                 <label className="form-label small text-muted mb-1">Množstvo</label>
-                <input type="number" step="0.001" className="form-control" value={editForm.quantity}
-                  onChange={e => setEditForm(prev => ({ ...prev, quantity: e.target.value }))} />
+                <div className="input-group">
+                  <button type="button" className="btn btn-outline-secondary" tabIndex={-1}
+                    onClick={() => setEditForm(prev => ({ ...prev, quantity: toggleSign(prev.quantity) }))}>±</button>
+                  <input type="text" inputMode="decimal" pattern="-?[0-9]*[.,]?[0-9]*" className="form-control" value={editForm.quantity}
+                    onChange={e => setEditForm(prev => ({ ...prev, quantity: e.target.value }))} />
+                </div>
               </div>
               <div className="col-6">
                 <label className="form-label small text-muted mb-1">Cena (€)</label>
-                <input type="number" step="0.01" className="form-control" value={editForm.price_at_time}
-                  onChange={e => setEditForm(prev => ({ ...prev, price_at_time: e.target.value }))} />
+                <div className="input-group">
+                  <button type="button" className="btn btn-outline-secondary" tabIndex={-1}
+                    onClick={() => setEditForm(prev => ({ ...prev, price_at_time: toggleSign(prev.price_at_time) }))}>±</button>
+                  <input type="text" inputMode="decimal" pattern="-?[0-9]*[.,]?[0-9]*" className="form-control" value={editForm.price_at_time}
+                    onChange={e => setEditForm(prev => ({ ...prev, price_at_time: e.target.value }))} />
+                </div>
               </div>
             </div>
             <div className="d-flex gap-2">
