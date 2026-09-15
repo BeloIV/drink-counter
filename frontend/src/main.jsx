@@ -4,7 +4,8 @@ import './App.css'
 import ReactDOM from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { DialogProvider } from './components/Dialogs.jsx'
-import SiteAuth from './components/SiteAuth.jsx'
+import GoogleAuthGate from './components/GoogleAuthGate.jsx'
+import AccessPage from './pages/access/AccessPage.jsx'
 import AdminPage from './pages/admin/AdminPage.jsx'
 import BrewPage from './pages/brew/BrewPage.jsx'
 import NotFoundPage from './pages/NotFoundPage.jsx'
@@ -19,16 +20,17 @@ const router = createBrowserRouter([
   { path: '/admin', element: <AdminPage /> },
   { path: '/transactions', element: <TransactionsPage /> },
   { path: '/users', element: <UsersPage /> },
+  { path: '/access', element: <AccessPage /> },
   { path: '/stats', element: <StatsPage /> },
   { path: '*', element: <NotFoundPage /> },
 ])
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <SiteAuth>
+  <GoogleAuthGate>
     <DialogProvider>
       <RouterProvider router={router} />
     </DialogProvider>
-  </SiteAuth>
+  </GoogleAuthGate>
 )
 
 // The service worker caches the app shell so the kiosk still opens when the network drops.

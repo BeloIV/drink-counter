@@ -1,5 +1,8 @@
 const API_BASE = '/api'
 
+/** Fired when the backend reports a missing or revoked Google session. */
+export const AUTH_CHANGED_EVENT = 'drink-counter:auth-changed'
+
 function readCsrfToken() {
   const match = document.cookie.match(/csrftoken=([^;]+)/)
   return match ? match[1] : ''
@@ -16,11 +19,21 @@ function buildOptions(method, data) {
   return { method, headers, body, credentials: 'include' }
 }
 
+// Only the Google gate's own markers count; admin PIN refusals are also 401/403.
+function signalLostGoogleAccess(status, body) {
+  const isGateResponse = /"google_(auth_required|access_denied)"/.test(body)
+  if ((status === 401 || status === 403) && isGateResponse) {
+    window.dispatchEvent(new Event(AUTH_CHANGED_EVENT))
+  }
+}
+
 /** Call the API; a failed response throws an Error carrying the body and `status`. */
 async function request(path, { method = 'GET', data } = {}) {
   const response = await fetch(`${API_BASE}${path}`, buildOptions(method, data))
   if (!response.ok) {
-    const error = new Error(await response.text())
+    const body = await response.text()
+    signalLostGoogleAccess(response.status, body)
+    const error = new Error(body)
     error.status = response.status
     throw error
   }
@@ -43,6 +56,14 @@ export const api = {
   login: (pin) => post('/auth/admin-login', { pin }),
   logout: () => post('/auth/admin-logout'),
   adminCheck: () => request('/auth/admin-check'),
+
+  authStatus: () => request('/auth/me'),
+  googleLogin: (credential) => post('/auth/google', { credential }),
+  googleLogout: () => post('/auth/google-logout'),
+  allowedEmails: () => request('/allowed-emails/'),
+  addAllowedEmail: (payload) => post('/allowed-emails/', payload),
+  updateAllowedEmail: (email, payload) => patch(`/allowed-emails/${encodeURIComponent(email)}/`, payload),
+  removeAllowedEmail: (email) => remove(`/allowed-emails/${encodeURIComponent(email)}/`),
 
   categories: () => request('/categories/'),
 

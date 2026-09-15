@@ -107,6 +107,23 @@ class BrewBatchIngredient(models.Model):
         return f"{self.coffee.name} {self.grams}g"
 
 
+class AllowedEmail(models.Model):
+    """A Google account that may open the app on the public domain."""
+    email = models.EmailField(primary_key=True)
+    is_admin = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["email"]
+
+    def save(self, *args, **kwargs):
+        self.email = self.email.strip().lower()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.email
+
+
 class CoffeePreset(models.Model):
     """Surcharge added to per-gram coffee orders whose grams fall within [g_min, g_max]."""
     label = models.CharField(max_length=50, blank=True, null=True)

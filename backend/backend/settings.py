@@ -28,11 +28,11 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'core.middleware.SitePasswordMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'core.middleware.GoogleAuthMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -135,6 +135,7 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_CLASSES': [],
     'DEFAULT_THROTTLE_RATES': {
         'admin_login': '10/hour',
+        'google_login': '30/hour',
         'transactions': '120/minute',
     },
 }
@@ -146,4 +147,7 @@ SPECTACULAR_SETTINGS = {
 ADMIN_PIN = os.getenv("ADMIN_PIN", "1234")
 PAYMENT_IBAN = os.getenv("PAYMENT_IBAN", "SK9365000000003650622489")
 PUBLIC_HOST = os.getenv("PUBLIC_HOST", "drinkcounter.bytboyzserver.xyz")
-SITE_PASSWORD = os.getenv("SITE_PASSWORD", "")
+# Google sign-in on PUBLIC_HOST. Without a client ID nobody can sign in there.
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+# Comma-separated emails that are always admins of the access page.
+BOOTSTRAP_ADMIN_EMAILS = os.getenv("BOOTSTRAP_ADMIN_EMAILS", "")

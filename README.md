@@ -159,6 +159,17 @@ POSTGRES_HOST=db
 POSTGRES_PORT=5432
 ```
 
+### Google sign-in (public domain)
+On `PUBLIC_HOST` only Google accounts from the allowlist get in; the kiosk on the LAN
+address needs no login. Admins manage the allowlist on the **Prístupy** page.
+```env
+PUBLIC_HOST=drinkcounter.bytboyzserver.xyz
+GOOGLE_CLIENT_ID=<OAuth client ID from Google Cloud Console>
+BOOTSTRAP_ADMIN_EMAILS=admin@example.com   # comma-separated, always admins
+```
+In Google Cloud Console, add `https://<PUBLIC_HOST>` as an authorized JavaScript origin
+of the OAuth client. Without `GOOGLE_CLIENT_ID` nobody can sign in on the public domain.
+
 ### Frontend (src/api.js)
 ```javascript
 const API_BASE = '/api'
