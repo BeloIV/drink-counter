@@ -1,15 +1,34 @@
 from django.contrib import admin
-from django.utils import timezone
 from django.db.models import Sum
-from .models import Person, Category, Item, Session, Transaction, CoffeePreset
+from django.utils import timezone
+
+from .models import Category, CoffeePreset, Item, Person, Session, Transaction
+
 
 @admin.action(description="Aktivovať označené osoby")
 def activate_people(modeladmin, request, queryset):
     queryset.update(active=True)
 
+
 @admin.action(description="Deaktivovať označené osoby")
 def deactivate_people(modeladmin, request, queryset):
     queryset.update(active=False)
+
+
+@admin.action(description="Aktivovať položky")
+def activate_items(modeladmin, request, queryset):
+    queryset.update(active=True)
+
+
+@admin.action(description="Deaktivovať položky")
+def deactivate_items(modeladmin, request, queryset):
+    queryset.update(active=False)
+
+
+@admin.action(description="Ukončiť označené session teraz")
+def close_sessions(modeladmin, request, queryset):
+    queryset.filter(ended_at__isnull=True).update(ended_at=timezone.now())
+
 
 @admin.register(Person)
 class PersonAdmin(admin.ModelAdmin):
@@ -18,18 +37,12 @@ class PersonAdmin(admin.ModelAdmin):
     search_fields = ("name",)
     actions = (activate_people, deactivate_people)
 
+
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ("name",)
     search_fields = ("name",)
 
-@admin.action(description="Aktivovať položky")
-def activate_items(modeladmin, request, queryset):
-    queryset.update(active=True)
-
-@admin.action(description="Deaktivovať položky")
-def deactivate_items(modeladmin, request, queryset):
-    queryset.update(active=False)
 
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin):
@@ -39,17 +52,15 @@ class ItemAdmin(admin.ModelAdmin):
     list_editable = ("pricing_mode", "price", "active")
     actions = (activate_items, deactivate_items)
 
+
 class TransactionInline(admin.TabularInline):
     model = Transaction
     fields = ("person", "item", "price_at_time", "created_at")
-    readonly_fields = ("person", "item", "price_at_time", "created_at")
+    readonly_fields = fields
     extra = 0
     can_delete = False
     show_change_link = True
 
-@admin.action(description="Ukončiť označené session teraz")
-def close_sessions(modeladmin, request, queryset):
-    queryset.filter(ended_at__isnull=True).update(ended_at=timezone.now())
 
 @admin.register(Session)
 class SessionAdmin(admin.ModelAdmin):
@@ -57,10 +68,10 @@ class SessionAdmin(admin.ModelAdmin):
     inlines = (TransactionInline,)
     actions = (close_sessions,)
 
-    def total_eur(self, obj):
-        agg = obj.transactions.aggregate(s=Sum("price_at_time"))
-        return agg["s"] or 0
-    total_eur.short_description = "Súčet €"
+    @admin.display(description="Súčet €")
+    def total_eur(self, session):
+        return session.transactions.aggregate(total=Sum("price_at_time"))["total"] or 0
+
 
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):

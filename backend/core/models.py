@@ -1,4 +1,5 @@
 from decimal import Decimal
+
 from django.db import models
 
 CATEGORY_COFFEE = "coffee"
@@ -9,6 +10,7 @@ PRICING_CHOICES = (
     ("per_gram", "per_gram"),
     ("per_ml", "per_ml"),
 )
+
 
 class Person(models.Model):
     name = models.CharField(max_length=100)
@@ -34,13 +36,17 @@ class Category(models.Model):
 class Item(models.Model):
     name = models.CharField(max_length=100)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="items")
-    price = models.DecimalField(max_digits=8, decimal_places=3, default=Decimal("0.000"))  # jednotková cena
+    # Price of one unit of the pricing mode: a piece, a gram or a millilitre.
+    price = models.DecimalField(max_digits=8, decimal_places=3, default=Decimal("0.000"))
     pricing_mode = models.CharField(max_length=16, choices=PRICING_CHOICES, default="per_item")
     note = models.CharField(max_length=200, blank=True, null=True)
-    color = models.CharField(max_length=200, default="#ffffff")  # farba pre UI; môže byť hex alebo CSS gradient pre blend cold brew
+    # A hex colour, or a CSS gradient for blended cold brew.
+    color = models.CharField(max_length=200, default="#ffffff")
     active = models.BooleanField(default=True)
-    stock_quantity = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True)  # zostatok zásoby (g/ml/ks), null = nesleduje sa
-    brew_count = models.PositiveIntegerField(default=0)  # interný počítadlo varení, nikde sa nezobrazuje
+    # Remaining stock in the pricing mode's unit; null means stock is not tracked.
+    stock_quantity = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True)
+    # Brews so far; every tenth one prompts a stock check.
+    brew_count = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -59,7 +65,8 @@ class Transaction(models.Model):
     session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name="transactions")
     person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="transactions")
     item = models.ForeignKey(Item, on_delete=models.CASCADE)
-    quantity = models.DecimalField(max_digits=8, decimal_places=3, default=Decimal("1.000"))  # napr. gramy
+    # Pieces, grams or millilitres, depending on the item's pricing mode.
+    quantity = models.DecimalField(max_digits=8, decimal_places=3, default=Decimal("1.000"))
     price_at_time = models.DecimalField(max_digits=10, decimal_places=3)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -68,7 +75,7 @@ class Transaction(models.Model):
 
 
 class BrewBatch(models.Model):
-    """Výroba cold brew: odčíta zásoby zdrojových káv, pridá zásobu výstupnému itemu."""
+    """A cold brew run: coffee stock goes in, cold brew stock comes out."""
     output_item = models.ForeignKey(
         Item, on_delete=models.PROTECT, related_name="brew_batches_as_output"
     )
@@ -81,13 +88,13 @@ class BrewBatch(models.Model):
 
     def __str__(self):
         ingredients = ", ".join(
-            f"{i.coffee.name} {i.grams}g" for i in self.ingredients.all()
+            f"{ingredient.coffee.name} {ingredient.grams}g" for ingredient in self.ingredients.all()
         )
         return f"{ingredients} → {self.output_item.name} {self.output_ml}ml"
 
 
 class BrewBatchIngredient(models.Model):
-    """Jeden ingredient (káva + gramáž) v rámci BrewBatch."""
+    """One coffee and its grams within a brew batch."""
     batch = models.ForeignKey(BrewBatch, on_delete=models.CASCADE, related_name="ingredients")
     coffee = models.ForeignKey(Item, on_delete=models.PROTECT)
     grams = models.DecimalField(max_digits=8, decimal_places=3)
@@ -101,22 +108,16 @@ class BrewBatchIngredient(models.Model):
 
 
 class CoffeePreset(models.Model):
-    """
-    Globálny filter pre kávu: ak množstvo (g) spadne do intervalu, pripočíta sa extra_eur.
-    Použije sa pre všetky Item-y v kategórii 'Coffee' s pricing_mode='per_gram'.
-    """
+    """Surcharge added to per-gram coffee orders whose grams fall within [g_min, g_max]."""
     label = models.CharField(max_length=50, blank=True, null=True)
     g_min = models.DecimalField(max_digits=8, decimal_places=3, default=Decimal("0.000"))
     g_max = models.DecimalField(max_digits=8, decimal_places=3, default=Decimal("0.000"))
     extra_eur = models.DecimalField(max_digits=10, decimal_places=3, default=Decimal("0.000"))
-
-
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["g_min", "id"]
 
     def __str__(self):
-        lab = self.label or f"{self.g_min}-{self.g_max} g"
-        return f"{lab} (+{self.extra_eur} €)"
+        label = self.label or f"{self.g_min}-{self.g_max} g"
+        return f"{label} (+{self.extra_eur} €)"
