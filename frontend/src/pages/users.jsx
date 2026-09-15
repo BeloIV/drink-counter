@@ -146,7 +146,7 @@ export default function Users() {
         <div className="row g-4">
           {Array.from({ length: 6 }, (_, i) => (
             <div className="col-12 col-md-6 col-lg-4" key={i}>
-              <Skeleton h={220} r="var(--radius-lg)" />
+              <Skeleton height={220} radius="var(--radius-lg)" />
             </div>
           ))}
         </div>
@@ -219,7 +219,7 @@ export default function Users() {
         <div className="row g-4">
           {Array.from({ length: 6 }, (_, i) => (
             <div className="col-12 col-md-6 col-lg-4" key={i}>
-              <Skeleton h={220} r="var(--radius-lg)" />
+              <Skeleton height={220} radius="var(--radius-lg)" />
             </div>
           ))}
         </div>

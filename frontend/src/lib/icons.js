@@ -1,13 +1,11 @@
-/* Mapa ikon — Phosphor (react-icons/pi), jedna rodina, jednotná hrúbka ťahu.
-   Predtým bolo UI poskladané z emoji, ktoré sa na každej platforme
-   renderujú inak. */
+// Phosphor icons (react-icons/pi): one family and stroke weight across the app.
 import {
   PiHouseBold, PiSnowflakeBold, PiLockKeyBold, PiListBulletsBold,
   PiChartBarBold, PiUsersBold, PiBeerSteinBold, PiCoffeeBold,
   PiPackageBold, PiScalesBold, PiTrophyBold, PiTrendUpBold,
   PiSunBold, PiMoonBold, PiXBold, PiPlusBold, PiMinusBold,
   PiCheckBold, PiWarningBold, PiArrowLeftBold,
-  PiArrowCounterClockwiseBold, PiGearBold, PiCalendarBlankBold,
+  PiArrowCounterClockwiseBold, PiCalendarBlankBold,
   PiReceiptBold, PiCaretDownBold, PiCaretUpBold, PiTrashBold,
   PiPencilSimpleBold, PiMagnifyingGlassBold, PiCurrencyEurBold,
 } from 'react-icons/pi'
@@ -34,7 +32,6 @@ export const Icons = {
   warning: PiWarningBold,
   back: PiArrowLeftBold,
   undo: PiArrowCounterClockwiseBold,
-  settings: PiGearBold,
   calendar: PiCalendarBlankBold,
   receipt: PiReceiptBold,
   caretDown: PiCaretDownBold,

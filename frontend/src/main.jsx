@@ -9,7 +9,7 @@ import Users from './pages/users.jsx'
 import Stats from './pages/stats.jsx'
 import Brew from './pages/brew.jsx'
 import NotFound from './pages/notfound.jsx'
-import SiteAuth from './SiteAuth.jsx'
+import SiteAuth from './components/SiteAuth.jsx'
 import { DialogProvider } from './components/Dialogs.jsx'
 
 const router = createBrowserRouter([

@@ -446,7 +446,7 @@ export default function Transactions() {
       </div>
 
       {loading && offset === 0 ? (
-        <SkeletonRows count={6} h={92} />
+        <SkeletonRows count={6} height={92} />
       ) : isFiltered ? (
         calendarGroups && calendarGroups.length > 0 ? (
           calendarGroups.map(([dateKey, dayTxs]) => (

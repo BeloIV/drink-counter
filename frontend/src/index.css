@@ -270,3 +270,15 @@ body::after {
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Utilities ───────────────────────────────────────────────────────── */
+.fs-xs { font-size: var(--fs-xs); }
+.fs-sm { font-size: var(--fs-sm); }
+.fs-md { font-size: var(--fs-md); }
+.fs-lg { font-size: var(--fs-lg); }
+.fs-xl { font-size: var(--fs-xl); }
+.tap-target { min-height: var(--tap-min); }
+.min-w-0 { min-width: 0; }
+.field-error { color: var(--danger); font-size: var(--fs-sm); }
+.skeleton-square { aspect-ratio: 1; border-radius: var(--radius-lg); }
+.dc-modal-heading { min-width: 0; flex: 1; }

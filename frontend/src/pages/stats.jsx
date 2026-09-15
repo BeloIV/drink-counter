@@ -21,7 +21,7 @@ export default function Stats() {
       <div className="container py-3">
         <PageHeader title="Štatistiky" icon="stats" />
         <SkeletonCards count={4} />
-        <div className="mt-4"><Skeleton h={28} w="40%" /></div>
+        <div className="mt-4"><Skeleton height={28} width="40%" /></div>
         <div className="mt-3"><SkeletonRows count={6} /></div>
       </div>
     )
