@@ -68,14 +68,18 @@ docker compose exec backend python manage.py createsuperuser
 drink-counter/
 ├── backend/              # Django REST API
 │   ├── backend/         # Project settings
-│   ├── core/           # Main app (models, views, serializers)
+│   ├── core/           # Main app (models, views, serializers, services)
 │   ├── manage.py
 │   └── requirements.txt
 ├── frontend/            # React application
 │   ├── src/
-│   │   ├── pages/      # Pages (admin)
+│   │   ├── pages/      # One folder per page: order, admin, transactions, brew, users, stats
+│   │   ├── components/ # Shared UI: modal, dialogs, page header, PIN login
+│   │   ├── hooks/      # Shared hooks: theme, flash messages, admin auth
+│   │   ├── lib/        # Pure helpers: units, categories, pricing, colours
+│   │   ├── styles/     # Design tokens
 │   │   ├── assets/     # Images, avatars
-│   │   ├── App.jsx     # Main component
+│   │   ├── main.jsx    # Router and providers
 │   │   └── api.js      # API client
 │   ├── public/
 │   └── package.json
@@ -155,10 +159,11 @@ POSTGRES_HOST=db
 POSTGRES_PORT=5432
 ```
 
-### Frontend (src/config.js)
+### Frontend (src/api.js)
 ```javascript
-export const API_BASE = 'http://localhost:8000/api'
+const API_BASE = '/api'
 ```
+In development Vite proxies `/api` to the backend (see `vite.config.js`).
 
 ## 📊 Database Models
 
