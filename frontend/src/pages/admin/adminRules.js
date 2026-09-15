@@ -149,7 +149,7 @@ export function brewSummary(form, items) {
     grams: primaryGrams + secondaryGrams,
     millilitres,
     cost,
-    pricePerMl: (cost / millilitres) * 1000,
+    pricePerMl: cost / millilitres,
   }
 }
 
