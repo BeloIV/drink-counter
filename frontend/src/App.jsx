@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from './api'
 import './App.css'
-import { getFunnyMessage } from './funnyMessages'
+import { getFunnyMessage } from './lib/funnyMessages'
 import { PageHeader } from './components/PageHeader'
 import { Modal } from './components/Modal'
 import { Icon } from './components/Icon'
@@ -206,7 +206,7 @@ export default function App() {
   })
 
   const loadPersons = () => api.persons().then(setPersons)
-  const loadItems = () => api.items('?active=true').then(data => setItems(Array.isArray(data) ? data : []))
+  const loadItems = () => api.items({ activeOnly: true }).then(data => setItems(Array.isArray(data) ? data : []))
   const refreshSummary = () => api.sessionActive().then(setSummary)
 
   useEffect(() => { Promise.all([loadPersons(), loadItems(), refreshSummary()]) }, [])

@@ -1,11 +1,10 @@
 import { createContext, useContext } from 'react'
 
-export const DialogCtx = createContext(null)
+export const DialogContext = createContext(null)
 
-/* Promise-based náhrada za window.prompt / confirm / alert.
-   Natívne dialógy na kiosku vyzerajú ako chyba prehliadača. */
+/** Promise-based confirm and prompt dialogs, provided by <DialogProvider>. */
 export function useDialog() {
-  const ctx = useContext(DialogCtx)
-  if (!ctx) throw new Error('useDialog musí byť vnútri <DialogProvider>')
-  return ctx
+  const dialog = useContext(DialogContext)
+  if (!dialog) throw new Error('useDialog must be used inside <DialogProvider>')
+  return dialog
 }

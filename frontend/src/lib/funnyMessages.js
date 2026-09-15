@@ -1,4 +1,4 @@
-export const MESSAGES = {
+const MESSAGES_BY_TIME_OF_DAY = {
   night: [
     { emoji: '☕🍺', text: 'Nočný balans medzi kofeínom a chmeľom.' },
     { emoji: '🧠', text: 'Mozog chce fokus. Atmosféra chce ďalšie.' },
@@ -55,15 +55,17 @@ export const MESSAGES = {
   ],
 }
 
+function timeOfDay(hour) {
+  if (hour < 6) return 'night'
+  if (hour < 10) return 'morning'
+  if (hour < 13) return 'noon'
+  if (hour < 17) return 'afternoon'
+  if (hour < 23) return 'evening'
+  return 'night'
+}
+
+/** A random light-hearted line that fits the current time of day. */
 export function getFunnyMessage() {
-  const h = new Date().getHours()
-  let slot
-  if (h < 6) slot = 'night'
-  else if (h < 10) slot = 'morning'
-  else if (h < 13) slot = 'noon'
-  else if (h < 17) slot = 'afternoon'
-  else if (h < 23) slot = 'evening'
-  else slot = 'night'
-  const pool = MESSAGES[slot]
-  return pool[Math.floor(Math.random() * pool.length)]
+  const messages = MESSAGES_BY_TIME_OF_DAY[timeOfDay(new Date().getHours())]
+  return messages[Math.floor(Math.random() * messages.length)]
 }

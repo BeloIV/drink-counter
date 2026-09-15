@@ -1,12 +1,29 @@
 import { useCallback, useRef, useState } from 'react'
 import { Modal } from './Modal'
-import { DialogCtx } from '../lib/dialogContext'
+import { DialogContext } from '../lib/dialogContext'
 
-/* Náhrada za window.prompt / confirm / alert.
-   Natívne dialógy na kiosku vyzerajú ako chyba prehliadača a na
-   fullscreen tablete sa zle ovládajú. API je promise-based, takže sa
-   volajú rovnako ako pôvodné natívne funkcie. */
+function PromptField({ label, placeholder, maxLength = 60, value, onChange, onSubmit }) {
+  return (
+    <form onSubmit={onSubmit}>
+      {label && <label className="form-label" htmlFor="dialog-prompt-input">{label}</label>}
+      <input
+        id="dialog-prompt-input"
+        className="form-control"
+        data-autofocus
+        value={value}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </form>
+  )
+}
 
+/**
+ * Replaces window.confirm and window.prompt, which look like browser errors on
+ * the fullscreen kiosk. `confirm` resolves to true/false, `prompt` to the
+ * trimmed text or null.
+ */
 export function DialogProvider({ children }) {
   const [dialog, setDialog] = useState(null)
   const [value, setValue] = useState('')
@@ -15,7 +32,7 @@ export function DialogProvider({ children }) {
   const open = useCallback((config) => {
     setValue(config.initial ?? '')
     setDialog(config)
-    return new Promise(resolve => { resolveRef.current = resolve })
+    return new Promise((resolve) => { resolveRef.current = resolve })
   }, [])
 
   const settle = useCallback((result) => {
@@ -25,33 +42,31 @@ export function DialogProvider({ children }) {
     resolveRef.current = null
   }, [])
 
-  const api = useRef({
-    confirm: (o = {}) => open({ ...o, kind: 'confirm' }),
-    prompt:  (o = {}) => open({ ...o, kind: 'prompt' }),
-    alert:   (o = {}) => open({ ...o, kind: 'alert' }),
+  const dialogApi = useRef({
+    confirm: (options = {}) => open({ ...options, kind: 'confirm' }),
+    prompt: (options = {}) => open({ ...options, kind: 'prompt' }),
   }).current
 
-  const kind = dialog?.kind
-  const cancelValue = kind === 'prompt' ? null : kind === 'confirm' ? false : undefined
+  const isPrompt = dialog?.kind === 'prompt'
+  const cancel = () => settle(isPrompt ? null : false)
 
-  const submit = (e) => {
-    e?.preventDefault()
-    if (kind === 'prompt') {
-      const v = value.trim()
-      if (!v) return
-      settle(v)
-    } else {
-      settle(kind === 'confirm' ? true : undefined)
+  const submit = (event) => {
+    event?.preventDefault()
+    if (!isPrompt) {
+      settle(true)
+      return
     }
+    const text = value.trim()
+    if (text) settle(text)
   }
 
   return (
-    <DialogCtx.Provider value={api}>
+    <DialogContext.Provider value={dialogApi}>
       {children}
 
       {dialog && (
         <Modal
-          onClose={() => settle(cancelValue)}
+          onClose={cancel}
           title={dialog.title}
           subtitle={dialog.text}
           icon={dialog.icon ?? (dialog.tone === 'danger' ? 'warning' : undefined)}
@@ -59,45 +74,24 @@ export function DialogProvider({ children }) {
           size="sm"
           actions={
             <>
-              {kind !== 'alert' && (
-                <button
-                  type="button"
-                  className="btn btn-outline-secondary"
-                  onClick={() => settle(cancelValue)}
-                >
-                  {dialog.cancelLabel ?? 'Zrušiť'}
-                </button>
-              )}
+              <button type="button" className="btn btn-outline-secondary" onClick={cancel}>
+                {dialog.cancelLabel ?? 'Zrušiť'}
+              </button>
               <button
                 type="button"
                 className={`btn ${dialog.tone === 'danger' ? 'btn-danger' : 'btn-primary'}`}
                 onClick={submit}
-                disabled={kind === 'prompt' && !value.trim()}
-                {...(kind !== 'prompt' ? { 'data-autofocus': true } : {})}
+                disabled={isPrompt && !value.trim()}
+                {...(isPrompt ? {} : { 'data-autofocus': true })}
               >
-                {dialog.confirmLabel ?? (kind === 'alert' ? 'Rozumiem' : 'Potvrdiť')}
+                {dialog.confirmLabel ?? 'Potvrdiť'}
               </button>
             </>
           }
         >
-          {kind === 'prompt' && (
-            <form onSubmit={submit}>
-              {dialog.label && (
-                <label className="form-label" htmlFor="dc-prompt-input">{dialog.label}</label>
-              )}
-              <input
-                id="dc-prompt-input"
-                className="form-control"
-                data-autofocus
-                value={value}
-                placeholder={dialog.placeholder}
-                maxLength={dialog.maxLength ?? 60}
-                onChange={e => setValue(e.target.value)}
-              />
-            </form>
-          )}
+          {isPrompt && <PromptField {...dialog} value={value} onChange={setValue} onSubmit={submit} />}
         </Modal>
       )}
-    </DialogCtx.Provider>
+    </DialogContext.Provider>
   )
 }

@@ -1,107 +1,78 @@
-// src/api.js
-import { API_BASE } from "./config"
+const API_BASE = '/api'
 
-export async function initCsrf() {
-  await fetch(`${API_BASE}/auth/csrf`, {
-    method: "GET",
-    credentials: "include",
-  })
+function readCsrfToken() {
+  const match = document.cookie.match(/csrftoken=([^;]+)/)
+  return match ? match[1] : ''
 }
 
-
-export function getCSRF() {
-  const m = document.cookie.match(/csrftoken=([^;]+)/)
-  return m ? m[1] : ""
+function buildOptions(method, data) {
+  const isForm = data instanceof FormData
+  const headers = isForm ? {} : { 'Content-Type': 'application/json' }
+  if (method !== 'GET') {
+    const token = readCsrfToken()
+    if (token) headers['X-CSRFToken'] = token
+  }
+  const body = data ? (isForm ? data : JSON.stringify(data)) : undefined
+  return { method, headers, body, credentials: 'include' }
 }
 
-async function request(path, { method = "GET", data } = {}) {
-  const opts = {
-    method,
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
+/** Call the API; a failed response throws an Error carrying the body and `status`. */
+async function request(path, { method = 'GET', data } = {}) {
+  const response = await fetch(`${API_BASE}${path}`, buildOptions(method, data))
+  if (!response.ok) {
+    const error = new Error(await response.text())
+    error.status = response.status
+    throw error
   }
-  if (data) opts.body = JSON.stringify(data)
-  if (method !== "GET") {
-    const token = getCSRF()
-    if (token) opts.headers["X-CSRFToken"] = token
-  }
-  const res = await fetch(`${API_BASE}${path}`, opts)
-  if (!res.ok) {
-    const err = new Error(await res.text())
-    err.status = res.status
-    throw err
-  }
-  return res.status === 204 ? null : res.json()
+  return response.status === 204 ? null : response.json()
 }
-async function postJson(path, data) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      "X-CSRFToken": getCSRF(),
-    },
-    body: JSON.stringify(data),
-  })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
+
+const post = (path, data) => request(path, { method: 'POST', data })
+const patch = (path, data) => request(path, { method: 'PATCH', data })
+const remove = (path) => request(path, { method: 'DELETE' })
+
+function transactionListPath(limit, offset, personIds) {
+  const query = new URLSearchParams({ limit, offset })
+  if (personIds.length) query.set('person_id', personIds.join(','))
+  return `/transactions/list?${query}`
 }
 
 export const api = {
-  csrf: initCsrf,
-   
-  addTransaction: (payload) => postJson("/transactions", payload),// <— dôležité
-  login: (pin) => request("/auth/admin-login", { method: "POST", data: { pin } }),
-  logout: () => request("/auth/admin-logout", { method: "POST" }),
-  adminCheck: () => request("/auth/admin-check"),
+  // Sets the csrftoken cookie that every write request echoes back.
+  csrf: () => fetch(`${API_BASE}/auth/csrf`, { credentials: 'include' }),
+  login: (pin) => post('/auth/admin-login', { pin }),
+  logout: () => post('/auth/admin-logout'),
+  adminCheck: () => request('/auth/admin-check'),
 
-  categories: () => request("/categories/"),
-  addCategory: (payload) => request("/categories/", { method: "POST", data: payload }),
+  categories: () => request('/categories/'),
 
-  items: (q = "") => request(`/items/${q}`),    // žiadne default ?active=true
-  addItem: (payload) => request("/items/", { method: "POST", data: payload }),
-  updateItem: (id, payload) => request(`/items/${id}/`, { method: "PATCH", data: payload }),
-  deleteItem: (id) => request(`/items/${id}/`, { method: "DELETE" }),
-  resetDebt: (personId) => request(`/persons/${personId}/reset-debt`, { method:"POST" }),
-  persons: () => request("/persons/"),
-  sessionActive: () => request("/session/active"),
-  // pridaj tieto funkcie do exportu api:
-addPerson: (payload) => request("/persons/", { method: "POST", data: payload }),
+  items: ({ activeOnly = false } = {}) => request(activeOnly ? '/items/?active=true' : '/items/'),
+  addItem: (payload) => post('/items/', payload),
+  updateItem: (id, payload) => patch(`/items/${id}/`, payload),
+  deleteItem: (id) => remove(`/items/${id}/`),
+  settleItem: (id) => post(`/items/${id}/settle`),
 
-  // User management with avatar upload
-  updatePerson: async (id, formData) => {
-    const res = await fetch(`${API_BASE}/persons/${id}/`, {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "X-CSRFToken": getCSRF() },
-      body: formData // FormData for file upload
-    })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    return res.json()
-  },
+  persons: () => request('/persons/'),
+  addPerson: (payload) => post('/persons/', payload),
+  updatePerson: (id, formData) => patch(`/persons/${id}/`, formData),
+  deletePerson: (id) => remove(`/persons/${id}/`),
+  resetDebt: (personId) => post(`/persons/${personId}/reset-debt`),
 
-  deletePerson: (id) => request(`/persons/${id}/`, { method: "DELETE" }),
+  sessionActive: () => request('/session/active'),
 
-  // transactions management
-  getTransactions: (limit = 20, offset = 0, personIds = []) => request(`/transactions/list?limit=${limit}&offset=${offset}${personIds.length ? `&person_id=${personIds.join(',')}` : ''}`),
-  updateTransaction: (id, payload) => request(`/transactions/${id}`, { method: "PATCH", data: payload }),
-  deleteTransaction: (id) => request(`/transactions/${id}`, { method: "DELETE" }),
-  undoTransaction: (personId) => request("/transactions/undo", { method: "POST", data: { person_id: personId } }),
+  addTransaction: (payload) => post('/transactions', payload),
+  getTransactions: (limit, offset, personIds = []) => request(transactionListPath(limit, offset, personIds)),
+  updateTransaction: (id, payload) => patch(`/transactions/${id}`, payload),
+  deleteTransaction: (id) => remove(`/transactions/${id}`),
+  undoTransaction: (personId) => post('/transactions/undo', { person_id: personId }),
 
-  // coffee filters
-  getCoffeeFilters: () => request("/coffee-filters/"),
-  addCoffeeFilter: (payload) => request("/coffee-filters/", { method: "POST", data: payload }),
-  updateCoffeeFilter: (id, payload) => request(`/coffee-filters/${id}/`, { method: "PATCH", data: payload }),
-  deleteCoffeeFilter: (id) => request(`/coffee-filters/${id}/`, { method: "DELETE" }),
+  getCoffeeFilters: () => request('/coffee-filters/'),
+  addCoffeeFilter: (payload) => post('/coffee-filters/', payload),
+  updateCoffeeFilter: (id, payload) => patch(`/coffee-filters/${id}/`, payload),
+  deleteCoffeeFilter: (id) => remove(`/coffee-filters/${id}/`),
 
-  // stock / inventory
-  setStock: (id, stock_quantity) => request(`/items/${id}/set-stock`, { method: "POST", data: { stock_quantity } }),
-  settleItem: (id) => request(`/items/${id}/settle`, { method: "POST" }),
+  getBrewBatches: () => request('/brew-batches'),
+  createBrewBatch: (payload) => post('/brew-batches', payload),
 
-  // stats
-  stats: () => request("/stats"),
-
-  // brew batches
-  getBrewBatches: () => request("/brew-batches"),
-  createBrewBatch: (payload) => request("/brew-batches", { method: "POST", data: payload }),
+  stats: () => request('/stats'),
 }
