@@ -1,23 +1,34 @@
 from decimal import Decimal
+from urllib.parse import urlparse
+
 from rest_framework import serializers
-from .models import Person, Category, Item, Session, Transaction, CoffeePreset, BrewBatch, BrewBatchIngredient
+
+from .avatars import thumbnail_url
+from .models import (
+    AllowedEmail, BrewBatch, BrewBatchIngredient, Category, CoffeePreset, Item, Person, Session, Transaction,
+)
 
 
 class PersonSerializer(serializers.ModelSerializer):
     avatar = serializers.ImageField(required=False, allow_null=True)
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        # Return relative URL instead of absolute (avoids leaking internal IP via tunnel)
-        if data.get("avatar"):
-            from urllib.parse import urlparse
-            parsed = urlparse(data["avatar"])
-            data["avatar"] = parsed.path
-        return data
+    avatar_thumbnail = serializers.SerializerMethodField()
 
     class Meta:
         model = Person
-        fields = ["id", "name", "email", "avatar", "is_guest", "active", "created_at","total_beers","total_coffees"]
+        fields = [
+            "id", "name", "email", "avatar", "avatar_thumbnail", "is_guest", "active",
+            "created_at", "total_beers", "total_coffees",
+        ]
+
+    def get_avatar_thumbnail(self, person):
+        return thumbnail_url(person.avatar)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # A relative URL keeps the internal host from leaking through the tunnel.
+        if data.get("avatar"):
+            data["avatar"] = urlparse(data["avatar"]).path
+        return data
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -27,13 +38,12 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class ItemSerializer(serializers.ModelSerializer):
-    # čítanie: vnorený objekt kategórie
+    # Reads return the nested category; writes take its id.
     category = CategorySerializer(read_only=True)
-    # zápis: id kategórie
     category_id = serializers.PrimaryKeyRelatedField(
         source="category",
         queryset=Category.objects.all(),
-        write_only=True
+        write_only=True,
     )
 
     class Meta:
@@ -42,7 +52,7 @@ class ItemSerializer(serializers.ModelSerializer):
             "id", "name",
             "category", "category_id",
             "price", "pricing_mode",
-            "note", "color", "active", "stock_quantity", "created_at"
+            "note", "color", "active", "stock_quantity", "created_at",
         ]
 
 
@@ -53,18 +63,10 @@ class SessionSerializer(serializers.ModelSerializer):
 
 
 class TransactionCreateSerializer(serializers.Serializer):
-    person_id = serializers.PrimaryKeyRelatedField(
-        source="person",
-        queryset=Person.objects.all()
-    )
-    item_id = serializers.PrimaryKeyRelatedField(
-        source="item",
-        queryset=Item.objects.all()
-    )
-    # voliteľná gramáž/počet kusov (pri káve gramy)
-    quantity = serializers.DecimalField(
-        max_digits=8, decimal_places=3, required=False
-    )
+    person_id = serializers.PrimaryKeyRelatedField(source="person", queryset=Person.objects.all())
+    item_id = serializers.PrimaryKeyRelatedField(source="item", queryset=Item.objects.all())
+    # Pieces, grams or millilitres; defaults to one piece.
+    quantity = serializers.DecimalField(max_digits=8, decimal_places=3, required=False)
 
 
 class TransactionSerializer(serializers.ModelSerializer):
@@ -122,10 +124,23 @@ class AdminLoginSerializer(serializers.Serializer):
 class CoffeePresetSerializer(serializers.ModelSerializer):
     class Meta:
         model = CoffeePreset
-        fields = [
-            "id", "label",
-            "g_min", "g_max",
-            "extra_eur",
-            "created_at",
-        ]
+        fields = ["id", "label", "g_min", "g_max", "extra_eur", "created_at"]
         read_only_fields = ["created_at"]
+
+
+class AllowedEmailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AllowedEmail
+        fields = ["email", "is_admin", "created_at"]
+        read_only_fields = ["created_at"]
+
+    def validate_email(self, value):
+        email = value.strip().lower()
+        if self.instance is None and AllowedEmail.objects.filter(email=email).exists():
+            raise serializers.ValidationError("Tento email už má prístup.")
+        return email
+
+    def update(self, instance, validated_data):
+        # The email is the primary key; only the admin flag can change.
+        validated_data.pop("email", None)
+        return super().update(instance, validated_data)

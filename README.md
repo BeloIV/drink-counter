@@ -68,14 +68,18 @@ docker compose exec backend python manage.py createsuperuser
 drink-counter/
 ├── backend/              # Django REST API
 │   ├── backend/         # Project settings
-│   ├── core/           # Main app (models, views, serializers)
+│   ├── core/           # Main app (models, views, serializers, services)
 │   ├── manage.py
 │   └── requirements.txt
 ├── frontend/            # React application
 │   ├── src/
-│   │   ├── pages/      # Pages (admin)
+│   │   ├── pages/      # One folder per page: order, admin, transactions, brew, users, stats
+│   │   ├── components/ # Shared UI: modal, dialogs, page header, PIN login
+│   │   ├── hooks/      # Shared hooks: theme, flash messages, admin auth
+│   │   ├── lib/        # Pure helpers: units, categories, pricing, colours
+│   │   ├── styles/     # Design tokens
 │   │   ├── assets/     # Images, avatars
-│   │   ├── App.jsx     # Main component
+│   │   ├── main.jsx    # Router and providers
 │   │   └── api.js      # API client
 │   ├── public/
 │   └── package.json
@@ -155,10 +159,22 @@ POSTGRES_HOST=db
 POSTGRES_PORT=5432
 ```
 
-### Frontend (src/config.js)
-```javascript
-export const API_BASE = 'http://localhost:8000/api'
+### Google sign-in (public domain)
+On `PUBLIC_HOST` only Google accounts from the allowlist get in; the kiosk on the LAN
+address needs no login. Admins manage the allowlist on the **Prístupy** page.
+```env
+PUBLIC_HOST=drinkcounter.bytboyzserver.xyz
+GOOGLE_CLIENT_ID=<OAuth client ID from Google Cloud Console>
+BOOTSTRAP_ADMIN_EMAILS=admin@example.com   # comma-separated, always admins
 ```
+In Google Cloud Console, add `https://<PUBLIC_HOST>` as an authorized JavaScript origin
+of the OAuth client. Without `GOOGLE_CLIENT_ID` nobody can sign in on the public domain.
+
+### Frontend (src/api.js)
+```javascript
+const API_BASE = '/api'
+```
+In development Vite proxies `/api` to the backend (see `vite.config.js`).
 
 ## 📊 Database Models
 

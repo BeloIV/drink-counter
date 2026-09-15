@@ -1,18 +1,19 @@
-import { nameGradient, getInitials } from '../lib/avatar'
+import { avatarPhotoUrl, getInitials, nameGradient } from '../lib/avatar'
 
-/* Squircle avatar — fotka ak existuje, inak iniciálky na gradiente
-   odvodenom z mena. Jediná implementácia pre celú appku. */
+/** Rounded-square avatar: the uploaded photo, or initials on a gradient derived from the name. */
 export function Avatar({ person, size = 40, style = {}, className = '' }) {
-  const url = person?.avatar?.startsWith('/media/') ? person.avatar : null
-  const base = { width: size, height: size, fontSize: Math.max(11, size * 0.38), ...style }
+  const photoUrl = avatarPhotoUrl(person)
+  const sizeStyle = { width: size, height: size, fontSize: Math.max(11, size * 0.38), ...style }
 
-  if (url) {
+  if (photoUrl) {
     return (
       <img
-        src={url}
+        src={photoUrl}
         alt={person.name}
         className={`avatar ${className}`}
-        style={base}
+        style={sizeStyle}
+        loading="lazy"
+        decoding="async"
       />
     )
   }
@@ -20,7 +21,7 @@ export function Avatar({ person, size = 40, style = {}, className = '' }) {
   return (
     <span
       className={`avatar ${className}`}
-      style={{ ...base, background: nameGradient(person?.name || '?') }}
+      style={{ ...sizeStyle, background: nameGradient(person?.name || '?') }}
       aria-label={person?.name}
       role="img"
     >
