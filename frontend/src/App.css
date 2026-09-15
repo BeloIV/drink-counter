@@ -279,16 +279,29 @@ code {
 .choice-coffee:hover,
 .choice-cold-brew:hover { transform: translateY(-4px) scale(1.02); }
 
-/* Farba položky z DB ako pásik, nie ako pozadie celej karty.
-   Používatelia si volia aj bielu, ktorá by v tmavom režime prežiarila
-   celú mriežku a vynútila si čierny text. */
-.choice-swatch {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 5px;
+/* Karta vyfarbená farbou položky z DB. Farbu volí používateľ v Admine a
+   siaha po celom rozsahu vrátane bielej, takže farba textu sa dopočítava
+   z jasu podkladu (lib/color.js), nie z pevného tokenu. */
+.choice--tinted {
+  border-color: rgba(0, 0, 0, 0.16);
+  box-shadow: var(--shadow-2);
 }
+.choice--tinted:hover {
+  border-color: currentColor;
+  box-shadow: var(--shadow-3);
+}
+
+/* Tlmený text vnútri karty. Na vyfarbenej karte sa tlmí priesvitnosťou
+   odvodenou od farby textu — .text-muted má pevnú farbu, ktorá na
+   ľubovoľnom podklade zlyhá. */
+.dim { opacity: 0.82; }
+.stock-low { font-weight: 700; opacity: 1; }
+
+.choice:not(.choice--tinted) .dim { color: var(--text-muted); opacity: 1; }
+.choice:not(.choice--tinted) .stock-low { color: var(--warn); }
+
+.choice--tinted .countdown-bar { background: rgba(128, 128, 128, 0.3); }
+.choice--tinted .countdown-bar-fill { background: currentColor; }
 
 .item-dot {
   display: inline-block;

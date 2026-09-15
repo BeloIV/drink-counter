@@ -7,6 +7,7 @@ import { Modal } from './components/Modal'
 import { Icon } from './components/Icon'
 import { useDialog } from './lib/dialogContext'
 import { nameGradient, getInitials } from './lib/avatar'
+import { contrastText } from './lib/color'
 
 // ── tara sáčkov (g) ───────────────────────────────────────────────────────
 const BAG_SIZES = [
@@ -647,18 +648,23 @@ export default function App() {
               const qty = itemQty[i.id]
               const unit = unitOf(i.pricing_mode)
               const lowStock = Number(i.stock_quantity) < (i.pricing_mode === 'per_item' ? 3 : 50)
+              // Farba položky vypĺňa celú kartu; text sa dopočíta tak, aby na nej
+              // bol čitateľný — položky majú aj bielu aj takmer čiernu farbu.
+              const tinted = !!i.color
               return (
                 <button
                   key={i.id}
-                  className="choice choice-enter"
+                  className={`choice choice-enter${tinted ? ' choice--tinted' : ''}`}
                   disabled={isSubmitting}
                   onClick={() => onItemClick(i)}
-                  style={{ animationDelay: `${idx * 0.06}s` }}
+                  style={{
+                    animationDelay: `${idx * 0.06}s`,
+                    ...(tinted ? { background: i.color, color: contrastText(i.color) } : {}),
+                  }}
                 >
-                  {i.color && <span className="choice-swatch" style={{ background: i.color }} />}
                   {qty ? (
                     <>
-                      <div className="fw-semibold text-muted" style={{ fontSize: 'var(--fs-sm)' }}>{i.name}</div>
+                      <div className="fw-semibold dim" style={{ fontSize: 'var(--fs-sm)' }}>{i.name}</div>
                       <div className="d-flex align-items-center gap-2">
                         <button className="qty-step" onClick={(e) => onItemMinus(i, e)} aria-label="Odobrať">
                           <Icon name="minus" size={16} />
@@ -668,7 +674,7 @@ export default function App() {
                           <Icon name="plus" size={16} />
                         </button>
                       </div>
-                      <div className="num text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
+                      <div className="num dim" style={{ fontSize: 'var(--fs-xs)' }}>
                         {(Number(i.price) * qty).toFixed(2)} €
                       </div>
                       <div className="countdown-bar" style={{ width: '70%' }}>
@@ -682,7 +688,7 @@ export default function App() {
                   ) : (
                     <>
                       <div className="fw-bold">{i.name}</div>
-                      <div className="num text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                      <div className="num dim" style={{ fontSize: 'var(--fs-sm)' }}>
                         {i.pricing_mode === 'per_gram'
                           ? `${Number(i.price).toFixed(3)} €/g`
                           : i.pricing_mode === 'per_ml'
@@ -691,12 +697,8 @@ export default function App() {
                       </div>
                       {i.stock_quantity !== null && i.stock_quantity !== undefined && (
                         <div
-                          className="d-flex align-items-center gap-1 mt-1"
-                          style={{
-                            fontSize: 'var(--fs-xs)',
-                            color: lowStock ? 'var(--warn)' : 'var(--text-dim)',
-                            fontWeight: lowStock ? 600 : 400,
-                          }}
+                          className={`d-flex align-items-center gap-1 mt-1 ${lowStock ? 'stock-low' : 'dim'}`}
+                          style={{ fontSize: 'var(--fs-xs)' }}
                         >
                           <Icon name="stock" size={13} />
                           <span className="num">{Number(i.stock_quantity).toFixed(0)} {unit}</span>
