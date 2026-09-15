@@ -1,80 +1,61 @@
 import { useEffect, useState } from 'react'
 
-function getCookie(name) {
-  return document.cookie.split('; ').some(c => c.startsWith(name + '='))
-}
-
+/**
+ * Password gate for the public hostname. The backend answers 401 until the
+ * login sets its (httpOnly) site cookie, so the gate probes instead of
+ * reading the cookie.
+ */
 export default function SiteAuth({ children }) {
-  const [locked, setLocked] = useState(false)
+  const [isLocked, setIsLocked] = useState(false)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [isChecking, setIsChecking] = useState(false)
 
   useEffect(() => {
-    if (!getCookie('_site_auth')) {
-      // Probe the backend to see if auth is required
-      fetch('/api/health').then(res => {
-        if (res.status === 401) setLocked(true)
-      }).catch(() => {})
-    }
+    fetch('/api/health')
+      .then((response) => {
+        if (response.status === 401) setIsLocked(true)
+      })
+      .catch(() => {})
   }, [])
 
-  async function handleSubmit(e) {
-    e.preventDefault()
-    setLoading(true)
+  const unlock = async (event) => {
+    event.preventDefault()
+    setIsChecking(true)
     setError('')
     try {
-      const res = await fetch('/__site-login__', {
+      const response = await fetch('/__site-login__', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
       })
-      const data = await res.json()
-      if (data.ok) {
-        setLocked(false)
-      } else {
-        setError('Wrong password')
-      }
+      const result = await response.json()
+      if (result.ok) setIsLocked(false)
+      else setError('Wrong password')
     } catch {
       setError('Connection error')
     } finally {
-      setLoading(false)
+      setIsChecking(false)
     }
   }
 
-  if (!locked) return children
+  if (!isLocked) return children
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: '#111', display: 'flex',
-      alignItems: 'center', justifyContent: 'center', zIndex: 9999,
-    }}>
-      <form onSubmit={handleSubmit} style={{
-        display: 'flex', flexDirection: 'column', gap: 12, width: 280,
-        fontFamily: 'sans-serif', color: '#eee',
-      }}>
-        <h2 style={{ margin: 0, textAlign: 'center' }}>Drink Counter</h2>
-        {error && <p style={{ color: '#f87', margin: 0, fontSize: 14 }}>{error}</p>}
+    <div className="site-auth">
+      <form onSubmit={unlock} className="site-auth-form">
+        <h2 className="site-auth-title">Drink Counter</h2>
+        {error && <p className="site-auth-error">{error}</p>}
         <input
           type="password"
+          className="form-control"
           placeholder="Password"
           value={password}
-          onChange={e => setPassword(e.target.value)}
+          onChange={(event) => setPassword(event.target.value)}
           autoFocus
-          style={{
-            padding: 10, borderRadius: 6, border: '1px solid #444',
-            background: '#222', color: '#eee', fontSize: 16,
-          }}
         />
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            padding: 10, borderRadius: 6, border: 'none',
-            background: '#4f8ef7', color: 'white', fontSize: 16, cursor: 'pointer',
-          }}
-        >
-          {loading ? 'Checking...' : 'Enter'}
+        <button type="submit" className="btn btn-primary" disabled={isChecking}>
+          {isChecking ? 'Checking...' : 'Enter'}
         </button>
       </form>
     </div>

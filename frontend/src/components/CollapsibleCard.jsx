@@ -13,7 +13,7 @@ export function CollapsibleCard({ icon, title, className = '', bodyClassName = '
         onClick={() => setIsOpen((open) => !open)}
       >
         <span className="fw-semibold d-flex align-items-center gap-2">
-          <Icon name={icon} size={15} /> {title}
+          {icon && <Icon name={icon} size={15} />} {title}
         </span>
         <Icon name={isOpen ? 'caretUp' : 'caretDown'} size={13} />
       </button>

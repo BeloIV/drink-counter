@@ -807,6 +807,82 @@ code {
 .field-amount { width: 80px; flex-shrink: 0; }
 .col-narrow { width: 90px; }
 
+/* ── Site password gate ──────────────────────────────────────────────── */
+.site-auth {
+  position: fixed;
+  inset: 0;
+  z-index: 9999; /* above every page layer, including modals */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  color: var(--text);
+}
+.site-auth-form { display: flex; flex-direction: column; gap: 12px; width: 280px; }
+.site-auth-title { margin: 0; text-align: center; }
+.site-auth-error { margin: 0; color: var(--danger); font-size: var(--fs-sm); }
+
+/* ── Transactions ────────────────────────────────────────────────────── */
+.tx-tile { display: flex; flex-direction: column; align-items: center; width: 92px; }
+.tx-tile-badge {
+  position: absolute;
+  bottom: -4px;
+  right: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.tx-tile-details { margin-top: 0.5rem; text-align: center; font-size: var(--fs-xs); line-height: 1.4; }
+.qty-step.qty-step--small { width: 36px; height: 36px; }
+.avatar-btn .avatar { transition: opacity 0.2s; }
+.avatar.avatar--dimmed { opacity: 0.4; }
+
+/* ── Cold brew ───────────────────────────────────────────────────────── */
+.coffee-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 36px;
+  padding: 0 1rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-sm);
+}
+.coffee-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+}
+.color-strip { height: 6px; }
+.output-ml-input { max-width: 140px; }
+
+/* ── Stats ───────────────────────────────────────────────────────────── */
+.col-rank { width: 2.5rem; }
+.popularity-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+}
+.popularity-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  transition: width 0.6s ease;
+}
+
 /* ── Utilities ───────────────────────────────────────────────────────────
    Last in the cascade so they win over component rules of equal specificity.
 ──────────────────────────────────────────────────────────────────────── */
@@ -831,3 +907,4 @@ code {
 .badge-tone-warn { background: var(--warn-soft); color: var(--warn); }
 .badge-tone-danger { background: var(--danger-soft); color: var(--danger); }
 .badge-tone-neutral { background: var(--surface-3); color: var(--text-muted); }
+.lh-snug { line-height: 1.1; }
