@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
-import { PageHeader } from '../components/PageHeader'
 import { EmptyState } from '../components/EmptyState'
+import { PageHeader } from '../components/PageHeader'
 
-export default function NotFound() {
+export default function NotFoundPage() {
   return (
     <div className="container py-3">
       <PageHeader title="Stránka sa nenašla" icon="search" />
