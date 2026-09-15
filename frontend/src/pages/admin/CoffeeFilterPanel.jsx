@@ -66,7 +66,7 @@ function FilterRow({ filter, editor, isBusy, onEdit, onSave, onCancel, onDelete 
   })
 
   return (
-    <tr className={!filter.active ? 'table-warning' : ''}>
+    <tr>
       <EditableCell {...cell('label')} numeric={false} display={filter.label || '—'} />
       <EditableCell {...cell('g_min')} className="col-narrow" display={toDecimalString(filter.g_min, 1) ?? ''} />
       <EditableCell {...cell('g_max')} className="col-narrow" display={toDecimalString(filter.g_max, 1) ?? ''} />
