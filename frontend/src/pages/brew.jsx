@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
-import { NavDrawer, HamburgerBtn } from '../NavDrawer'
+import { PageHeader } from '../components/PageHeader'
+import { Icon } from '../components/Icon'
+import { EmptyState } from '../components/EmptyState'
+import { SkeletonGrid } from '../components/Skeleton'
 
 const GRAM_PRESETS = [15, 65, 80]
 
@@ -35,9 +38,42 @@ function buildColdBrewMeta(coffees) {
   }
 }
 
+/* Štítok ingrediencie — farba položky je bodka, nie pozadie štítku.
+   Používatelia volia aj biele farby, ktoré by v tmavom režime svietili. */
+function CoffeeChip({ coffee, onRemove }) {
+  return (
+    <span
+      className="d-inline-flex align-items-center gap-2 px-3"
+      style={{
+        background: 'var(--surface-2)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-pill)',
+        fontSize: 'var(--fs-sm)',
+        minHeight: 36,
+      }}
+    >
+      <span className="item-dot" style={{ background: coffee.item.color || 'var(--text-dim)' }} />
+      {coffee.item.name}
+      <span className="num text-muted">{coffee.grams} g</span>
+      {onRemove && (
+        <button
+          onClick={onRemove}
+          aria-label={`Odobrať ${coffee.item.name}`}
+          className="d-inline-flex align-items-center justify-content-center"
+          style={{
+            background: 'none', border: 'none', padding: 0,
+            width: 24, height: 24, color: 'var(--text-muted)',
+          }}
+        >
+          <Icon name="close" size={12} />
+        </button>
+      )}
+    </span>
+  )
+}
+
 export default function Brew() {
   const navigate = useNavigate()
-  const [drawerOpen, setDrawerOpen] = useState(false)
 
   const [step, setStep] = useState('pick-coffee')
   const [coffees, setCoffees] = useState([])
@@ -50,6 +86,7 @@ export default function Brew() {
   const [items, setItems] = useState([])
   const [cats, setCats] = useState([])
   const [coffeeFilters, setCoffeeFilters] = useState([])
+  const [booting, setBooting] = useState(true)
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const [doneData, setDoneData] = useState(null)
@@ -63,7 +100,7 @@ export default function Brew() {
       setItems(Array.isArray(its) ? its : [])
       setCats(Array.isArray(cs) ? cs : [])
       setCoffeeFilters(Array.isArray(cfs) ? cfs : [])
-    })
+    }).finally(() => setBooting(false))
   }, [])
 
   useEffect(() => {
@@ -117,7 +154,7 @@ export default function Brew() {
   const doBrewBatch = async () => {
     const coldBrewCat = cats.find(c => c.name.toLowerCase() === 'cold brew')
     if (!coldBrewCat) {
-      setMsg('Chyba: kategória "Cold Brew" neexistuje. Vytvor ju v Admine.')
+      setMsg('Kategória „Cold Brew" neexistuje. Vytvor ju v Admine.')
       return
     }
     setLoading(true)
@@ -139,7 +176,7 @@ export default function Brew() {
       }
 
       const result = await api.createBrewBatch({
-        ingredients: coffees.map((c, i) => ({ coffee_id: c.item.id, grams: c.grams })),
+        ingredients: coffees.map(c => ({ coffee_id: c.item.id, grams: c.grams })),
         output_item_id: outputItem.id,
         output_ml: outputMl,
       })
@@ -153,27 +190,15 @@ export default function Brew() {
       setStep('done')
     } catch (err) {
       let errMsg = err.message || String(err)
-      try { const parsed = JSON.parse(errMsg); errMsg = parsed.error || errMsg } catch (_) {}
-      setMsg('Chyba: ' + errMsg)
+      try { const parsed = JSON.parse(errMsg); errMsg = parsed.error || errMsg } catch { /* nie JSON */ }
+      setMsg(errMsg)
     }
     setLoading(false)
   }
 
-  const isLight = (color) => !color || color === '#ffffff' || color.toLowerCase() === '#fff'
-
   return (
     <div className="container py-3">
-      <NavDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
-
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <div className="d-flex align-items-center gap-2">
-          <button className="btn btn-link p-0 text-decoration-none" onClick={() => navigate('/')}
-            style={{ fontSize: '1.4rem', lineHeight: 1 }}>←</button>
-          <h2 className="mb-0">❄️ Cold Brew</h2>
-        </div>
-        <HamburgerBtn onClick={() => setDrawerOpen(true)} />
-      </div>
+      <PageHeader title="Cold Brew" icon="coldBrew" />
 
       {msg && (
         <div className="alert alert-warning py-2 mb-3 position-relative overflow-hidden">
@@ -182,71 +207,56 @@ export default function Brew() {
         </div>
       )}
 
-      {/* ── Step: pick-coffee ── */}
+      {/* ── Krok: výber kávy ── */}
       {step === 'pick-coffee' && (
         <div className="step-zoom-in">
-          <h4 className="text-center mb-3">
+          <h2 className="text-center mb-3" style={{ fontSize: 'var(--fs-lg)' }}>
             {coffees.length === 0 ? 'Vyber kávu' : 'Vyber ďalšiu kávu'}
-          </h4>
+          </h2>
 
           {coffees.length > 0 && (
-            <div className="d-flex flex-wrap gap-2 justify-content-center mb-3">
+            <div className="d-flex flex-wrap gap-2 justify-content-center mb-4">
               {coffees.map((c, i) => (
-                <span
-                  key={i}
-                  className="badge d-flex align-items-center gap-1"
-                  style={{
-                    background: c.item.color,
-                    color: isLight(c.item.color) ? '#000' : '#fff',
-                    border: isLight(c.item.color) ? '1px solid #ccc' : 'none',
-                    fontSize: '0.85rem',
-                    padding: '0.35em 0.6em',
-                    borderRadius: '999px',
-                  }}
-                >
-                  ☕ {c.item.name} {c.grams}g
-                  <button
-                    onClick={() => removeCoffee(i)}
-                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                      color: isLight(c.item.color) ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.7)',
-                      fontSize: '0.8rem', lineHeight: 1 }}
-                  >✕</button>
-                </span>
+                <CoffeeChip key={i} coffee={c} onRemove={() => removeCoffee(i)} />
               ))}
             </div>
           )}
 
-          {coffeeItems.length === 0 ? (
-            <div className="text-center text-muted py-4">Žiadne aktívne kávy (Coffee / per_gram)</div>
+          {booting ? (
+            <SkeletonGrid count={6} />
+          ) : coffeeItems.length === 0 ? (
+            <EmptyState
+              icon="coffee"
+              title="Žiadne kávy na varenie"
+              text="Cold brew potrebuje aspoň jednu aktívnu kávu účtovanú po gramoch. Pridaj ju v Admine."
+            />
           ) : (
             <div className="grid-choices">
               {coffeeItems.map((item, idx) => {
-                const bg = item.color || '#ffffff'
-                const light = isLight(bg)
+                const lowStock = Number(item.stock_quantity) < 50
                 return (
                   <button
                     key={item.id}
                     className="choice choice-enter"
                     onClick={() => pickCoffee(item)}
-                    style={{
-                      background: bg,
-                      color: light ? '#000' : '#fff',
-                      border: light ? '2px solid #ddd' : 'none',
-                      animationDelay: `${idx * 0.05}s`,
-                    }}
+                    style={{ animationDelay: `${idx * 0.05}s` }}
                   >
+                    {item.color && <span className="choice-swatch" style={{ background: item.color }} />}
                     <div className="fw-bold">{item.name}</div>
-                    <div className="small" style={{ color: light ? 'rgba(0,0,0,0.65)' : 'rgba(255,255,255,0.85)' }}>
+                    <div className="num text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
                       {Number(item.price).toFixed(3)} €/g
                     </div>
                     {item.stock_quantity !== null && (
-                      <div className="small mt-1" style={{
-                        color: Number(item.stock_quantity) < 50
-                          ? '#fd7e14'
-                          : light ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.7)',
-                        fontWeight: Number(item.stock_quantity) < 50 ? '600' : 'normal',
-                      }}>
-                        📦 {Number(item.stock_quantity).toFixed(0)} g
+                      <div
+                        className="d-flex align-items-center gap-1 mt-1"
+                        style={{
+                          fontSize: 'var(--fs-xs)',
+                          color: lowStock ? 'var(--warn)' : 'var(--text-dim)',
+                          fontWeight: lowStock ? 600 : 400,
+                        }}
+                      >
+                        <Icon name="stock" size={13} />
+                        <span className="num">{Number(item.stock_quantity).toFixed(0)} g</span>
                       </div>
                     )}
                   </button>
@@ -257,10 +267,12 @@ export default function Brew() {
         </div>
       )}
 
-      {/* ── Step: pick-grams ── */}
+      {/* ── Krok: gramáž ── */}
       {step === 'pick-grams' && selectedCoffee && (
         <div className="step-zoom-in">
-          <h4 className="text-center mb-3">Koľko gramov<br /><em>{selectedCoffee.name}</em>?</h4>
+          <h2 className="text-center mb-3" style={{ fontSize: 'var(--fs-lg)' }}>
+            Koľko gramov — {selectedCoffee.name}?
+          </h2>
           <div className="grid-choices">
             {GRAM_PRESETS.map((g, idx) => (
               <button
@@ -269,21 +281,22 @@ export default function Brew() {
                 onClick={() => confirmGrams(g)}
                 style={{ animationDelay: `${idx * 0.06}s` }}
               >
-                <div className="fw-bold" style={{ fontSize: '1.4rem' }}>{g} g</div>
-                <div className="small text-muted">
+                <span className="num fw-bold" style={{ fontSize: 'var(--fs-xl)' }}>{g} g</span>
+                <div className="num text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
                   ≈ {(Number(selectedCoffee.price) * g).toFixed(2)} €
                 </div>
               </button>
             ))}
             <div className="choice choice-enter" style={{ animationDelay: '0.18s' }}>
-              <div className="mb-2 small">Vlastné</div>
-              <div className="input-group input-group-sm">
+              <div className="mb-2" style={{ fontSize: 'var(--fs-sm)' }}>Vlastné</div>
+              <div className="input-group">
                 <input
                   className="form-control text-center"
                   type="number"
                   inputMode="decimal"
                   min="1"
                   placeholder="g"
+                  aria-label="Vlastná gramáž"
                   value={customGrams}
                   onChange={e => setCustomGrams(e.target.value)}
                 />
@@ -294,118 +307,88 @@ export default function Brew() {
                 >OK</button>
               </div>
               {customGrams && Number(customGrams) > 0 && (
-                <div className="small text-muted mt-1">
+                <div className="num text-muted mt-2" style={{ fontSize: 'var(--fs-xs)' }}>
                   ≈ {(Number(selectedCoffee.price) * Number(customGrams)).toFixed(2)} €
                 </div>
               )}
             </div>
           </div>
-          <div className="mt-3">
-            <button className="btn btn-outline-secondary" onClick={() => { setSelectedCoffee(null); setStep('pick-coffee') }}>
-              ← Späť
+          <div className="mt-4">
+            <button
+              className="btn btn-outline-secondary d-inline-flex align-items-center gap-2"
+              onClick={() => { setSelectedCoffee(null); setStep('pick-coffee') }}
+            >
+              <Icon name="back" size={16} /> Späť
             </button>
           </div>
         </div>
       )}
 
-      {/* ── Step: recap ── */}
+      {/* ── Krok: rekapitulácia ── */}
       {step === 'recap' && (
         <div className="step-zoom-in">
-          <h4 className="text-center mb-3">Rekapitulácia</h4>
+          <h2 className="text-center mb-3" style={{ fontSize: 'var(--fs-lg)' }}>Rekapitulácia</h2>
 
-          {/* Ingredient chips */}
-          <div className="d-flex flex-wrap gap-2 justify-content-center mb-3">
-            {coffees.map((c, i) => (
-              <span
-                key={i}
-                className="badge"
-                style={{
-                  background: c.item.color,
-                  color: isLight(c.item.color) ? '#000' : '#fff',
-                  border: isLight(c.item.color) ? '1px solid #ccc' : 'none',
-                  fontSize: '0.9rem',
-                  padding: '0.4em 0.75em',
-                  borderRadius: '999px',
-                }}
-              >
-                ☕ {c.item.name} {c.grams}g
-              </span>
-            ))}
+          <div className="d-flex flex-wrap gap-2 justify-content-center mb-4">
+            {coffees.map((c, i) => <CoffeeChip key={i} coffee={c} />)}
           </div>
 
-          {/* Preview cold brew card */}
-          <div
-            className="card mb-3 overflow-hidden"
-            style={{ border: 'none', borderRadius: 12 }}
-          >
-            <div
-              style={{
-                background: coldBrewMeta.color,
-                minHeight: 70,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '0.75rem 1rem',
-              }}
-            >
-              <div className="text-center">
-                <div
-                  className="fw-bold"
-                  style={{
-                    fontSize: '1.05rem',
-                    color: coldBrewMeta.color.startsWith('linear') ? '#fff' : (isLight(coldBrewMeta.color) ? '#000' : '#fff'),
-                    textShadow: coldBrewMeta.color.startsWith('linear') ? '0 1px 4px rgba(0,0,0,0.5)' : 'none',
-                  }}
-                >
-                  ❄️ {coldBrewMeta.name}
+          {/* Náhľad výslednej položky */}
+          <div className="card mb-3 overflow-hidden">
+            <div style={{ background: coldBrewMeta.color, height: 6 }} />
+            <div className="card-body">
+              <div className="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+                <div className="d-flex align-items-center gap-2 fw-bold" style={{ fontSize: 'var(--fs-md)' }}>
+                  <Icon name="coldBrew" /> {coldBrewMeta.name}
                 </div>
                 {pricePerMl !== null && (
-                  <div
-                    className="small mt-1"
-                    style={{
-                      color: coldBrewMeta.color.startsWith('linear') ? 'rgba(255,255,255,0.85)' : (isLight(coldBrewMeta.color) ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.8)'),
-                    }}
-                  >
-                    {pricePerMl.toFixed(3)} €/ml
-                  </div>
+                  <span className="num text-muted">{pricePerMl.toFixed(3)} €/ml</span>
+                )}
+              </div>
+
+              <div className="mt-3">
+                {!existingColdBrew && (
+                  <span className="badge" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                    Nová položka bude vytvorená
+                  </span>
+                )}
+                {existingColdBrew && !priceMismatch && (
+                  <span className="badge d-inline-flex align-items-center gap-1" style={{ background: 'var(--ok-soft)', color: 'var(--ok)' }}>
+                    <Icon name="check" size={12} /> Cena zodpovedá
+                  </span>
+                )}
+                {existingColdBrew && priceMismatch && (
+                  <>
+                    <span className="badge d-inline-flex align-items-center gap-1 me-2" style={{ background: 'var(--warn-soft)', color: 'var(--warn)' }}>
+                      <Icon name="warning" size={12} /> Iná cena
+                    </span>
+                    <span className="num text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
+                      aktuálna {Number(existingColdBrew.price).toFixed(3)} · vypočítaná {pricePerMl?.toFixed(3)} €/ml
+                    </span>
+                    <div className="form-check mt-2">
+                      <input
+                        type="checkbox"
+                        className="form-check-input"
+                        id="updatePriceCheck"
+                        checked={updatePrice}
+                        onChange={e => setUpdatePrice(e.target.checked)}
+                      />
+                      <label className="form-check-label" htmlFor="updatePriceCheck" style={{ fontSize: 'var(--fs-sm)' }}>
+                        Aktualizovať cenu na <span className="num">{pricePerMl?.toFixed(3)} €/ml</span>
+                      </label>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
-            <div className="card-body py-2 px-3">
-              {!existingColdBrew && (
-                <span className="badge bg-info text-dark">Nová položka bude vytvorená</span>
-              )}
-              {existingColdBrew && !priceMismatch && (
-                <span className="badge bg-success">✓ Cena zodpovedá</span>
-              )}
-              {existingColdBrew && priceMismatch && (
-                <div>
-                  <span className="badge bg-warning text-dark me-2">⚠ Iná cena</span>
-                  <span className="small text-muted">
-                    Aktuálna: {Number(existingColdBrew.price).toFixed(3)} €/ml · Vypočítaná: {pricePerMl?.toFixed(3)} €/ml
-                  </span>
-                  <div className="form-check mt-1">
-                    <input
-                      type="checkbox"
-                      className="form-check-input"
-                      id="updatePriceCheck"
-                      checked={updatePrice}
-                      onChange={e => setUpdatePrice(e.target.checked)}
-                    />
-                    <label className="form-check-label small" htmlFor="updatePriceCheck">
-                      Aktualizovať cenu na {pricePerMl?.toFixed(3)} €/ml
-                    </label>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
 
-          {/* Output ml */}
-          <div className="card mb-3 p-3">
-            <div className="d-flex align-items-center gap-3">
-              <label className="form-label mb-0 fw-semibold text-nowrap">Výstup (ml)</label>
+          {/* Výstup v ml */}
+          <div className="card mb-4 p-3">
+            <div className="d-flex align-items-center gap-3 flex-wrap">
+              <label className="form-label mb-0 fw-semibold text-nowrap" htmlFor="outputMl">Výstup (ml)</label>
               <input
+                id="outputMl"
                 type="number"
                 className="form-control"
                 min="1"
@@ -413,61 +396,51 @@ export default function Brew() {
                 inputMode="decimal"
                 value={outputMl}
                 onChange={e => setOutputMl(Number(e.target.value) || 1000)}
-                style={{ maxWidth: 120 }}
+                style={{ maxWidth: 140 }}
               />
               {pricePerMl !== null && (
-                <div className="text-muted small">
-                  {pricePerMl.toFixed(3)} €/ml
-                </div>
+                <span className="num text-muted">{pricePerMl.toFixed(3)} €/ml</span>
               )}
             </div>
           </div>
 
-          {/* Buttons */}
           <div className="d-flex flex-column gap-2">
             <button
-              className="btn btn-lg text-white fw-semibold"
-              style={{ background: 'linear-gradient(135deg, #0062cc, #0ea5e9)', border: 'none' }}
+              className="btn btn-primary btn-lg d-flex align-items-center justify-content-center gap-2"
               onClick={doBrewBatch}
               disabled={loading || coffees.length === 0}
             >
-              {loading ? '⏳ Vyrábam…' : '❄️ Vyrobiť Cold Brew'}
+              <Icon name="coldBrew" size={20} />
+              {loading ? 'Vyrábam…' : 'Vyrobiť Cold Brew'}
             </button>
-            <button className="btn btn-outline-primary" onClick={() => setStep('pick-coffee')}>
-              ➕ Pridať ďalšiu kávu
+            <button className="btn btn-outline-secondary d-flex align-items-center justify-content-center gap-2" onClick={() => setStep('pick-coffee')}>
+              <Icon name="plus" size={16} /> Pridať ďalšiu kávu
             </button>
-            <button className="btn btn-outline-secondary" onClick={resetAll}>
-              Znovu vybrať
-            </button>
+            <button className="btn btn-outline-secondary" onClick={resetAll}>Začať odznova</button>
           </div>
         </div>
       )}
 
-      {/* ── Step: done ── */}
+      {/* ── Krok: hotovo ── */}
       {step === 'done' && doneData && (
         <div className="step-zoom-in">
           <div className="card p-4 text-center">
-            <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>✅</div>
-            <h4 className="mb-2">Hotovo!</h4>
-            <div className="text-muted mb-3">
-              {doneData.coffees.map((c, i) => (
-                <span key={i}>
-                  {i > 0 && ' + '}☕ {c.item.name} {c.grams}g
-                </span>
-              ))}
-              {' → '}❄️ {doneData.outputName} {doneData.outputMl} ml
+            <div className="done-check"><Icon name="check" size={48} /></div>
+            <h2 className="mt-2 mb-3" style={{ fontSize: 'var(--fs-lg)' }}>Cold brew je navarený</h2>
+            <div className="d-flex flex-wrap gap-2 justify-content-center mb-3">
+              {doneData.coffees.map((c, i) => <CoffeeChip key={i} coffee={c} />)}
+            </div>
+            <div className="d-flex align-items-center justify-content-center gap-2 text-muted">
+              <Icon name="coldBrew" size={16} />
+              {doneData.outputName}
+              <span className="num">{doneData.outputMl} ml</span>
             </div>
           </div>
           <div className="d-flex gap-2 mt-3">
-            <button
-              className="btn btn-primary flex-fill"
-              onClick={resetAll}
-            >
-              ❄️ Vyrobiť ďalší
+            <button className="btn btn-primary flex-fill d-flex align-items-center justify-content-center gap-2" onClick={resetAll}>
+              <Icon name="coldBrew" size={16} /> Vyrobiť ďalší
             </button>
-            <button className="btn btn-outline-secondary flex-fill" onClick={() => navigate('/')}>
-              Domov
-            </button>
+            <button className="btn btn-outline-secondary flex-fill" onClick={() => navigate('/')}>Domov</button>
           </div>
         </div>
       )}

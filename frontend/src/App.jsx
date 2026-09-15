@@ -1,12 +1,14 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from './api'
 import './App.css'
-import { FaBeer, FaCoffee, FaSnowflake } from 'react-icons/fa'
-import logo from '/favicon.png'
 import { getFunnyMessage } from './funnyMessages'
-import { NavDrawer, HamburgerBtn } from './NavDrawer'
+import { PageHeader } from './components/PageHeader'
+import { Modal } from './components/Modal'
+import { Icon } from './components/Icon'
+import { useDialog } from './lib/dialogContext'
+import { nameGradient, getInitials } from './lib/avatar'
 
-// ── bag tare weights (g) ──────────────────────────────────────────────────────
+// ── tara sáčkov (g) ───────────────────────────────────────────────────────
 const BAG_SIZES = [
   { label: '1 kg sáčok', tare: 28 },
   { label: '500 g sáčok', tare: 19.5 },
@@ -14,6 +16,8 @@ const BAG_SIZES = [
   { label: '100 g sáčok', tare: 11 },
   { label: 'Bez sáčka', tare: 0 },
 ]
+
+const unitOf = (mode) => mode === 'per_gram' ? 'g' : mode === 'per_ml' ? 'ml' : 'ks'
 
 function CoffeeCheckModal({ item, onClose }) {
   const [measured, setMeasured] = useState('')
@@ -26,103 +30,99 @@ function CoffeeCheckModal({ item, onClose }) {
   const diff = net !== null ? net - systemStock : null
 
   return (
-    <div
-      onClick={onClose}
-      style={{ position:'fixed', inset:0, zIndex:10000, background:'rgba(0,0,0,0.65)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}
+    <Modal
+      onClose={onClose}
+      icon="scales"
+      title="Kontrola zásoby kávy"
+      subtitle="Každých 10 šálok — odváž sáčok a skontrolujme zásoby."
+      actions={<button className="btn btn-outline-secondary" onClick={onClose}>Zavrieť</button>}
     >
-      <div className="card shadow-lg pop-in" style={{ maxWidth:400, width:'100%' }} onClick={e => e.stopPropagation()}>
-        <div className="card-body p-4">
-          <div style={{ fontSize:'2rem', textAlign:'center', marginBottom:'0.25rem' }}>⚖️</div>
-          <h5 className="text-center mb-1">Kontrola zásoby kávy</h5>
-          <p className="text-muted small text-center mb-3">Každých 10 šálok — odváž sáčok a skontrolujme zásoby.</p>
+      <p className="fw-semibold mb-3 d-flex align-items-center gap-2">
+        <Icon name="coffee" /> {item.name}
+      </p>
 
-          <p className="text-center fw-semibold mb-3">☕ {item.name}</p>
-
-          <div className="mb-3">
-            <label className="form-label small text-muted mb-1">Veľkosť sáčka (tara)</label>
-            <div className="d-flex flex-wrap gap-1">
-              {BAG_SIZES.map((b, idx) => (
-                <button
-                  key={idx}
-                  className={`btn btn-sm ${bagIdx === idx ? 'btn-primary' : 'btn-outline-secondary'}`}
-                  onClick={() => setBagIdx(idx)}
-                >
-                  {b.label}
-                  <span className="ms-1 text-muted" style={{ fontSize: 10 }}>({b.tare}g)</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="mb-3">
-            <label className="form-label small text-muted mb-1">Nameraná hmotnosť sáčka (g)</label>
-            <input
-              className="form-control"
-              type="number"
-              inputMode="decimal"
-              placeholder="napr. 320"
-              value={measured}
-              onChange={e => setMeasured(e.target.value)}
-              autoFocus
-            />
-          </div>
-
-          {net !== null && (
-            <table className="table table-sm mb-3">
-              <tbody>
-                <tr>
-                  <td className="text-muted">Namerané</td>
-                  <td className="fw-semibold">{measuredNum.toFixed(1)} g</td>
-                </tr>
-                <tr>
-                  <td className="text-muted">Tara sáčka</td>
-                  <td>− {tare} g</td>
-                </tr>
-                <tr className="table-info">
-                  <td className="fw-bold">Čistá káva</td>
-                  <td className="fw-bold">{net.toFixed(1)} g</td>
-                </tr>
-                <tr>
-                  <td className="text-muted">Systém hovorí</td>
-                  <td>{systemStock.toFixed(1)} g</td>
-                </tr>
-                <tr className={diff === 0 ? 'table-success' : Math.abs(diff) < 20 ? 'table-warning' : 'table-danger'}>
-                  <td className="fw-bold">Rozdiel</td>
-                  <td className="fw-bold">
-                    {diff > 0 ? '+' : ''}{diff.toFixed(1)} g
-                    {' '}
-                    <span style={{ fontSize: 12, opacity: 0.8 }}>
-                      {diff === 0 ? '✓ Sedí' : diff > 0 ? '(viac než systém)' : '(menej než systém)'}
-                    </span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          )}
-
-          {diff !== null && diff !== 0 && (
-            <div className="alert alert-warning py-2 small mb-3">
-              Ak zásoby nesedia, uprav ich v <strong>Admin → položka → zásoby</strong>.
-            </div>
-          )}
-
-          <button className="btn btn-outline-secondary w-100" onClick={onClose}>
-            Zavrieť
-          </button>
+      <div className="mb-3">
+        <label className="form-label text-muted">Veľkosť sáčka (tara)</label>
+        <div className="d-flex flex-wrap gap-1">
+          {BAG_SIZES.map((b, idx) => (
+            <button
+              key={idx}
+              className={`btn btn-sm ${bagIdx === idx ? 'btn-primary' : 'btn-outline-secondary'}`}
+              onClick={() => setBagIdx(idx)}
+            >
+              {b.label}
+              <span className="num ms-1 opacity-75">({b.tare} g)</span>
+            </button>
+          ))}
         </div>
       </div>
-    </div>
+
+      <div className="mb-3">
+        <label className="form-label text-muted" htmlFor="measured">Nameraná hmotnosť sáčka (g)</label>
+        <input
+          id="measured"
+          className="form-control"
+          type="number"
+          inputMode="decimal"
+          placeholder="napr. 320"
+          value={measured}
+          onChange={e => setMeasured(e.target.value)}
+          data-autofocus
+        />
+      </div>
+
+      {net !== null && (
+        <table className="table table-sm mb-3">
+          <tbody>
+            <tr>
+              <td className="text-muted">Namerané</td>
+              <td className="num fw-semibold">{measuredNum.toFixed(1)} g</td>
+            </tr>
+            <tr>
+              <td className="text-muted">Tara sáčka</td>
+              <td className="num">− {tare} g</td>
+            </tr>
+            <tr className="table-info">
+              <td className="fw-bold">Čistá káva</td>
+              <td className="num fw-bold">{net.toFixed(1)} g</td>
+            </tr>
+            <tr>
+              <td className="text-muted">Systém hovorí</td>
+              <td className="num">{systemStock.toFixed(1)} g</td>
+            </tr>
+            <tr className={diff === 0 ? 'table-success' : Math.abs(diff) < 20 ? 'table-warning' : 'table-danger'}>
+              <td className="fw-bold">Rozdiel</td>
+              <td className="fw-bold">
+                <span className="num">{diff > 0 ? '+' : ''}{diff.toFixed(1)} g</span>
+                <span className="ms-2 opacity-75" style={{ fontSize: 'var(--fs-xs)' }}>
+                  {diff === 0 ? 'sedí' : diff > 0 ? 'viac než systém' : 'menej než systém'}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      )}
+
+      {diff !== null && diff !== 0 && (
+        <div className="alert alert-warning py-2 mb-0" style={{ fontSize: 'var(--fs-sm)' }}>
+          Ak zásoby nesedia, uprav ich v <strong>Admin → položka → zásoby</strong>.
+        </div>
+      )}
+    </Modal>
   )
 }
 
-// ── PersonCard — memo = re-renderuje len ked sa jej vlastné props zmenia ──
+// ── PersonCard — memo, aby sa pri zmene dlhu inej osoby nerenderovala ──
 const PersonCard = memo(function PersonCard({ p, multi, selected, debt, onClick, enterDelay }) {
   const avatarUrl = p.avatar?.startsWith('/media/') ? p.avatar : null
+  const debtClass = debt >= 20 ? 'debt--high' : debt >= 10 ? 'debt--mid' : 'debt--ok'
+  const pulse = debt >= 30 ? ' debt-pulse-fast' : debt >= 25 ? ' debt-pulse-slow' : ''
 
   return (
     <button
       className={`choice choice-enter ${!avatarUrl ? 'choice-initials' : ''} ${multi ? (selected ? 'multi-selected' : 'multi-dim') : ''}`}
       onClick={onClick}
+      aria-pressed={multi ? selected : undefined}
       style={avatarUrl
         ? { backgroundImage: `url(${avatarUrl})`, animationDelay: enterDelay ?? '0s' }
         : { background: nameGradient(p.name), animationDelay: enterDelay ?? '0s' }}
@@ -130,43 +130,22 @@ const PersonCard = memo(function PersonCard({ p, multi, selected, debt, onClick,
       <div className="overlay">
         {!avatarUrl && <div className="initials-letter">{getInitials(p.name)}</div>}
         <div className="fw-bold">{p.name}</div>
-        <div
-          className={`small mt-1 fw-bold debt-value${debt >= 30 ? ' debt-pulse-fast' : debt >= 25 ? ' debt-pulse-slow' : ''}`}
-          style={{
-            color: debt >= 20 ? '#ff4444' : debt >= 10 ? '#ffa94d' : 'rgba(255,255,255,0.85)',
-            textShadow: debt >= 10 ? '0 1px 4px rgba(0,0,0,0.9)' : 'none',
-          }}
-        >
+        <div className={`num mt-1 fw-bold debt-value ${debtClass}${pulse}`}>
           {debt.toFixed(2)} €
         </div>
       </div>
       {multi && (
         <div className={`multi-check ${selected ? 'multi-check-on' : ''}`}>
-          {selected ? '✓' : ''}
+          {selected && <Icon name="check" size={14} />}
         </div>
       )}
     </button>
   )
 })
 
-// ── helpers ─────────────────────────────────────────────────────
-function nameGradient(name) {
-  let hash = 0
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash)
-    hash |= 0
-  }
-  const h = Math.abs(hash) % 360
-  return `linear-gradient(145deg, hsl(${h},60%,38%), hsl(${(h + 50) % 360},70%,28%))`
-}
-
-function getInitials(name) {
-  return name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2)
-}
-// ────────────────────────────────────────────────────────────────
-
 export default function App() {
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const dialog = useDialog()
+
   const [persons, setPersons] = useState([])
   const [items, setItems] = useState([])
   const [summary, setSummary] = useState({ total: 0, per_person: [], session: null })
@@ -194,11 +173,11 @@ export default function App() {
   const [isUndoing, setIsUndoing] = useState(false)
   const [showDebtModal, setShowDebtModal] = useState(false)
   const [pendingAdd, setPendingAdd] = useState(null) // {item, quantity}
-  const [stockWarning, setStockWarning] = useState(null) // { item, quantity, onConfirm }
+  const [stockWarning, setStockWarning] = useState(null)
   const [lastOrder, setLastOrder] = useState(null)
-  const [coffeeCheckModal, setCoffeeCheckModal] = useState(null) // { coffeeItems }
+  const [coffeeCheckModal, setCoffeeCheckModal] = useState(null)
 
-  // per_item qty picker (beer/ks items)
+  // per_item qty picker (pivá/ks položky)
   const [itemQty, setItemQty] = useState({})
   const [itemQtyVersion, setItemQtyVersion] = useState({})
   const itemQtyRef = useRef({})
@@ -425,8 +404,8 @@ export default function App() {
       if (multi && selectedPersons.length > 0) {
         const n = selectedPersons.length
         const isPerUnit = item.pricing_mode === 'per_gram' || item.pricing_mode === 'per_ml'
-        const unit = item.pricing_mode === 'per_ml' ? 'ml' : 'g'
-        // cold brew (per_ml): každý dostane plnú hodnotu; káva (per_gram): rozdelí sa medzi ľudí
+        // cold brew (per_ml): každý dostane plnú hodnotu
+        // káva (per_gram): rozdelí sa medzi ľudí
         const qtyEach = item.pricing_mode === 'per_ml'
           ? Number(quantity)
           : item.pricing_mode === 'per_gram'
@@ -444,9 +423,9 @@ export default function App() {
         await Promise.all([refreshSummary(), loadItems()])
         setNotice(
           item.pricing_mode === 'per_ml'
-            ? `Pridané ${Number(quantity)} ml/osoba pre ${n} ľudí`
+            ? `Pridané ${Number(quantity)} ml na osobu pre ${n} ľudí`
             : item.pricing_mode === 'per_gram'
-            ? `Pridané ${Number(quantity)} g → ${qtyEach.toFixed(1)} g/osoba pre ${n} ľudí`
+            ? `Pridané ${Number(quantity)} g → ${qtyEach.toFixed(1)} g na osobu pre ${n} ľudí`
             : `Pridaný 1 ks pre ${n} ľudí`
         )
         setTimeout(() => setNotice(''), 3000)
@@ -470,7 +449,7 @@ export default function App() {
       setStep('done')
 
       // backend signalizuje každých 10 varení tej konkrétnej kávy
-      // tx.item.stock_quantity je už po odpočítaní aktuálnej šálky — správny aktuálny stav
+      // tx.item.stock_quantity je už po odpočítaní aktuálnej šálky
       if (tx.trigger_check && tx.item?.stock_quantity !== null) {
         setCoffeeCheckModal({ item: tx.item })
       }
@@ -479,9 +458,8 @@ export default function App() {
     }
   }
 
-  // kontrola dlhu pred pridaním
+  // kontrola zásob a dlhu pred pridaním
   const maybeAddItem = (item, quantity) => {
-    // Stock check
     if (item.stock_quantity !== null && item.stock_quantity !== undefined) {
       const perItemCount = quantity ? Number(quantity) : (multi ? selectedPersons.length : 1)
       const needed = item.pricing_mode === 'per_item'
@@ -500,7 +478,7 @@ export default function App() {
         return
       }
     }
-    // Debt check
+
     const currentDebt = multi
       ? Math.max(...selectedPersons.map(p => debts[p.id] ?? 0))
       : (debts[selectedPerson?.id] ?? 0)
@@ -514,37 +492,31 @@ export default function App() {
 
   maybeAddItemRef.current = maybeAddItem
 
-  // hosť
   const addGuest = async () => {
-    const name = prompt('Meno hosťa:')
-    if (!name || !name.trim()) return
+    const name = await dialog.prompt({
+      title: 'Pridať hosťa',
+      label: 'Meno hosťa',
+      placeholder: 'napr. Katka',
+      confirmLabel: 'Pridať',
+    })
+    if (!name) return
     await api.csrf().catch(() => {})
-    await api.addPerson({ name: name.trim(), is_guest: true })
+    await api.addPerson({ name, is_guest: true })
     await loadPersons()
     await refreshSummary()
   }
 
   return (
     <div className="container py-3">
-      <NavDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <PageHeader title="Drink Counter" icon="logo" onTitleClick={resetFlow} />
+
       {coffeeCheckModal && (
         <CoffeeCheckModal
           item={coffeeCheckModal.item}
           onClose={() => setCoffeeCheckModal(null)}
         />
       )}
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <button
-          className="btn btn-link p-0 text-decoration-none logo-header"
-          onClick={resetFlow}
-        >
-          <img src={logo} alt="Drink Counter logo" />
-          <h2>Drink Counter</h2>
-        </button>
-        <HamburgerBtn onClick={() => setDrawerOpen(true)} />
-      </div>
 
-      {/* INFO / notice */}
       {notice && (
         <div className="alert alert-success alert-flash py-2 position-relative overflow-hidden">
           {notice}
@@ -555,10 +527,10 @@ export default function App() {
       {/* krokovník — skrytý na prvej obrazovke */}
       {step !== 'person' && (
         <div className="steps mb-3">
-          <span className={step === 'category' ? 'active' : selectedCategory ? 'done' : 'done'}>Osoba</span>
+          <span className="done">Osoba</span>
           <span className={step === 'category' ? 'active' : selectedCategory ? 'done' : ''}>Kategória</span>
-          <span className={step === 'item' || step === 'grams' ? 'active' : step === 'done' ? 'done' : ''}>Typ</span>
-          <span className={step === 'grams' ? 'active' : ''}>Gramáž</span>
+          <span className={step === 'item' ? 'active' : step === 'grams' || step === 'done' ? 'done' : ''}>Typ</span>
+          <span className={step === 'grams' ? 'active' : step === 'done' && selectedItem?.pricing_mode !== 'per_item' ? 'done' : ''}>Gramáž</span>
           <span className={step === 'done' ? 'active' : ''}>Dlh</span>
         </div>
       )}
@@ -566,33 +538,18 @@ export default function App() {
       {/* krok 1: výber osôb */}
       {step === 'person' && (
         <>
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="m-0">Vyber osobu</h5>
+          <div className="d-flex justify-content-between align-items-center gap-2 mb-4">
+            <h2 className="m-0" style={{ fontSize: 'var(--fs-lg)' }}>Vyber osobu</h2>
             <button
+              className={`btn ${multi ? 'btn-primary' : 'btn-outline-secondary'} d-flex align-items-center gap-2`}
               onClick={toggleMulti}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '10px 18px', borderRadius: 12, cursor: 'pointer',
-                fontSize: '1rem', fontWeight: 600, lineHeight: 1,
-                border: `2px solid ${multi ? '#0d6efd' : 'rgba(128,128,128,0.35)'}`,
-                background: multi ? 'rgba(13,110,253,0.12)' : 'transparent',
-                color: multi ? '#0d6efd' : 'var(--body-color)',
-                transition: 'all 0.15s',
-              }}
+              aria-pressed={multi}
+              style={{ minHeight: 'var(--tap-min)' }}
             >
-              <span style={{
-                width: 20, height: 20, borderRadius: 5, flexShrink: 0,
-                border: `2px solid ${multi ? '#0d6efd' : 'rgba(128,128,128,0.5)'}`,
-                background: multi ? '#0d6efd' : 'transparent',
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'all 0.15s',
-              }}>
-                {multi && <span style={{ color: '#fff', fontSize: 12, fontWeight: 900, lineHeight: 1 }}>✓</span>}
-              </span>
+              <Icon name={multi ? 'check' : 'users'} size={16} />
               Viac osôb
             </button>
           </div>
-
 
           <Section title="Domáci">
             <div className="grid-choices">
@@ -625,7 +582,7 @@ export default function App() {
               ))}
               <button className="choice choice-initials" style={{ background: nameGradient('+ Hosť') }} onClick={addGuest}>
                 <div className="overlay">
-                  <div className="initials-letter">+</div>
+                  <div className="initials-letter"><Icon name="plus" size={34} /></div>
                   <div className="fw-bold">Pridať hosťa</div>
                 </div>
               </button>
@@ -634,8 +591,8 @@ export default function App() {
 
           {multi && selectedPersons.length > 0 && (
             <div className="fixed-bottom-button">
-              <button className="btn btn-success btn-lg" onClick={continueFromMulti}>
-                Pokračovať ({selectedPersons.length})
+              <button className="btn btn-primary btn-lg" onClick={continueFromMulti}>
+                Pokračovať <span className="num">({selectedPersons.length})</span>
               </button>
             </div>
           )}
@@ -644,37 +601,40 @@ export default function App() {
 
       {step === 'item' && Object.keys(itemQty).length > 0 && (
         <div className="fixed-bottom-button">
-          <button className="btn btn-success btn-lg" onClick={submitAllPending} disabled={isSubmitting}>
-            ✓ Pridať ({Object.values(itemQty).reduce((s, q) => s + q, 0)} ks)
+          <button className="btn btn-primary btn-lg d-flex align-items-center gap-2" onClick={submitAllPending} disabled={isSubmitting}>
+            <Icon name="check" size={18} />
+            Pridať <span className="num">{Object.values(itemQty).reduce((s, q) => s + q, 0)} ks</span>
           </button>
         </div>
       )}
 
       {/* krok 2: kategória */}
       {step === 'category' && (
-        <Section title={`${multi ? `Vybraní: ${selectedPersons.length}` : `Ahoj, ${selectedPerson?.name}`} – čo piješ?`}>
+        <Section title={multi ? `Vybraní: ${selectedPersons.length} — čo pijete?` : `Ahoj, ${selectedPerson?.name} — čo piješ?`}>
           <div className="grid-choices">
-            {items.some(i => i.category?.name?.toLowerCase() === 'beer') && (
+            {availableCategories.includes('Beer') && (
               <button className="choice choice-beer" onClick={() => pickCategory('Beer')}>
-                <FaBeer size={36} style={{ marginBottom: 6 }} />
+                <Icon name="beer" size={40} />
                 <div>Pivo</div>
               </button>
             )}
-            {items.some(i => i.category?.name?.toLowerCase() === 'coffee') && (
+            {availableCategories.includes('Coffee') && (
               <button className="choice choice-coffee" onClick={() => pickCategory('Coffee')}>
-                <FaCoffee size={36} style={{ marginBottom: 6 }} />
+                <Icon name="coffee" size={40} />
                 <div>Káva</div>
               </button>
             )}
-            {items.some(i => i.category?.name?.toLowerCase() === 'cold brew') && (
+            {availableCategories.includes('Cold Brew') && (
               <button className="choice choice-cold-brew" onClick={() => pickCategory('Cold Brew')}>
-                <FaSnowflake size={36} style={{ marginBottom: 6 }} />
+                <Icon name="coldBrew" size={40} />
                 <div>Cold Brew</div>
               </button>
             )}
           </div>
-          <div className="mt-3">
-            <button className="btn btn-outline-secondary" onClick={resetFlow}>Späť</button>
+          <div className="mt-4">
+            <button className="btn btn-outline-secondary d-inline-flex align-items-center gap-2" onClick={resetFlow}>
+              <Icon name="back" size={16} /> Späť
+            </button>
           </div>
         </Section>
       )}
@@ -684,61 +644,45 @@ export default function App() {
         <Section title={`Vyber ${selectedCategory === 'Beer' ? 'pivo' : selectedCategory === 'Cold Brew' ? 'cold brew' : 'kávu'}`}>
           <div className="grid-choices">
             {categoryItems.map((i, idx) => {
-              const bgColor = i.color || '#ffffff'
-              const isLight = bgColor === '#ffffff' || bgColor.toLowerCase() === '#fff'
               const qty = itemQty[i.id]
+              const unit = unitOf(i.pricing_mode)
+              const lowStock = Number(i.stock_quantity) < (i.pricing_mode === 'per_item' ? 3 : 50)
               return (
                 <button
                   key={i.id}
                   className="choice choice-enter"
                   disabled={isSubmitting}
                   onClick={() => onItemClick(i)}
-                  style={{
-                    background: bgColor,
-                    color: isLight ? '#000' : '#fff',
-                    border: isLight ? '2px solid #ddd' : 'none',
-                    animationDelay: `${idx * 0.06}s`,
-                    position: 'relative',
-                  }}
+                  style={{ animationDelay: `${idx * 0.06}s` }}
                 >
+                  {i.color && <span className="choice-swatch" style={{ background: i.color }} />}
                   {qty ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: 6 }}>
-                      <div className="fw-semibold small" style={{ opacity: 0.75 }}>{i.name}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <button
-                          onClick={(e) => onItemMinus(i, e)}
-                          style={{
-                            width: 32, height: 32, borderRadius: '50%', border: 'none', cursor: 'pointer',
-                            background: isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.18)',
-                            color: isLight ? '#000' : '#fff', fontSize: 20, lineHeight: 1,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          }}
-                        >−</button>
-                        <span style={{ fontSize: '1.8rem', fontWeight: 800, minWidth: 36, textAlign: 'center' }}>{qty}</span>
-                        <button
-                          onClick={(e) => onItemPlus(i, e)}
-                          style={{
-                            width: 32, height: 32, borderRadius: '50%', border: 'none', cursor: 'pointer',
-                            background: isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.18)',
-                            color: isLight ? '#000' : '#fff', fontSize: 20, lineHeight: 1,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          }}
-                        >+</button>
+                    <>
+                      <div className="fw-semibold text-muted" style={{ fontSize: 'var(--fs-sm)' }}>{i.name}</div>
+                      <div className="d-flex align-items-center gap-2">
+                        <button className="qty-step" onClick={(e) => onItemMinus(i, e)} aria-label="Odobrať">
+                          <Icon name="minus" size={16} />
+                        </button>
+                        <span className="qty-value">{qty}</span>
+                        <button className="qty-step" onClick={(e) => onItemPlus(i, e)} aria-label="Pridať">
+                          <Icon name="plus" size={16} />
+                        </button>
                       </div>
-                      <div style={{ opacity: 0.65, fontSize: 11 }}>
-                        = {(Number(i.price) * qty).toFixed(2)} €
+                      <div className="num text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
+                        {(Number(i.price) * qty).toFixed(2)} €
                       </div>
-                      <div style={{ width: '75%', height: 3, background: isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.2)', borderRadius: 99, overflow: 'hidden', marginTop: 2 }}>
+                      <div className="countdown-bar" style={{ width: '70%' }}>
                         <div
                           key={itemQtyVersion[i.id]}
-                          style={{ height: '100%', borderRadius: 99, background: isLight ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.8)', animation: 'shrink-bar 5s linear forwards' }}
+                          className="countdown-bar-fill"
+                          style={{ animationDuration: '5s' }}
                         />
                       </div>
-                    </div>
+                    </>
                   ) : (
                     <>
                       <div className="fw-bold">{i.name}</div>
-                      <div className="small" style={{ color: isLight ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)' }}>
+                      <div className="num text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
                         {i.pricing_mode === 'per_gram'
                           ? `${Number(i.price).toFixed(3)} €/g`
                           : i.pricing_mode === 'per_ml'
@@ -746,14 +690,16 @@ export default function App() {
                           : `${Number(i.price).toFixed(2)} €`}
                       </div>
                       {i.stock_quantity !== null && i.stock_quantity !== undefined && (
-                        <div className="small mt-1" style={{
-                          color: Number(i.stock_quantity) < (i.pricing_mode === 'per_item' ? 3 : 50)
-                            ? '#fd7e14'
-                            : isLight ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.7)',
-                          fontWeight: Number(i.stock_quantity) < (i.pricing_mode === 'per_item' ? 3 : 50) ? '600' : 'normal',
-                        }}>
-                          📦 {Number(i.stock_quantity).toFixed(0)}{' '}
-                          {i.pricing_mode === 'per_gram' ? 'g' : i.pricing_mode === 'per_ml' ? 'ml' : 'ks'}
+                        <div
+                          className="d-flex align-items-center gap-1 mt-1"
+                          style={{
+                            fontSize: 'var(--fs-xs)',
+                            color: lowStock ? 'var(--warn)' : 'var(--text-dim)',
+                            fontWeight: lowStock ? 600 : 400,
+                          }}
+                        >
+                          <Icon name="stock" size={13} />
+                          <span className="num">{Number(i.stock_quantity).toFixed(0)} {unit}</span>
                         </div>
                       )}
                     </>
@@ -762,8 +708,13 @@ export default function App() {
               )
             })}
           </div>
-          <div className="mt-3 d-flex gap-2">
-            <button className="btn btn-outline-secondary" onClick={() => { clearAllItemQty(); availableCategories.length === 1 ? resetFlow() : setStep('category') }}>Späť</button>
+          <div className="mt-4 d-flex gap-2 flex-wrap">
+            <button
+              className="btn btn-outline-secondary d-inline-flex align-items-center gap-2"
+              onClick={() => { clearAllItemQty(); availableCategories.length === 1 ? resetFlow() : setStep('category') }}
+            >
+              <Icon name="back" size={16} /> Späť
+            </button>
             <button className="btn btn-outline-secondary" onClick={resetFlow}>Zmeniť osobu</button>
           </div>
         </Section>
@@ -773,8 +724,8 @@ export default function App() {
       {step === 'grams' && (
         <Section title={
           selectedItem?.pricing_mode === 'per_ml'
-            ? `Koľko ml cold brew? ${multi ? `(každý dostane toľko)` : ''}`
-            : `Koľko gramov kávy? ${multi && selectedPersons.length > 1 ? `(rozdelí sa medzi ${selectedPersons.length} ľudí)` : ''}`
+            ? `Koľko ml cold brew?${multi ? ' (každý dostane toľko)' : ''}`
+            : `Koľko gramov kávy?${multi && selectedPersons.length > 1 ? ` (rozdelí sa medzi ${selectedPersons.length} ľudí)` : ''}`
         }>
           <div className="grid-choices">
             {(selectedItem?.pricing_mode === 'per_ml' ? [200, 250, 400] : [15, 20, 30, 45, 60]).map((g, idx) => {
@@ -784,17 +735,25 @@ export default function App() {
                 ? Number(selectedItem.price) * eachG
                 : Number(selectedItem.price) * g
               return (
-              <button key={g} className="choice choice-enter" onClick={() => maybeAddItem(selectedItem, g)} disabled={isSubmitting}
-                style={{ animationDelay: `${idx * 0.05}s` }}>
-                {g} {selectedItem?.pricing_mode === 'per_ml' ? 'ml' : 'g'}
-                {selectedItem?.pricing_mode === 'per_gram' && n > 1 && (
-                  <div className="small text-muted">{eachG.toFixed(1)} g/os.</div>
-                )}
-                <div className="small text-muted">
-                  ≈ {totalPrice.toFixed(2)} €/os.
-                </div>
-              </button>
-            )})}
+                <button
+                  key={g}
+                  className="choice choice-enter"
+                  onClick={() => maybeAddItem(selectedItem, g)}
+                  disabled={isSubmitting}
+                  style={{ animationDelay: `${idx * 0.05}s` }}
+                >
+                  <span className="num" style={{ fontSize: 'var(--fs-xl)', fontWeight: 700 }}>
+                    {g} {selectedItem?.pricing_mode === 'per_ml' ? 'ml' : 'g'}
+                  </span>
+                  {selectedItem?.pricing_mode === 'per_gram' && n > 1 && (
+                    <div className="num text-muted" style={{ fontSize: 'var(--fs-xs)' }}>{eachG.toFixed(1)} g na osobu</div>
+                  )}
+                  <div className="num text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
+                    ≈ {totalPrice.toFixed(2)} € na osobu
+                  </div>
+                </button>
+              )
+            })}
 
             <div className="choice choice-enter" style={{ animationDelay: '0.25s' }}>
               <div className="mb-2">Vlastné</div>
@@ -802,18 +761,21 @@ export default function App() {
                 <input
                   className="form-control"
                   inputMode="decimal"
+                  aria-label={selectedItem?.pricing_mode === 'per_ml' ? 'Vlastný počet ml' : 'Vlastná gramáž'}
                   value={grams}
                   onChange={e => setGrams(e.target.value)}
                 />
                 <button className="btn btn-primary" onClick={() => maybeAddItem(selectedItem, grams)} disabled={isSubmitting}>OK</button>
               </div>
-              <div className="small text-muted mt-2">
+              <div className="num text-muted mt-2" style={{ fontSize: 'var(--fs-xs)' }}>
                 {(Number(selectedItem?.price || 0) * Number(grams || 0)).toFixed(2)} €
               </div>
             </div>
           </div>
-          <div className="mt-3 d-flex gap-2">
-            <button className="btn btn-outline-secondary" onClick={() => setStep('item')}>Späť</button>
+          <div className="mt-4 d-flex gap-2 flex-wrap">
+            <button className="btn btn-outline-secondary d-inline-flex align-items-center gap-2" onClick={() => setStep('item')}>
+              <Icon name="back" size={16} /> Späť
+            </button>
             <button className="btn btn-outline-secondary" onClick={resetFlow}>Zmeniť osobu</button>
           </div>
         </Section>
@@ -821,20 +783,24 @@ export default function App() {
 
       {/* krok 4: potvrdenie pre single */}
       {step === 'done' && !multi && (
-        <Section title="Hotovo!">
-          <div className="card p-3 text-center pop-in">
-            <div className="done-check">✓</div>
-            <div className="fs-5 mt-2">Aktuálny dlh pre</div>
-            <div className="fs-3 fw-bold mb-2">{selectedPerson?.name}</div>
-            <div className="display-6 fw-bold">{Number(personTotal).toFixed(2)} €</div>
+        <Section title="Hotovo">
+          <div className="card p-4 text-center pop-in">
+            <div className="done-check"><Icon name="check" size={56} /></div>
+            <div className="text-muted mt-2">Aktuálny dlh pre</div>
+            <div className="fw-bold mb-2" style={{ fontSize: 'var(--fs-lg)' }}>{selectedPerson?.name}</div>
+            <div className="num fw-bold" style={{ fontSize: 'var(--fs-3xl)', lineHeight: 1 }}>
+              {Number(personTotal).toFixed(2)} €
+            </div>
             {lastOrder && (
-              <div className="mt-2 mb-1 text-muted small">
+              <div className="mt-3 text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
                 {lastOrder.item?.name}
-                {lastOrder.item?.pricing_mode === 'per_gram' && ` · ${Number(lastOrder.quantity).toFixed(0)} g`}
-                {lastOrder.item?.pricing_mode === 'per_ml' && ` · ${Number(lastOrder.quantity).toFixed(0)} ml`}
-                {lastOrder.item?.pricing_mode === 'per_item' && Number(lastOrder.quantity) > 1 && ` · ${Number(lastOrder.quantity).toFixed(0)} ks`}
+                {lastOrder.item?.pricing_mode === 'per_gram' && <> · <span className="num">{Number(lastOrder.quantity).toFixed(0)} g</span></>}
+                {lastOrder.item?.pricing_mode === 'per_ml' && <> · <span className="num">{Number(lastOrder.quantity).toFixed(0)} ml</span></>}
+                {lastOrder.item?.pricing_mode === 'per_item' && Number(lastOrder.quantity) > 1 && <> · <span className="num">{Number(lastOrder.quantity).toFixed(0)} ks</span></>}
                 {' · '}
-                <span className="text-success fw-bold">+{Number(lastOrder.price_at_time).toFixed(2)} €</span>
+                <span className="num fw-bold" style={{ color: 'var(--accent)' }}>
+                  +{Number(lastOrder.price_at_time).toFixed(2)} €
+                </span>
               </div>
             )}
             {funnyMsg && (
@@ -843,12 +809,14 @@ export default function App() {
                 <div className="funny-msg-text">{funnyMsg.text}</div>
               </div>
             )}
-            <div className="countdown-bar mt-3">
+            <div className="countdown-bar mt-4">
               <div className="countdown-bar-fill" style={{ animationDuration: '5s' }} />
             </div>
-            <div className="text-muted small mt-1">Auto-reset za {countdown}s</div>
+            <div className="text-muted mt-2" style={{ fontSize: 'var(--fs-xs)' }}>
+              Auto-reset za <span className="num">{countdown}</span> s
+            </div>
           </div>
-          <div className="mt-3 d-flex flex-wrap gap-2 justify-content-center">
+          <div className="mt-4 d-flex flex-wrap gap-2 justify-content-center">
             <button
               className="btn btn-primary"
               onClick={() => { setCountdown(null); setStep(selectedItem?.pricing_mode === 'per_gram' || selectedItem?.pricing_mode === 'per_ml' ? 'grams' : 'item') }}
@@ -856,11 +824,12 @@ export default function App() {
               Pridať ďalší
             </button>
             <button
-              className="btn btn-outline-danger"
+              className="btn btn-outline-secondary d-inline-flex align-items-center gap-2"
               onClick={undoLast}
               disabled={isUndoing}
             >
-              {isUndoing ? 'Ruším…' : '↩ Undo'}
+              <Icon name="undo" size={16} />
+              {isUndoing ? 'Ruším…' : 'Vrátiť späť'}
             </button>
             <button className="btn btn-outline-secondary" onClick={resetFlow}>Domov</button>
           </div>
@@ -869,44 +838,52 @@ export default function App() {
 
       {/* Modal: málo zásoby */}
       {stockWarning && (
-        <div className="debt-modal-overlay" onClick={() => setStockWarning(null)}>
-          <div className="debt-modal pop-in" style={{ borderColor: '#fd7e14', boxShadow: '0 0 32px rgba(253,126,20,0.35)' }} onClick={e => e.stopPropagation()}>
-            <div className="debt-modal-icon">⚠️</div>
-            <div className="debt-modal-title" style={{ color: '#fd7e14' }}>Málo zásoby!</div>
-            <div className="debt-modal-body">
-              Dostupné: <strong>{stockWarning.available.toFixed(0)} {stockWarning.item.pricing_mode === 'per_gram' ? 'g' : stockWarning.item.pricing_mode === 'per_ml' ? 'ml' : 'ks'}</strong><br />
-              Potrebné: <strong>{stockWarning.needed.toFixed(0)} {stockWarning.item.pricing_mode === 'per_gram' ? 'g' : stockWarning.item.pricing_mode === 'per_ml' ? 'ml' : 'ks'}</strong>
-            </div>
-            <div className="debt-modal-actions">
-              <button className="btn btn-warning" onClick={stockWarning.onConfirm}>Aj tak pridať</button>
+        <Modal
+          onClose={() => setStockWarning(null)}
+          tone="warning"
+          icon="warning"
+          size="sm"
+          title="Málo zásoby"
+          subtitle={`${stockWarning.item.name} nemá dosť na túto objednávku.`}
+          actions={
+            <>
               <button className="btn btn-outline-secondary" onClick={() => setStockWarning(null)}>Zrušiť</button>
-            </div>
-          </div>
-        </div>
+              <button className="btn btn-primary" onClick={stockWarning.onConfirm}>Aj tak pridať</button>
+            </>
+          }
+        >
+          <table className="table table-sm mb-0">
+            <tbody>
+              <tr>
+                <td className="text-muted">Dostupné</td>
+                <td className="num fw-semibold text-end">
+                  {stockWarning.available.toFixed(0)} {unitOf(stockWarning.item.pricing_mode)}
+                </td>
+              </tr>
+              <tr>
+                <td className="text-muted">Potrebné</td>
+                <td className="num fw-semibold text-end" style={{ color: 'var(--warn)' }}>
+                  {stockWarning.needed.toFixed(0)} {unitOf(stockWarning.item.pricing_mode)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </Modal>
       )}
 
-      {/* Modal: vysoký dlh ≥35 */}
+      {/* Modal: vysoký dlh ≥ 35 € */}
       {showDebtModal && (
-        <div className="debt-modal-overlay" onClick={() => setShowDebtModal(false)}>
-          <div className="debt-modal pop-in" onClick={e => e.stopPropagation()}>
-            <div className="debt-modal-icon">⚠️</div>
-            <div className="debt-modal-title">Vysoký dlh!</div>
-            <div className="debt-modal-body">
-              {multi
-                ? 'Niektorý z vybraných ľudí má dlh nad 35 €.'
-                : `${selectedPerson?.name} má dlh ${(debts[selectedPerson?.id] ?? 0).toFixed(2)} €.`}
-              <br />Najprv zaplaťte, prosím.
-            </div>
-            <div className="debt-modal-actions">
-              <button
-                className="btn btn-danger"
-                onClick={() => {
-                  setShowDebtModal(false)
-                  setPendingAdd(null)
-                }}
-              >
-                Zatvoriť
-              </button>
+        <Modal
+          onClose={() => { setShowDebtModal(false); setPendingAdd(null) }}
+          tone="danger"
+          icon="warning"
+          size="sm"
+          title="Vysoký dlh"
+          subtitle={multi
+            ? 'Niektorý z vybraných ľudí má dlh nad 35 €. Najprv ho prosím vyrovnajte.'
+            : `${selectedPerson?.name} má dlh ${(debts[selectedPerson?.id] ?? 0).toFixed(2)} €. Najprv ho prosím vyrovnajte.`}
+          actions={
+            <>
               <button
                 className="btn btn-outline-secondary"
                 onClick={() => {
@@ -917,24 +894,25 @@ export default function App() {
               >
                 Aj tak pridať
               </button>
-            </div>
-          </div>
-        </div>
+              <button
+                className="btn btn-danger"
+                onClick={() => { setShowDebtModal(false); setPendingAdd(null) }}
+              >
+                Zavrieť
+              </button>
+            </>
+          }
+        />
       )}
-
-      {/* Pätička */}
-      <footer className="text-center mt-4">
-        <p className="small text-muted">&copy; {new Date().getFullYear()} Drink Counter.</p>
-      </footer>
     </div>
   )
 }
 
 function Section({ title, children }) {
   return (
-    <div className="mb-4 step-zoom-in">
-      <h4 className="mb-3 text-center">{title}</h4>
+    <section className="mb-5 step-zoom-in">
+      <h2 className="mb-3 text-center" style={{ fontSize: 'var(--fs-lg)' }}>{title}</h2>
       {children}
-    </div>
+    </section>
   )
 }
