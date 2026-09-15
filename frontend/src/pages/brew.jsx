@@ -5,6 +5,7 @@ import { PageHeader } from '../components/PageHeader'
 import { Icon } from '../components/Icon'
 import { EmptyState } from '../components/EmptyState'
 import { SkeletonGrid } from '../components/Skeleton'
+import { contrastText } from '../lib/color'
 
 const GRAM_PRESETS = [15, 65, 80]
 
@@ -234,26 +235,25 @@ export default function Brew() {
             <div className="grid-choices">
               {coffeeItems.map((item, idx) => {
                 const lowStock = Number(item.stock_quantity) < 50
+                const tinted = !!item.color
                 return (
                   <button
                     key={item.id}
-                    className="choice choice-enter"
+                    className={`choice choice-enter${tinted ? ' choice--tinted' : ''}`}
                     onClick={() => pickCoffee(item)}
-                    style={{ animationDelay: `${idx * 0.05}s` }}
+                    style={{
+                      animationDelay: `${idx * 0.05}s`,
+                      ...(tinted ? { background: item.color, color: contrastText(item.color) } : {}),
+                    }}
                   >
-                    {item.color && <span className="choice-swatch" style={{ background: item.color }} />}
                     <div className="fw-bold">{item.name}</div>
-                    <div className="num text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                    <div className="num dim" style={{ fontSize: 'var(--fs-sm)' }}>
                       {Number(item.price).toFixed(3)} €/g
                     </div>
                     {item.stock_quantity !== null && (
                       <div
-                        className="d-flex align-items-center gap-1 mt-1"
-                        style={{
-                          fontSize: 'var(--fs-xs)',
-                          color: lowStock ? 'var(--warn)' : 'var(--text-dim)',
-                          fontWeight: lowStock ? 600 : 400,
-                        }}
+                        className={`d-flex align-items-center gap-1 mt-1 ${lowStock ? 'stock-low' : 'dim'}`}
+                        style={{ fontSize: 'var(--fs-xs)' }}
                       >
                         <Icon name="stock" size={13} />
                         <span className="num">{Number(item.stock_quantity).toFixed(0)} g</span>
