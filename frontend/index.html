@@ -4,26 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#0d6efd" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#0f0f0f" />
     <meta name="description" content="Rýchle účtovanie pív a káv pre partiu" />
     <meta name="format-detection" content="telephone=no,email=no,address=no" />
 
     <!-- iOS fullscreen ikonka a status bar -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Drink Counter" />
 
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
     <link rel="manifest" href="/manifest.json" />
 
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/outfit-latin.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/jbmono-latin.woff2" crossorigin />
+
     <title>Drink Counter</title>
     <!-- Anti-flash: apply saved theme before first paint -->
     <script>
       ;(function(){
         var t = localStorage.getItem('theme')
-        if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        if (t !== 'dark' && t !== 'light') t = 'dark'  // dark-first kiosk
         document.documentElement.setAttribute('data-theme', t)
       })()
     </script>
