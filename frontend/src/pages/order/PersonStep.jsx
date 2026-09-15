@@ -1,24 +1,46 @@
-import { memo } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { Icon } from '../../components/Icon'
 import { avatarPhotoUrl, getInitials, nameGradient } from '../../lib/avatar'
 import { debtClassName } from './orderRules'
 import { StepSection } from './StepSection'
+import { useProgressivePhotos } from './useProgressivePhotos'
 
 const ENTER_STAGGER_SECONDS = 0.05
 
+function PersonPhoto({ url, name, onSettled }) {
+  const [isLoaded, setIsLoaded] = useState(false)
+
+  return (
+    <img
+      src={url}
+      alt=""
+      className={`choice-photo${isLoaded ? ' choice-photo--on' : ''}`}
+      decoding="async"
+      onLoad={() => { setIsLoaded(true); onSettled() }}
+      onError={onSettled}
+      // The gradient underneath stays visible until the photo is there.
+      style={{ background: nameGradient(name) }}
+    />
+  )
+}
+
 // Memoised so a debt change re-renders only the card it belongs to; `onSelect` must be stable.
-const PersonCard = memo(function PersonCard({ person, debt, isGroupOrder, isSelected, onSelect, enterIndex }) {
+const PersonCard = memo(function PersonCard({
+  person, debt, isGroupOrder, isSelected, onSelect, enterIndex, canLoadPhoto, onPhotoSettled,
+}) {
   const photoUrl = avatarPhotoUrl(person)
   const selectionClass = isGroupOrder ? (isSelected ? 'multi-selected' : 'multi-dim') : ''
-  const background = photoUrl ? { backgroundImage: `url(${photoUrl})` } : { background: nameGradient(person.name) }
 
   return (
     <button
       className={`choice choice-enter ${photoUrl ? '' : 'choice-initials'} ${selectionClass}`}
       onClick={() => onSelect(person)}
       aria-pressed={isGroupOrder ? isSelected : undefined}
-      style={{ ...background, animationDelay: `${enterIndex * ENTER_STAGGER_SECONDS}s` }}
+      style={{ background: nameGradient(person.name), animationDelay: `${enterIndex * ENTER_STAGGER_SECONDS}s` }}
     >
+      {photoUrl && canLoadPhoto && (
+        <PersonPhoto url={photoUrl} name={person.name} onSettled={onPhotoSettled} />
+      )}
       <div className="overlay">
         {!photoUrl && <div className="initials-letter">{getInitials(person.name)}</div>}
         <div className="fw-bold">{person.name}</div>
@@ -33,7 +55,7 @@ const PersonCard = memo(function PersonCard({ person, debt, isGroupOrder, isSele
   )
 })
 
-function PersonGrid({ persons, firstIndex = 0, debts, isGroupOrder, selectedIds, onSelect, children }) {
+function PersonGrid({ persons, firstIndex = 0, debts, isGroupOrder, selectedIds, onSelect, photos, children }) {
   return (
     <div className="grid-choices">
       {persons.map((person, index) => (
@@ -45,6 +67,8 @@ function PersonGrid({ persons, firstIndex = 0, debts, isGroupOrder, selectedIds,
           isSelected={selectedIds.has(person.id)}
           onSelect={onSelect}
           enterIndex={firstIndex + index}
+          canLoadPhoto={photos.canLoad(photos.indexOf(person))}
+          onPhotoSettled={photos.onSettled}
         />
       ))}
       {children}
@@ -76,12 +100,27 @@ function GroupOrderToggle({ isGroupOrder, onToggle }) {
   )
 }
 
+/** Photos load in the order people are shown, home members first. */
+function usePhotoOrder(homeMembers, guests) {
+  const order = useMemo(() => {
+    const positions = new Map()
+    for (const person of [...homeMembers, ...guests]) {
+      if (avatarPhotoUrl(person)) positions.set(person.id, positions.size)
+    }
+    return positions
+  }, [homeMembers, guests])
+
+  const progressive = useProgressivePhotos(order.size)
+  return { ...progressive, indexOf: (person) => order.get(person.id) }
+}
+
 export function PersonStep({
   homeMembers, guests, debts, isGroupOrder, selectedPersons,
   onToggleGroupOrder, onSelect, onAddGuest, onContinue,
 }) {
   const selectedIds = new Set(selectedPersons.map((person) => person.id))
-  const gridProps = { debts, isGroupOrder, selectedIds, onSelect }
+  const photos = usePhotoOrder(homeMembers, guests)
+  const gridProps = { debts, isGroupOrder, selectedIds, onSelect, photos }
 
   return (
     <>
