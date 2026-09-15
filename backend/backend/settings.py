@@ -95,6 +95,9 @@ DATABASES = {
         "HOST": os.environ.get("POSTGRES_HOST", "db"),
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
         "CONN_MAX_AGE": 600,
+        # The migration history cannot build a fresh database (0001 already
+        # creates Item.color, 0002 adds it again), so tests use the models.
+        "TEST": {"MIGRATE": False},
     }
 }
 
