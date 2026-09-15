@@ -1,8 +1,9 @@
 import 'bootstrap/dist/css/bootstrap.min.css'
 import './index.css'
+import './App.css'
 import ReactDOM from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
-import App from './App.jsx'
+import OrderPage from './pages/order/OrderPage.jsx'
 import Admin from './pages/admin.jsx'
 import Transactions from './pages/transactions.jsx'
 import Users from './pages/users.jsx'
@@ -13,7 +14,7 @@ import SiteAuth from './components/SiteAuth.jsx'
 import { DialogProvider } from './components/Dialogs.jsx'
 
 const router = createBrowserRouter([
-  { path: "/", element: <App />, errorElement: <NotFound /> },
+  { path: "/", element: <OrderPage />, errorElement: <NotFound /> },
   { path: "/brew", element: <Brew /> },
   { path: "/admin", element: <Admin /> },
   { path: "/transactions", element: <Transactions /> },
