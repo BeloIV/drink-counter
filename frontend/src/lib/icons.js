@@ -1,0 +1,46 @@
+/* Mapa ikon — Phosphor (react-icons/pi), jedna rodina, jednotná hrúbka ťahu.
+   Predtým bolo UI poskladané z emoji, ktoré sa na každej platforme
+   renderujú inak. */
+import {
+  PiHouseBold, PiSnowflakeBold, PiLockKeyBold, PiListBulletsBold,
+  PiChartBarBold, PiUsersBold, PiBeerSteinBold, PiCoffeeBold,
+  PiPackageBold, PiScalesBold, PiTrophyBold, PiTrendUpBold,
+  PiSunBold, PiMoonBold, PiXBold, PiPlusBold, PiMinusBold,
+  PiCheckBold, PiWarningBold, PiArrowLeftBold,
+  PiArrowCounterClockwiseBold, PiGearBold, PiCalendarBlankBold,
+  PiReceiptBold, PiCaretDownBold, PiCaretUpBold, PiTrashBold,
+  PiPencilSimpleBold, PiMagnifyingGlassBold, PiCurrencyEurBold,
+} from 'react-icons/pi'
+
+export const Icons = {
+  home: PiHouseBold,
+  coldBrew: PiSnowflakeBold,
+  admin: PiLockKeyBold,
+  transactions: PiListBulletsBold,
+  stats: PiChartBarBold,
+  users: PiUsersBold,
+  beer: PiBeerSteinBold,
+  coffee: PiCoffeeBold,
+  stock: PiPackageBold,
+  scales: PiScalesBold,
+  trophy: PiTrophyBold,
+  trend: PiTrendUpBold,
+  sun: PiSunBold,
+  moon: PiMoonBold,
+  close: PiXBold,
+  plus: PiPlusBold,
+  minus: PiMinusBold,
+  check: PiCheckBold,
+  warning: PiWarningBold,
+  back: PiArrowLeftBold,
+  undo: PiArrowCounterClockwiseBold,
+  settings: PiGearBold,
+  calendar: PiCalendarBlankBold,
+  receipt: PiReceiptBold,
+  caretDown: PiCaretDownBold,
+  caretUp: PiCaretUpBold,
+  trash: PiTrashBold,
+  edit: PiPencilSimpleBold,
+  search: PiMagnifyingGlassBold,
+  euro: PiCurrencyEurBold,
+}
