@@ -309,6 +309,18 @@ code {
   border: 1px solid rgba(128,128,128,0.35);
 }
 
+/* Person photo filling the card; the overlay and checkmark come later in the DOM, so they sit on top. */
+.choice-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.choice-photo--on { opacity: 1; }
+
 /* Person card with initials instead of a photo */
 .choice-initials .overlay {
   background: linear-gradient(to top, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0.08) 60%);
