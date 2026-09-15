@@ -33,7 +33,7 @@ a { color: inherit; text-decoration: none; }
 button { cursor: pointer; font-family: inherit; }
 button, a, input, select { touch-action: manipulation; }
 
-/* Jeden focus ring pre celú appku — predtým nebol nikde. */
+/* One focus ring for the whole app, shown only for keyboard focus. */
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -43,19 +43,8 @@ button, a, input, select { touch-action: manipulation; }
 
 .container { max-width: var(--container-max); }
 
-.safe {
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-.text-center { text-align: center; }
-
-.min-h-100vh { min-height: 100dvh; }
-
-/* Číselná utility — dlhy, ceny, gramáž, ml, zásoby.
-   Tabular figures, aby čísla pri prepočte neposkakovali. */
+/* Numbers: debts, prices, grams, ml, stock.
+   Tabular figures keep digits from shifting as values change. */
 .num {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -63,9 +52,9 @@ button, a, input, select { touch-action: manipulation; }
   letter-spacing: -0.01em;
 }
 
-/* ── Zrno ─────────────────────────────────────────────────────────────
-   Fixná vrstva, ktorá zlomí digitálnu plochosť tmavého režimu.
-   Bez assetu — SVG feTurbulence ako data-URI.
+/* ── Grain ────────────────────────────────────────────────────────────
+   A fixed noise layer that breaks up the flat dark surfaces.
+   No asset needed: an SVG feTurbulence data URI.
 ──────────────────────────────────────────────────────────────────── */
 body::after {
   content: '';
@@ -77,7 +66,7 @@ body::after {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* ── Hamburger ───────────────────────────────────────────────────────── */
+/* ── Menu button ─────────────────────────────────────────────────────── */
 .hamburger-btn {
   width: var(--tap-min);
   height: var(--tap-min);
@@ -233,7 +222,7 @@ body::after {
   color: var(--text-muted);
 }
 
-/* ── Brew batch karta ────────────────────────────────────────────────── */
+/* ── Brew batch panel ────────────────────────────────────────────────── */
 .brew-summary-pill {
   display: flex;
   align-items: center;

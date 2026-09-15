@@ -1,6 +1,6 @@
 /* ── App.css ──────────────────────────────────────────────────────────────
-   Farby, tiene, rádiusy a vrstvenie žijú v styles/tokens.css.
-   Tu sú len Bootstrap overrides a vlastné komponenty.
+   Bootstrap overrides and component styles. Colours, shadows, radii and
+   layers come from styles/tokens.css.
 ──────────────────────────────────────────────────────────────────────── */
 
 /* ── Bootstrap overrides ─────────────────────────────────────────────── */
@@ -41,7 +41,7 @@
 
 .form-control::placeholder { color: var(--text-dim); opacity: 1; }
 
-/* Číselné inputy dostanú mono font — gramáž, ml, ceny */
+/* Numeric inputs (grams, millilitres, prices) use the monospace font. */
 input[inputmode="decimal"],
 input[inputmode="numeric"],
 input[type="number"] {
@@ -66,18 +66,12 @@ input[type="number"] {
   letter-spacing: var(--track-wide);
 }
 
-.table-striped > tbody > tr:nth-of-type(odd) > * {
-  background: var(--surface-2) !important;
-  color: var(--text) !important;
-}
-
 .table-warning > * { background-color: var(--warn-soft) !important; color: var(--warn) !important; }
 .table-success > * { background-color: var(--ok-soft) !important;   color: var(--ok) !important; }
 .table-danger  > * { background-color: var(--danger-soft) !important; color: var(--danger) !important; }
 .table-info    > * { background-color: var(--accent-soft) !important; color: var(--accent) !important; }
 
 .text-muted { color: var(--text-muted) !important; }
-.bg-light   { background-color: var(--surface-2) !important; }
 
 hr { border-top: 1px solid var(--border); opacity: 1; }
 
@@ -90,7 +84,7 @@ code {
   font-size: 0.875em;
 }
 
-/* Tlačidlá */
+/* Buttons */
 .btn {
   border-radius: var(--radius-md);
   font-weight: 500;
@@ -124,27 +118,14 @@ code {
   --bs-btn-active-border-color: var(--border-strong);
 }
 
-.btn-success {
-  --bs-btn-bg: var(--ok);
-  --bs-btn-border-color: var(--ok);
-  --bs-btn-color: var(--on-accent);
-  --bs-btn-hover-bg: var(--ok);
-  --bs-btn-hover-border-color: var(--ok);
-  --bs-btn-hover-color: var(--on-accent);
-}
-
-/* Alerts — Bootstrap ich hardcoduje, tu sú na tokenoch */
+/* Bootstrap hardcodes alert colours; these follow the theme tokens. */
 .alert { border-radius: var(--radius-md); }
 .alert-info    { background: var(--accent-soft); border-color: var(--accent-ring); color: var(--accent); }
 .alert-success { background: var(--ok-soft);     border-color: var(--ok);     color: var(--ok); }
 .alert-danger  { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
 .alert-warning { background: var(--warn-soft);   border-color: var(--warn);   color: var(--warn); }
 
-.badge.bg-secondary { background: var(--surface-3) !important; color: var(--text); }
-.spinner-border { color: var(--accent); }
-.form-text { color: var(--text-muted) !important; }
-
-/* ── Hlavička stránky ────────────────────────────────────────────────── */
+/* ── Page header ─────────────────────────────────────────────────────── */
 .page-header {
   display: flex;
   align-items: center;
@@ -190,7 +171,7 @@ code {
 
 .page-header-logo { width: 42px; height: 42px; border-radius: var(--radius-md); }
 
-/* ── Stepper ─────────────────────────────────────────────────────────── */
+/* ── Order progress ──────────────────────────────────────────────────── */
 .steps {
   display: flex;
   gap: var(--space-2);
@@ -223,15 +204,14 @@ code {
   color: var(--accent);
 }
 
-/* ── Mriežka výberu ──────────────────────────────────────────────────── */
+/* ── Choice grid ─────────────────────────────────────────────────────── */
 .grid-choices {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: var(--space-3);
 }
 
-/* Karta sa roztiahne na celý stĺpec a drží štvorec — predtým mala pevných
-   150×150 v 180px stĺpci, takže mriežka mala diery. */
+/* Each card fills its grid column and stays square. */
 .choice {
   width: 100%;
   aspect-ratio: 1;
@@ -279,9 +259,9 @@ code {
 .choice-coffee:hover,
 .choice-cold-brew:hover { transform: translateY(-4px) scale(1.02); }
 
-/* Karta vyfarbená farbou položky z DB. Farbu volí používateľ v Admine a
-   siaha po celom rozsahu vrátane bielej, takže farba textu sa dopočítava
-   z jasu podkladu (lib/color.js), nie z pevného tokenu. */
+/* A card filled with the item's colour from the database. Admins pick any
+   colour, white included, so the text colour is computed from the background
+   brightness (lib/color.js) instead of coming from a token. */
 .choice--tinted {
   border-color: rgba(0, 0, 0, 0.16);
   box-shadow: var(--shadow-2);
@@ -291,9 +271,9 @@ code {
   box-shadow: var(--shadow-3);
 }
 
-/* Tlmený text vnútri karty. Na vyfarbenej karte sa tlmí priesvitnosťou
-   odvodenou od farby textu — .text-muted má pevnú farbu, ktorá na
-   ľubovoľnom podklade zlyhá. */
+/* Muted text inside a card. A tinted card dims it with opacity relative to
+   the text colour, because the fixed .text-muted colour fails on an
+   arbitrary background. */
 .dim { opacity: 0.82; }
 .stock-low { font-weight: 700; opacity: 1; }
 
@@ -312,7 +292,7 @@ code {
   border: 1px solid rgba(128,128,128,0.35);
 }
 
-/* Karta s iniciálkami (bez fotky) */
+/* Person card with initials instead of a photo */
 .choice-initials .overlay {
   background: linear-gradient(to top, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0.08) 60%);
 }
@@ -336,10 +316,10 @@ code {
   align-items: center;
   flex-direction: column;
   padding: var(--space-2);
-  color: #fff; /* overlay je vždy tmavý, nezávisle od témy */
+  color: #fff; /* the overlay is dark in both themes */
 }
 
-/* Multi-select */
+/* Group order selection */
 .choice.multi-selected {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-ring), var(--shadow-2);
@@ -374,25 +354,7 @@ code {
 
 .choice-enter { animation: fade-in-up 0.26s ease both; }
 
-.choice .tick {
-  position: absolute;
-  top: var(--space-2);
-  right: var(--space-2);
-  font-weight: 700;
-  font-size: var(--fs-lg);
-  color: var(--on-accent);
-  background: var(--accent);
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: var(--shadow-2);
-  animation: pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-/* Krokové +/− tlačidlá v qty pickeri — plný dotykový cieľ */
+/* +/− steppers of the quantity picker, each a full-size touch target */
 .qty-step {
   width: var(--tap-min);
   height: var(--tap-min);
@@ -421,7 +383,7 @@ code {
   text-align: center;
 }
 
-/* ── Fixné spodné tlačidlo ───────────────────────────────────────────── */
+/* ── Fixed bottom button ─────────────────────────────────────────────── */
 .fixed-bottom-button {
   position: fixed;
   bottom: 0;
@@ -449,32 +411,21 @@ code {
   min-height: 56px;
 }
 
-/* Sekundárne akcie v hustých zoznamoch — Bootstrap im dáva 31 px,
-   čo je na dotykovom kiosku pod hranicou použiteľnosti. */
+/* Bootstrap's 31 px small buttons are too small to tap on a touch kiosk. */
 .btn-sm { min-height: 40px; }
 
-/* Jednotná odozva na stlačenie — predtým tri rôzne mierky. */
 .btn:active { transform: scale(0.97); }
 
 /* ── Avatar ──────────────────────────────────────────────────────────── */
-.avatar-img,
-.avatar-img-edit,
-.avatar-placeholder {
+.avatar-img-edit {
   width: 100px;
   height: 100px;
   object-fit: cover;
   border-radius: var(--radius-lg);
-}
-.avatar-img        { border: 2px solid var(--border); transition: border-color 0.2s; }
-.avatar-img-edit   { border: 2px solid var(--accent); }
-.avatar-placeholder {
-  background-color: var(--surface-2) !important;
-  color: var(--text);
-  font-size: var(--fs-xl);
-  font-weight: 600;
+  border: 2px solid var(--accent);
 }
 
-/* Squircle namiesto kruhu — menej generické než klasické avatar-kolieska */
+/* Rounded squares rather than circles */
 .avatar {
   border-radius: 32%;
   object-fit: cover;
@@ -513,10 +464,7 @@ code {
 }
 .avatar-btn--on .avatar-btn-label { color: var(--accent); font-weight: 600; }
 
-/* ── Modal ────────────────────────────────────────────────────────────
-   Jedna implementácia pre celú appku — predtým ich bolo šesť, s piatimi
-   rôznymi z-index a štyrmi krytmi.
-──────────────────────────────────────────────────────────────────── */
+/* ── Modal (components/Modal.jsx) ────────────────────────────────────── */
 .dc-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -596,7 +544,7 @@ code {
 }
 .dc-modal-actions .btn { min-height: var(--tap-min); }
 
-/* ── Prázdny stav ────────────────────────────────────────────────────── */
+/* ── Empty state ─────────────────────────────────────────────────────── */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -633,7 +581,7 @@ code {
   to   { background-position: 0 50%; }
 }
 
-/* ── Hotovo ──────────────────────────────────────────────────────────── */
+/* ── Done step ───────────────────────────────────────────────────────── */
 .done-check {
   font-size: var(--fs-3xl);
   line-height: 1;
@@ -675,13 +623,12 @@ code {
 
 .debt-value { transition: color 0.7s ease; }
 
-/* Dlh v karte osoby — overlay je vždy tmavý, preto svetlé varianty farieb.
-   Predtým boli tieto tri stavy zapísané ako inline hexy v App.jsx. */
+/* Debt on a person card. The overlay is always dark, so these are the light colour variants. */
 .debt--ok   { color: rgba(255,255,255,0.85); }
 .debt--mid  { color: #fbbf24; text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
 .debt--high { color: #fca5a5; text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
 
-/* ── Mobil / úzky tablet ─────────────────────────────────────────────── */
+/* ── Phone / narrow tablet ───────────────────────────────────────────── */
 @media (max-width: 576px) {
   .container { padding-left: var(--space-3); padding-right: var(--space-3); }
 
@@ -705,16 +652,13 @@ code {
   .table { font-size: var(--fs-sm); }
   .table td, .table th { padding: var(--space-2) var(--space-1); }
 
-  .actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-  .actions .btn { flex: 1 1 48%; }
-
   .dc-modal-head    { padding: var(--space-4) var(--space-4) var(--space-3); }
   .dc-modal-body    { padding: 0 var(--space-4) var(--space-3); }
   .dc-modal-actions { padding: var(--space-3) var(--space-4) var(--space-4); }
   .dc-modal-actions .btn { flex: 1 1 auto; }
 }
 
-/* ── Animácie ────────────────────────────────────────────────────────── */
+/* ── Animations ──────────────────────────────────────────────────────── */
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 @keyframes pop-in {
@@ -886,25 +830,28 @@ code {
 /* ── Utilities ───────────────────────────────────────────────────────────
    Last in the cascade so they win over component rules of equal specificity.
 ──────────────────────────────────────────────────────────────────────── */
-.fs-xs { font-size: var(--fs-xs); }
-.fs-sm { font-size: var(--fs-sm); }
-.fs-md { font-size: var(--fs-md); }
-.fs-lg { font-size: var(--fs-lg); }
-.fs-xl { font-size: var(--fs-xl); }
+.fs-xs  { font-size: var(--fs-xs); }
+.fs-sm  { font-size: var(--fs-sm); }
+.fs-md  { font-size: var(--fs-md); }
+.fs-lg  { font-size: var(--fs-lg); }
+.fs-xl  { font-size: var(--fs-xl); }
+.fs-2xl { font-size: var(--fs-2xl); }
+.fs-3xl { font-size: var(--fs-3xl); }
+.lh-snug { line-height: 1.1; }
+
+.tone-accent { color: var(--accent); }
+.tone-ok     { color: var(--ok); }
+.tone-warn   { color: var(--warn); }
+.tone-danger { color: var(--danger); }
+
+.badge-tone-accent  { background: var(--accent-soft); color: var(--accent); }
+.badge-tone-ok      { background: var(--ok-soft); color: var(--ok); }
+.badge-tone-warn    { background: var(--warn-soft); color: var(--warn); }
+.badge-tone-danger  { background: var(--danger-soft); color: var(--danger); }
+.badge-tone-neutral { background: var(--surface-3); color: var(--text-muted); }
+
 .tap-target { min-height: var(--tap-min); }
 .min-w-0 { min-width: 0; }
 .field-error { color: var(--danger); font-size: var(--fs-sm); }
 .skeleton-square { aspect-ratio: 1; border-radius: var(--radius-lg); }
 .dc-modal-heading { min-width: 0; flex: 1; }
-.fs-2xl { font-size: var(--fs-2xl); }
-.fs-3xl { font-size: var(--fs-3xl); }
-.tone-accent { color: var(--accent); }
-.tone-ok { color: var(--ok); }
-.tone-warn { color: var(--warn); }
-.tone-danger { color: var(--danger); }
-.badge-tone-accent { background: var(--accent-soft); color: var(--accent); }
-.badge-tone-ok { background: var(--ok-soft); color: var(--ok); }
-.badge-tone-warn { background: var(--warn-soft); color: var(--warn); }
-.badge-tone-danger { background: var(--danger-soft); color: var(--danger); }
-.badge-tone-neutral { background: var(--surface-3); color: var(--text-muted); }
-.lh-snug { line-height: 1.1; }
