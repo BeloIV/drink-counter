@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 from rest_framework import serializers
 
 from .models import (
-    BrewBatch, BrewBatchIngredient, Category, CoffeePreset, Item, Person, Session, Transaction,
+    AllowedEmail, BrewBatch, BrewBatchIngredient, Category, CoffeePreset, Item, Person, Session, Transaction,
 )
 
 
@@ -121,3 +121,21 @@ class CoffeePresetSerializer(serializers.ModelSerializer):
         model = CoffeePreset
         fields = ["id", "label", "g_min", "g_max", "extra_eur", "created_at"]
         read_only_fields = ["created_at"]
+
+
+class AllowedEmailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AllowedEmail
+        fields = ["email", "is_admin", "created_at"]
+        read_only_fields = ["created_at"]
+
+    def validate_email(self, value):
+        email = value.strip().lower()
+        if self.instance is None and AllowedEmail.objects.filter(email=email).exists():
+            raise serializers.ValidationError("Tento email už má prístup.")
+        return email
+
+    def update(self, instance, validated_data):
+        # The email is the primary key; only the admin flag can change.
+        validated_data.pop("email", None)
+        return super().update(instance, validated_data)

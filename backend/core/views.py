@@ -6,18 +6,18 @@ from django.http import HttpResponse, JsonResponse
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
-from rest_framework import status, viewsets
-from rest_framework.exceptions import NotFound
+from rest_framework import mixins, status, viewsets
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
-from . import services
-from .models import BrewBatch, Category, CoffeePreset, Item, Person, Transaction
+from . import google_auth, services
+from .models import AllowedEmail, BrewBatch, Category, CoffeePreset, Item, Person, Transaction
 from .payments import render_payment_page
-from .permissions import IsAdminSession, ReadOnlyOrAdmin
+from .permissions import IsAdminSession, IsGoogleAdmin, ReadOnlyOrAdmin
 from .serializers import (
-    AdminLoginSerializer, BrewBatchCreateSerializer, BrewBatchSerializer,
+    AdminLoginSerializer, AllowedEmailSerializer, BrewBatchCreateSerializer, BrewBatchSerializer,
     CategorySerializer, CoffeePresetSerializer, ItemSerializer, PersonSerializer,
     SessionSerializer, TransactionCreateSerializer, TransactionPatchSerializer,
     TransactionSerializer,
@@ -380,3 +380,87 @@ class AdminCheckView(APIView):
 class HealthView(APIView):
     def get(self, request):
         return Response({"ok": True})
+
+
+# ── Google sign-in and allowed emails ─────────────────────────────────────
+
+class GoogleLoginThrottle(AnonRateThrottle):
+    scope = "google_login"
+
+
+def auth_status(request):
+    email = google_auth.session_email(request)
+    return {
+        "login_required": google_auth.is_public_host(request),
+        "client_id": settings.GOOGLE_CLIENT_ID,
+        "email": email or None,
+        "is_allowed": google_auth.is_allowed(email),
+        "is_admin": google_auth.is_admin(email),
+    }
+
+
+class AuthStatusView(APIView):
+    def get(self, request):
+        return Response(auth_status(request))
+
+
+class GoogleLoginView(APIView):
+    throttle_classes = [GoogleLoginThrottle]
+
+    def post(self, request):
+        credential = request.data.get("credential")
+        if not credential:
+            return Response({"error": "credential required"}, status=400)
+        try:
+            email = google_auth.verify_google_credential(credential)
+        except google_auth.GoogleTokenError:
+            return Response({"error": "Invalid Google credential"}, status=401)
+        if not google_auth.is_allowed(email):
+            return Response({"error": "Access denied", "email": email}, status=403)
+
+        # A fresh session id on sign-in prevents session fixation.
+        request.session.cycle_key()
+        request.session[google_auth.SESSION_KEY] = email
+        return Response(auth_status(request))
+
+
+class GoogleLogoutView(APIView):
+    def post(self, request):
+        request.session.pop(google_auth.SESSION_KEY, None)
+        return Response(auth_status(request))
+
+
+class AllowedEmailViewSet(
+    mixins.ListModelMixin, mixins.CreateModelMixin, mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin, viewsets.GenericViewSet,
+):
+    """Google accounts allowed on the public domain. Admins from .env are listed but read-only."""
+    queryset = AllowedEmail.objects.all()
+    serializer_class = AllowedEmailSerializer
+    permission_classes = [IsGoogleAdmin]
+    # The lookup is the email itself, and emails contain dots.
+    lookup_value_regex = "[^/]+"
+
+    def list(self, request):
+        env_admins = google_auth.env_admin_emails()
+        stored = [
+            {**row, "from_env": row["email"] in env_admins}
+            for row in self.get_serializer(self.get_queryset(), many=True).data
+        ]
+        stored_emails = {row["email"] for row in stored}
+        env_only = [
+            {"email": email, "is_admin": True, "created_at": None, "from_env": True}
+            for email in sorted(env_admins - stored_emails)
+        ]
+        return Response(env_only + stored)
+
+    def perform_update(self, serializer):
+        is_self = serializer.instance.email == google_auth.session_email(self.request)
+        if is_self and not serializer.validated_data.get("is_admin", True):
+            raise ValidationError({"error": "Nemôžeš si odobrať správcu."})
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.email == google_auth.session_email(self.request):
+            raise ValidationError({"error": "Nemôžeš odobrať prístup sám sebe."})
+        instance.delete()

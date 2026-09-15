@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 const BACKEND_URL = 'http://backend:8001'
 
-// The backend's site-password check needs the host the browser actually used.
+// The backend's Google sign-in check needs the host the browser actually used.
 function backendProxy() {
   return {
     target: BACKEND_URL,
@@ -24,7 +24,6 @@ export default defineConfig({
     proxy: {
       '/api': backendProxy(),
       '/media': backendProxy(),
-      '/__site-login__': backendProxy(),
     },
   },
 })

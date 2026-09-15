@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTheme } from '../hooks/useTheme'
+import { useAuth } from '../lib/authContext'
 import { BAG_TARES } from '../lib/bagTares'
 import { Icon } from './Icon'
 
@@ -11,6 +12,7 @@ const NAV_ITEMS = [
   { to: '/transactions', label: 'Transakcie', icon: 'transactions' },
   { to: '/stats', label: 'Štatistiky', icon: 'stats' },
   { to: '/users', label: 'Useri', icon: 'users' },
+  { to: '/access', label: 'Prístupy', icon: 'shield', adminOnly: true },
 ]
 
 function useCloseOnEscape(isActive, onClose) {
@@ -55,8 +57,9 @@ function ThemeSwitch() {
 
 function NavLinks({ onNavigate }) {
   const { pathname } = useLocation()
+  const { isAdmin } = useAuth()
 
-  return NAV_ITEMS.map((item) => {
+  return NAV_ITEMS.filter((item) => isAdmin || !item.adminOnly).map((item) => {
     const isCurrent = pathname === item.to
     return (
       <Link
@@ -83,6 +86,22 @@ function BagTareList() {
         </div>
       ))}
     </div>
+  )
+}
+
+function SignedInAccount() {
+  const { email, signOut } = useAuth()
+  if (!email) return null
+
+  return (
+    <>
+      <div className="nav-drawer-sep" />
+      <div className="nav-drawer-section-label">Prihlásený účet</div>
+      <div className="nav-drawer-account">
+        <span className="nav-drawer-account-email">{email}</span>
+        <button className="btn btn-sm btn-outline-secondary" onClick={signOut}>Odhlásiť</button>
+      </div>
+    </>
   )
 }
 
@@ -117,6 +136,8 @@ export function NavDrawer({ open, onClose }) {
         <div className="nav-drawer-sep" />
         <div className="nav-drawer-section-label">Tara sáčkov</div>
         <BagTareList />
+
+        <SignedInAccount />
       </nav>
     </>
   )

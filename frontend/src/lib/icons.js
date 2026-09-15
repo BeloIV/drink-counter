@@ -7,7 +7,7 @@ import {
   PiCheckBold, PiWarningBold, PiArrowLeftBold,
   PiArrowCounterClockwiseBold, PiCalendarBlankBold,
   PiReceiptBold, PiCaretDownBold, PiCaretUpBold, PiTrashBold,
-  PiPencilSimpleBold, PiMagnifyingGlassBold, PiCurrencyEurBold,
+  PiPencilSimpleBold, PiMagnifyingGlassBold, PiCurrencyEurBold, PiShieldCheckBold,
 } from 'react-icons/pi'
 
 export const Icons = {
@@ -40,4 +40,5 @@ export const Icons = {
   edit: PiPencilSimpleBold,
   search: PiMagnifyingGlassBold,
   euro: PiCurrencyEurBold,
+  shield: PiShieldCheckBold,
 }
