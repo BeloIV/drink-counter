@@ -35,13 +35,14 @@ services:
         until pg_isready -h $$POSTGRES_HOST -p $$POSTGRES_PORT -U $$POSTGRES_USER; do
           echo 'waiting for db...'; sleep 2;
         done &&
-        python manage.py migrate &&
-        python manage.py runserver 0.0.0.0:8001
+        python manage.py migrate --noinput &&
+        python manage.py collectstatic --noinput --clear &&
+        gunicorn backend.wsgi:application --bind 0.0.0.0:8001 --workers 2 --timeout 90 --access-logfile -
       "
     volumes:
-      - ./backend:/app
-    ports:
-      - "8001:8001"
+      - media_files:/app/media
+    expose:
+      - "8001"
     depends_on:
       db:
         condition: service_healthy
@@ -51,12 +52,11 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     restart: unless-stopped
-    command: npm run dev -- --host 0.0.0.0
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     ports:
-      - "5173:5173"
+      - "5173:80"
+    depends_on:
+      - backend
 
 volumes:
   pgdata:
+  media_files:
