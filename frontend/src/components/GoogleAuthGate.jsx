@@ -6,7 +6,10 @@ import { parseErrorBody } from '../lib/errors'
 import logo from '/favicon.png'
 
 // Used when the status request itself fails: render the app and let its own requests report errors.
-const UNKNOWN_STATUS = { login_required: false, email: null, is_allowed: false, is_admin: false, client_id: '' }
+const UNKNOWN_STATUS = {
+  login_required: false, email: null, is_allowed: false,
+  is_admin: false, can_manage_access: false, client_id: '',
+}
 
 function useAuthStatus() {
   const [status, setStatus] = useState(null)
@@ -97,7 +100,12 @@ export default function GoogleAuthGate({ children }) {
   }, [setStatus])
 
   const auth = useMemo(
-    () => ({ email: status?.email ?? null, isAdmin: Boolean(status?.is_admin), signOut }),
+    () => ({
+      email: status?.email ?? null,
+      canManageAccess: Boolean(status?.can_manage_access),
+      requiresGoogleLogin: Boolean(status?.login_required),
+      signOut,
+    }),
     [status, signOut],
   )
 

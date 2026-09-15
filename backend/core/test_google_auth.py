@@ -142,3 +142,44 @@ class AllowedEmailApiTests(GoogleAuthTestCase):
         self.sign_in("friend@example.com")
 
         self.assertEqual(self.public("get", "/api/allowed-emails/").status_code, 403)
+
+
+class LanPinAccessTests(GoogleAuthTestCase):
+    """On the LAN nobody signs in with Google, so the admin PIN unlocks the allowlist there."""
+
+    def set_pin_session(self):
+        session = self.client.session
+        session["is_admin"] = True
+        session.save()
+
+    def test_pin_session_can_manage_access_on_the_lan(self):
+        self.set_pin_session()
+
+        status = self.client.get("/api/auth/me").data
+        listed = self.client.get("/api/allowed-emails/")
+        added = self.client.post("/api/allowed-emails/", {"email": "friend@example.com"}, format="json")
+
+        self.assertTrue(status["can_manage_access"])
+        self.assertFalse(status["is_admin"])
+        self.assertEqual(listed.status_code, 200)
+        self.assertEqual(added.status_code, 201)
+
+    def test_lan_without_the_pin_cannot_manage_access(self):
+        self.assertFalse(self.client.get("/api/auth/me").data["can_manage_access"])
+        self.assertEqual(self.client.get("/api/allowed-emails/").status_code, 403)
+
+    def test_pin_alone_does_not_manage_access_on_the_public_domain(self):
+        AllowedEmail.objects.create(email="friend@example.com")
+        self.sign_in("friend@example.com")
+        self.set_pin_session()
+
+        response = self.public("get", "/api/allowed-emails/")
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(self.public("get", "/api/auth/me").data["can_manage_access"])
+
+    def test_google_admin_still_manages_access_on_the_public_domain(self):
+        self.sign_in(ENV_ADMIN)
+
+        self.assertTrue(self.public("get", "/api/auth/me").data["can_manage_access"])
+        self.assertEqual(self.public("get", "/api/allowed-emails/").status_code, 200)

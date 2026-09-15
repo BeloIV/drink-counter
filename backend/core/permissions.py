@@ -17,8 +17,18 @@ class ReadOnlyOrAdmin(BasePermission):
         return request.method in SAFE_METHODS or is_admin_session(request)
 
 
-class IsGoogleAdmin(BasePermission):
-    """A signed-in Google account marked as admin, or listed in BOOTSTRAP_ADMIN_EMAILS."""
+def can_manage_access(request):
+    """Who may edit the allowlist: a Google admin anywhere, or the admin PIN on the LAN.
 
+    Nobody signs in with Google on the LAN, so the kiosk's PIN unlocks it there. On the
+    public domain the PIN is deliberately not enough, or any signed-in member who knew it
+    could grant access to others.
+    """
+    if google_auth.is_admin(google_auth.session_email(request)):
+        return True
+    return not google_auth.is_public_host(request) and is_admin_session(request)
+
+
+class CanManageAccess(BasePermission):
     def has_permission(self, request, view):
-        return google_auth.is_admin(google_auth.session_email(request))
+        return can_manage_access(request)
