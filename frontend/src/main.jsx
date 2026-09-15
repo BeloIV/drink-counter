@@ -4,7 +4,7 @@ import './App.css'
 import ReactDOM from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import OrderPage from './pages/order/OrderPage.jsx'
-import Admin from './pages/admin.jsx'
+import AdminPage from './pages/admin/AdminPage.jsx'
 import Transactions from './pages/transactions.jsx'
 import Users from './pages/users.jsx'
 import Stats from './pages/stats.jsx'
@@ -16,7 +16,7 @@ import { DialogProvider } from './components/Dialogs.jsx'
 const router = createBrowserRouter([
   { path: "/", element: <OrderPage />, errorElement: <NotFound /> },
   { path: "/brew", element: <Brew /> },
-  { path: "/admin", element: <Admin /> },
+  { path: "/admin", element: <AdminPage /> },
   { path: "/transactions", element: <Transactions /> },
   { path: "/users", element: <Users /> },
   { path: "/stats", element: <Stats /> },

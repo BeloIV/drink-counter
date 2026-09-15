@@ -76,3 +76,6 @@ export const api = {
 
   stats: () => request('/stats'),
 }
+
+/** Payment page with a QR code; opened in a new tab rather than fetched. */
+export const payBySquareUrl = (personId) => `${API_BASE}/persons/${personId}/pay-by-square/`
