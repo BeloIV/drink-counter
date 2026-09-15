@@ -18,3 +18,5 @@ Django>=5.1
 psycopg2-binary>=2.9
 qrcode
 Pillow
+gunicorn==22.0.0
+whitenoise==6.7.0

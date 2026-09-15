@@ -1,0 +1,34 @@
+# Development override -- hot reload for both halves:
+#   docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up
+#
+# Compose merges list values, so the frontend port needs !override; without it
+# host 5173 is claimed twice (nginx:80 and vite:5173) and the container fails.
+services:
+  backend:
+    environment:
+      DEBUG: "True"
+    volumes:
+      - ./backend:/app
+      - media_files:/app/media
+    ports:
+      - "8001:8001"
+    command: >
+      sh -c "
+        until pg_isready -h $$POSTGRES_HOST -p $$POSTGRES_PORT -U $$POSTGRES_USER; do
+          echo 'waiting for db...'; sleep 2;
+        done &&
+        python manage.py migrate &&
+        python manage.py runserver 0.0.0.0:8001
+      "
+
+  frontend:
+    image: drink-counter-frontend-dev
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    command: npm run dev -- --host 0.0.0.0
+    ports: !override
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
