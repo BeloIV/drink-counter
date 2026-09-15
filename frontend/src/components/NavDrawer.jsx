@@ -57,9 +57,9 @@ function ThemeSwitch() {
 
 function NavLinks({ onNavigate }) {
   const { pathname } = useLocation()
-  const { isAdmin } = useAuth()
+  const { canManageAccess } = useAuth()
 
-  return NAV_ITEMS.filter((item) => isAdmin || !item.adminOnly).map((item) => {
+  return NAV_ITEMS.filter((item) => canManageAccess || !item.adminOnly).map((item) => {
     const isCurrent = pathname === item.to
     return (
       <Link

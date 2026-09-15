@@ -15,7 +15,7 @@ from rest_framework.views import APIView
 from . import google_auth, services
 from .models import AllowedEmail, BrewBatch, Category, CoffeePreset, Item, Person, Transaction
 from .payments import render_payment_page
-from .permissions import IsAdminSession, IsGoogleAdmin, ReadOnlyOrAdmin
+from .permissions import CanManageAccess, IsAdminSession, ReadOnlyOrAdmin, can_manage_access
 from .serializers import (
     AdminLoginSerializer, AllowedEmailSerializer, BrewBatchCreateSerializer, BrewBatchSerializer,
     CategorySerializer, CoffeePresetSerializer, ItemSerializer, PersonSerializer,
@@ -396,6 +396,7 @@ def auth_status(request):
         "email": email or None,
         "is_allowed": google_auth.is_allowed(email),
         "is_admin": google_auth.is_admin(email),
+        "can_manage_access": can_manage_access(request),
     }
 
 
@@ -437,7 +438,7 @@ class AllowedEmailViewSet(
     """Google accounts allowed on the public domain. Admins from .env are listed but read-only."""
     queryset = AllowedEmail.objects.all()
     serializer_class = AllowedEmailSerializer
-    permission_classes = [IsGoogleAdmin]
+    permission_classes = [CanManageAccess]
     # The lookup is the email itself, and emails contain dots.
     lookup_value_regex = "[^/]+"
 

@@ -53,8 +53,17 @@ function transactionListPath(limit, offset, personIds) {
 export const api = {
   // Sets the csrftoken cookie that every write request echoes back.
   csrf: () => fetch(`${API_BASE}/auth/csrf`, { credentials: 'include' }),
-  login: (pin) => post('/auth/admin-login', { pin }),
-  logout: () => post('/auth/admin-logout'),
+  // On the LAN the PIN also unlocks access management, so the gate re-reads the status after it changes.
+  login: async (pin) => {
+    const result = await post('/auth/admin-login', { pin })
+    window.dispatchEvent(new Event(AUTH_CHANGED_EVENT))
+    return result
+  },
+  logout: async () => {
+    const result = await post('/auth/admin-logout')
+    window.dispatchEvent(new Event(AUTH_CHANGED_EVENT))
+    return result
+  },
   adminCheck: () => request('/auth/admin-check'),
 
   authStatus: () => request('/auth/me'),

@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { api } from '../../api'
 import { EmptyState } from '../../components/EmptyState'
 import { FlashAlert } from '../../components/FlashAlert'
 import { Icon } from '../../components/Icon'
 import { PageHeader } from '../../components/PageHeader'
+import { PinLoginCard } from '../../components/PinLogin'
 import { SkeletonRows } from '../../components/Skeleton'
 import { useFlashMessage } from '../../hooks/useFlashMessage'
 import { useAuth } from '../../lib/authContext'
@@ -149,22 +151,35 @@ function AllowedEmailManager({ currentEmail, notify }) {
   )
 }
 
+// On the kiosk nobody signs in with Google, so the admin PIN unlocks this page there.
+const signInWithPin = async (pin) => {
+  await api.csrf()
+  await api.login(pin)
+}
+
+function LockedNotice({ requiresGoogleLogin }) {
+  if (!requiresGoogleLogin) return <PinLoginCard title="Prístupy" onLogin={signInWithPin} />
+  return (
+    <EmptyState
+      icon="shield"
+      title="Len pre správcov"
+      text="Zoznam povolených Google účtov spravujú správcovia. Prihlás sa správcovským účtom."
+    />
+  )
+}
+
 export default function AccessPage() {
-  const { email, isAdmin } = useAuth()
+  const { email, canManageAccess, requiresGoogleLogin } = useAuth()
   const flash = useFlashMessage(FLASH_DURATION_MS)
 
   return (
     <div className="container py-3">
       <PageHeader title="Prístupy" icon="shield" />
       <FlashAlert flash={flash} />
-      {isAdmin ? (
+      {canManageAccess ? (
         <AllowedEmailManager currentEmail={email} notify={flash.show} />
       ) : (
-        <EmptyState
-          icon="shield"
-          title="Len pre správcov"
-          text="Zoznam povolených Google účtov spravujú správcovia. Prihlás sa správcovským účtom na verejnej adrese."
-        />
+        <LockedNotice requiresGoogleLogin={requiresGoogleLogin} />
       )}
     </div>
   )
