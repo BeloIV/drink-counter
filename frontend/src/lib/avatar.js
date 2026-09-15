@@ -1,5 +1,11 @@
-/** Only uploaded files count as photos; anything else falls back to initials. */
-export const avatarPhotoUrl = (person) => (person?.avatar?.startsWith('/media/') ? person.avatar : null)
+/**
+ * The photo to display: the small server-made thumbnail when there is one, otherwise the uploaded
+ * original. Only uploaded files count as photos; anything else falls back to initials.
+ */
+export function avatarPhotoUrl(person) {
+  if (!person?.avatar?.startsWith('/media/')) return null
+  return person.avatar_thumbnail || person.avatar
+}
 
 /** A gradient whose hue is derived from the name, so each person keeps their colour. */
 export function nameGradient(name) {

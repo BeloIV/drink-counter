@@ -3,6 +3,7 @@ from urllib.parse import urlparse
 
 from rest_framework import serializers
 
+from .avatars import thumbnail_url
 from .models import (
     AllowedEmail, BrewBatch, BrewBatchIngredient, Category, CoffeePreset, Item, Person, Session, Transaction,
 )
@@ -10,13 +11,17 @@ from .models import (
 
 class PersonSerializer(serializers.ModelSerializer):
     avatar = serializers.ImageField(required=False, allow_null=True)
+    avatar_thumbnail = serializers.SerializerMethodField()
 
     class Meta:
         model = Person
         fields = [
-            "id", "name", "email", "avatar", "is_guest", "active",
+            "id", "name", "email", "avatar", "avatar_thumbnail", "is_guest", "active",
             "created_at", "total_beers", "total_coffees",
         ]
+
+    def get_avatar_thumbnail(self, person):
+        return thumbnail_url(person.avatar)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
