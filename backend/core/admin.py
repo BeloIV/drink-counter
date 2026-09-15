@@ -83,6 +83,6 @@ class TransactionAdmin(admin.ModelAdmin):
 @admin.register(CoffeePreset)
 class CoffeePresetAdmin(admin.ModelAdmin):
     list_display = ("label", "g_min", "g_max", "extra_eur", "created_at")
-    search_fields = ("label", "note")
+    search_fields = ("label",)
     list_editable = ("g_min", "g_max", "extra_eur")
     ordering = ("g_min", "id")
