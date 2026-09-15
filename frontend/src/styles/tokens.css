@@ -1,0 +1,317 @@
+/* ── Design tokens ────────────────────────────────────────────────────────
+   Dark-first: tmavá paleta je default na :root. Svetlá je odvodená téma,
+   definovaná raz pre manuálnu voľbu a raz pre systémovú preferenciu.
+   Súbory fontov sú self-hostované v /public/fonts (PWA musí fungovať offline).
+──────────────────────────────────────────────────────────────────────── */
+
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('/fonts/outfit-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02AF, U+0304, U+0308, U+0329, U+1E00-1E9F, U+1EF2-1EFF,
+    U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('/fonts/outfit-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191,
+    U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url('/fonts/jbmono-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02AF, U+0304, U+0308, U+0329, U+1E00-1E9F, U+1EF2-1EFF,
+    U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url('/fonts/jbmono-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191,
+    U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  /* ── Typografia ── */
+  --font-sans: 'Outfit', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Škála — minimum je 0.8125rem (13px). Kiosk na stene, nič menšie. */
+  --fs-xs:   0.8125rem;
+  --fs-sm:   0.9375rem;
+  --fs-base: 1rem;
+  --fs-md:   1.125rem;
+  --fs-lg:   1.375rem;
+  --fs-xl:   1.75rem;
+  --fs-2xl:  2.25rem;
+  --fs-3xl:  3rem;
+
+  --lh-tight: 1.15;
+  --lh-snug:  1.35;
+  --lh-base:  1.55;
+
+  --track-tight: -0.02em;
+  --track-wide:   0.08em;
+
+  /* ── Priestor ── */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  /* ── Rádiusy — kontajnery mäkšie, vnorené prvky tesnejšie ── */
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   18px;
+  --radius-pill: 999px;
+
+  /* ── Vrstvenie — jedna škála pre celú appku ── */
+  --z-sticky:  30;
+  --z-drawer:  40;
+  --z-overlay: 50;
+  --z-modal:   60;
+  --z-toast:   70;
+
+  /* ── Dotyk ── */
+  --tap-min: 44px;
+
+  --container-max: 1200px;
+
+  /* ═══ DARK (default) ═══ */
+  --bg:         #0f0f0f;
+  --surface:    #1a1a1a;
+  --surface-2:  #242424;
+  --surface-3:  #2e2e2e;
+  --border:     #2e2e2e;
+  --border-strong: #404040;
+
+  --text:       #fafafa;
+  --text-muted: #a3a3a3;
+  --text-dim:   #737373;
+
+  --accent:       #f59e0b;
+  --accent-hover: #fbbf24;
+  --accent-press: #d97706;
+  --accent-soft:  rgba(245, 158, 11, 0.12);
+  --accent-ring:  rgba(245, 158, 11, 0.40);
+  --on-accent:    #1a1203;
+
+  --danger: #f87171;
+  --warn:   #fbbf24;
+  --ok:     #4ade80;
+  --danger-soft: rgba(248, 113, 113, 0.12);
+  --warn-soft:   rgba(251, 191, 36, 0.12);
+  --ok-soft:     rgba(74, 222, 128, 0.12);
+
+  /* Kategórie nápojov */
+  --beer-bg:      rgba(251, 191, 36, 0.10);
+  --beer-color:   #fcd34d;
+  --coffee-bg:    rgba(193, 133, 86, 0.12);
+  --coffee-color: #d6a184;
+  --cold-brew-bg:    rgba(125, 211, 252, 0.10);
+  --cold-brew-color: #7dd3fc;
+
+  /* Tiene: vrstvené + vnútorná svetlá hrana, ktorá na tmavom pozadí
+     odlišuje kartu od plochého divu. */
+  --shadow-1: 0 1px 2px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.35),
+              inset 0 1px 0 rgba(255,255,255,0.04);
+  --shadow-2: 0 2px 4px rgba(0,0,0,0.5), 0 8px 24px rgba(0,0,0,0.45),
+              inset 0 1px 0 rgba(255,255,255,0.05);
+  --shadow-3: 0 4px 8px rgba(0,0,0,0.55), 0 16px 48px rgba(0,0,0,0.55),
+              inset 0 1px 0 rgba(255,255,255,0.06);
+
+  --overlay-scrim: rgba(0, 0, 0, 0.72);
+  --grain-opacity: 0.030;
+
+  /* Farba, ku ktorej sa stráca fixný spodný gradient */
+  --fade-to:   rgba(15, 15, 15, 1);
+  --fade-from: rgba(15, 15, 15, 0);
+}
+
+/* ═══ LIGHT ═══ */
+:root[data-theme="light"] {
+  --bg:         #faf9f7;
+  --surface:    #ffffff;
+  --surface-2:  #f4f2ef;
+  --surface-3:  #eae7e2;
+  --border:     #e3dfd8;
+  --border-strong: #cfc9c0;
+
+  --text:       #1c1917;
+  --text-muted: #6b6560;
+  --text-dim:   #928b84;
+
+  --accent:       #b45309;
+  --accent-hover: #92400e;
+  --accent-press: #78350f;
+  --accent-soft:  rgba(180, 83, 9, 0.10);
+  --accent-ring:  rgba(180, 83, 9, 0.30);
+  --on-accent:    #ffffff;
+
+  --danger: #b91c1c;
+  --warn:   #a16207;
+  --ok:     #15803d;
+  --danger-soft: rgba(185, 28, 28, 0.08);
+  --warn-soft:   rgba(161, 98, 7, 0.10);
+  --ok-soft:     rgba(21, 128, 61, 0.08);
+
+  --beer-bg:      rgba(217, 119, 6, 0.08);
+  --beer-color:   #92400e;
+  --coffee-bg:    rgba(120, 72, 40, 0.08);
+  --coffee-color: #78350f;
+  --cold-brew-bg:    rgba(2, 132, 199, 0.08);
+  --cold-brew-color: #075985;
+
+  --shadow-1: 0 1px 2px rgba(28,25,23,0.06), 0 2px 8px rgba(28,25,23,0.05);
+  --shadow-2: 0 2px 4px rgba(28,25,23,0.07), 0 8px 24px rgba(28,25,23,0.07);
+  --shadow-3: 0 4px 8px rgba(28,25,23,0.08), 0 16px 48px rgba(28,25,23,0.10);
+
+  --overlay-scrim: rgba(28, 25, 23, 0.55);
+  --grain-opacity: 0.018;
+
+  --fade-to:   rgba(250, 249, 247, 1);
+  --fade-from: rgba(250, 249, 247, 0);
+}
+
+/* Systémová svetlá preferencia — platí len ak si používateľ nezvolil tmavú.
+   Bez uloženej voľby je default tmavá (anti-flash skript v index.html). */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg:         #faf9f7;
+    --surface:    #ffffff;
+    --surface-2:  #f4f2ef;
+    --surface-3:  #eae7e2;
+    --border:     #e3dfd8;
+    --border-strong: #cfc9c0;
+
+    --text:       #1c1917;
+    --text-muted: #6b6560;
+    --text-dim:   #928b84;
+
+    --accent:       #b45309;
+    --accent-hover: #92400e;
+    --accent-press: #78350f;
+    --accent-soft:  rgba(180, 83, 9, 0.10);
+    --accent-ring:  rgba(180, 83, 9, 0.30);
+    --on-accent:    #ffffff;
+
+    --danger: #b91c1c;
+    --warn:   #a16207;
+    --ok:     #15803d;
+    --danger-soft: rgba(185, 28, 28, 0.08);
+    --warn-soft:   rgba(161, 98, 7, 0.10);
+    --ok-soft:     rgba(21, 128, 61, 0.08);
+
+    --beer-bg:      rgba(217, 119, 6, 0.08);
+    --beer-color:   #92400e;
+    --coffee-bg:    rgba(120, 72, 40, 0.08);
+    --coffee-color: #78350f;
+    --cold-brew-bg:    rgba(2, 132, 199, 0.08);
+    --cold-brew-color: #075985;
+
+    --shadow-1: 0 1px 2px rgba(28,25,23,0.06), 0 2px 8px rgba(28,25,23,0.05);
+    --shadow-2: 0 2px 4px rgba(28,25,23,0.07), 0 8px 24px rgba(28,25,23,0.07);
+    --shadow-3: 0 4px 8px rgba(28,25,23,0.08), 0 16px 48px rgba(28,25,23,0.10);
+
+    --overlay-scrim: rgba(28, 25, 23, 0.55);
+    --grain-opacity: 0.018;
+
+    --fade-to:   rgba(250, 249, 247, 1);
+    --fade-from: rgba(250, 249, 247, 0);
+  }
+}
+
+/* ── Aliasy na staré názvy ────────────────────────────────────────────────
+   Stránky a App.css stále odkazujú na pôvodné premenné. Týmto sa celá
+   appka prefarbí naraz, bez hromadného prepisu JSX. Zaniknú, keď sa
+   posledná stránka prepíše na nové tokeny.
+──────────────────────────────────────────────────────────────────────── */
+:root,
+:root[data-theme="light"],
+:root[data-theme="dark"] {
+  --body-bg:      var(--bg);
+  --body-color:   var(--text);
+  --heading-color: var(--text);
+  --card-bg:      var(--surface);
+  --card-border:  var(--border);
+  --muted-color:  var(--text-muted);
+  --muted-bg:     var(--surface-2);
+  --choice-bg:    var(--surface);
+  --choice-border: var(--border);
+  --choice-hover-shadow: var(--shadow-3);
+  --steps-bg:     var(--surface-2);
+  --steps-color:  var(--text-muted);
+  --steps-done-bg:    var(--accent-soft);
+  --steps-done-color: var(--accent);
+  --input-bg:     var(--surface);
+  --input-color:  var(--text);
+  --input-border: var(--border-strong);
+  --fixed-grad:     var(--fade-to);
+  --fixed-grad-end: var(--fade-from);
+  --code-bg:      var(--surface-2);
+  --code-color:   var(--accent);
+  --hr-color:     var(--border);
+  --avatar-border: var(--border);
+  --avatar-edit-border: var(--accent);
+  --bg-light-custom: var(--surface-2);
+  --table-warning-bg:    var(--warn-soft);
+  --table-warning-color: var(--warn);
+  --shadow-card:    var(--shadow-1);
+  --shadow-card-lg: var(--shadow-2);
+  --glow-primary:   0 0 0 3px var(--accent-ring);
+}
+
+/* ── Bootstrap remap ──────────────────────────────────────────────────────
+   Prefarbí .btn-primary, .text-primary, .badge.bg-primary, .spinner-border,
+   odkazy a focus ring bez toho, aby sa v JSX menili class names.
+──────────────────────────────────────────────────────────────────────── */
+:root {
+  --bs-body-bg:    var(--bg);
+  --bs-body-color: var(--text);
+  --bs-body-font-family: var(--font-sans);
+  --bs-border-color: var(--border);
+  --bs-secondary-color: var(--text-muted);
+  --bs-emphasis-color:  var(--text);
+
+  --bs-link-color:       var(--accent);
+  --bs-link-hover-color: var(--accent-hover);
+  --bs-focus-ring-color: var(--accent-ring);
+
+  --bs-primary:     var(--accent);
+  --bs-primary-rgb: 245, 158, 11;
+  --bs-danger-rgb:  248, 113, 113;
+  --bs-success-rgb: 74, 222, 128;
+  --bs-warning-rgb: 251, 191, 36;
+
+  --bs-btn-focus-box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+:root[data-theme="light"] {
+  --bs-primary-rgb: 180, 83, 9;
+  --bs-danger-rgb:  185, 28, 28;
+  --bs-success-rgb: 21, 128, 61;
+  --bs-warning-rgb: 161, 98, 7;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bs-primary-rgb: 180, 83, 9;
+    --bs-danger-rgb:  185, 28, 28;
+    --bs-success-rgb: 21, 128, 61;
+    --bs-warning-rgb: 161, 98, 7;
+  }
+}

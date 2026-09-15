@@ -4,7 +4,8 @@ export function useTheme() {
   const getInitial = () => {
     const stored = localStorage.getItem('theme')
     if (stored === 'dark' || stored === 'light') return stored
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    // Dark-first kiosk: bez uloženej voľby je default tmavá.
+    return 'dark'
   }
 
   const [theme, setTheme] = useState(getInitial)

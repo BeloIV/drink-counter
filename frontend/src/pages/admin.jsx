@@ -1,30 +1,25 @@
 import { useEffect, useRef, useState } from "react"
 import { api } from "../api"
-import { NavDrawer, HamburgerBtn } from "../NavDrawer"
+import { PageHeader } from "../components/PageHeader"
+import { Modal } from "../components/Modal"
+import { Icon } from "../components/Icon"
+import { EmptyState } from "../components/EmptyState"
+import { useDialog } from "../lib/dialogContext"
 
 const PRICING_MODES = ['per_item', 'per_gram', 'per_ml']
 
-function ConfirmModal({ msg, onConfirm, onCancel }) {
-  return (
-    <div
-      onClick={onCancel}
-      style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center' }}
-    >
-      <div className="card shadow-lg pop-in" style={{ maxWidth:340, width:'90%' }} onClick={e=>e.stopPropagation()}>
-        <div className="card-body p-4 text-center">
-          <div style={{ fontSize:'2.2rem', marginBottom:'0.5rem' }}>⚠️</div>
-          <p className="mb-4">{msg}</p>
-          <div className="d-flex gap-2">
-            <button className="btn btn-danger flex-fill" onClick={onConfirm}>Potvrdiť</button>
-            <button className="btn btn-secondary flex-fill" onClick={onCancel}>Zrušiť</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+const PRICING_LABELS = {
+  per_item: 'za kus',
+  per_gram: 'za gram',
+  per_ml: 'za ml',
 }
 
+const CATEGORY_ICONS = { beer: 'beer', coffee: 'coffee', 'cold brew': 'coldBrew' }
+const categoryIcon = (name) => CATEGORY_ICONS[name?.toLowerCase()] ?? 'stock'
+
 export default function Admin() {
+  const dialog = useDialog()
+
   const [authed, setAuthed] = useState(false)
   const [pin, setPin] = useState("")
 
@@ -84,13 +79,9 @@ export default function Admin() {
   })
   const [brewLoading, setBrewLoading] = useState(false)
 
-  // === NAV DRAWER ===
-  const [drawerOpen, setDrawerOpen] = useState(false)
-
   // === ANIMATION STATE ===
   const [deletingId, setDeletingId] = useState(null)
   const [savedId, setSavedId] = useState(null)
-  const [confirmModal, setConfirmModal] = useState({ open: false, msg: "", onConfirm: null })
   const [filterBounce, setFilterBounce] = useState(null)
   const [dotPulseKey, setDotPulseKey] = useState(0)
   const [displayDebts, setDisplayDebts] = useState({})
@@ -127,9 +118,8 @@ const stockUnit = (it) => {
 
 const stockColor = (qty, unit) => {
   const n = Number(qty)
-  if (unit === 'g') return n > 200 ? '#198754' : n > 50 ? '#fd7e14' : '#dc3545'
-  if (unit === 'ml') return n > 200 ? '#198754' : n > 50 ? '#fd7e14' : '#dc3545'
-  return n > 5 ? '#198754' : n > 1 ? '#fd7e14' : '#dc3545'
+  const threshold = unit === 'g' || unit === 'ml' ? [200, 50] : [5, 1]
+  return n > threshold[0] ? 'var(--ok)' : n > threshold[1] ? 'var(--warn)' : 'var(--danger)'
 }
 
 // základná validácia intervalu a prirážky
@@ -174,7 +164,7 @@ const overlapsAny = (all, candidate, skipId = null) => {
     try {
       const data = await api.getBrewBatches()
       setBrewBatches(data)
-    } catch (_) {}
+    } catch { /* história varení je nepovinná */ }
   }
 
   const submitBrewBatch = async (e) => {
@@ -198,8 +188,8 @@ const overlapsAny = (all, candidate, skipId = null) => {
       setMsg("Cold Brew vyrobený — zásoby aktualizované")
     } catch (err) {
       let errMsg = err.message || String(err)
-      try { const parsed = JSON.parse(errMsg); errMsg = parsed.error || errMsg } catch (_) {}
-      setMsg("Chyba: " + errMsg)
+      try { const parsed = JSON.parse(errMsg); errMsg = parsed.error || errMsg } catch { /* nie JSON */ }
+      setMsg(errMsg)
     }
     setBrewLoading(false)
   }
@@ -229,8 +219,10 @@ const overlapsAny = (all, candidate, skipId = null) => {
     prevColorRef.current = editForm.color
   }, [editForm.color])
 
-  const showConfirm = (message, onConfirm) => setConfirmModal({ open: true, msg: message, onConfirm })
-  const closeConfirm = () => setConfirmModal({ open: false, msg: "", onConfirm: null })
+  /* Potvrdzovacie dialógy idú cez zdieľaný <DialogProvider> — predtým tu bol
+     vlastný ConfirmModal a na dvoch miestach natívny window.confirm. */
+  const askConfirm = (title, text, confirmLabel = 'Potvrdiť') =>
+    dialog.confirm({ title, text, confirmLabel, tone: 'danger' })
 
   const animateDebtToZero = (personId) => {
     const from = debts[personId] || 0
@@ -396,10 +388,10 @@ const overlapsAny = (all, candidate, skipId = null) => {
       ? ` + filtre ${filterCost.toFixed(2)} € (${top2Filters.map(f => f.label || `${f.g_min}-${f.g_max}g`).join(' + ')})`
       : ''
 
-    const label =
-      `❄️ Pridať "${coffeeItem.name}" ako Cold Brew\n\n` +
-      `80 g × ${coffeePrice.toFixed(3)} €/g = ${coffeeCost.toFixed(2)} €${filterNote} ÷ 1200 ml\n` +
-      `→ cena: ${pricePerMl.toFixed(3)} €/ml`
+    const lines = [
+      `80 g × ${coffeePrice.toFixed(3)} €/g = ${coffeeCost.toFixed(2)} €${filterNote}`,
+      `÷ 1200 ml → cena ${pricePerMl.toFixed(3)} €/ml`,
+    ]
 
     setColdBrewModal({
       item: coffeeItem,
@@ -410,7 +402,7 @@ const overlapsAny = (all, candidate, skipId = null) => {
         price: String(pricePerMl),
         color: coffeeItem.color || '#ffffff',
       },
-      label,
+      lines,
     })
   }
 
@@ -431,14 +423,17 @@ const overlapsAny = (all, candidate, skipId = null) => {
   }
 
   // ===== Osoby =====
-  const resetDebt = (person) => {
-    showConfirm(`Naozaj vynulovať dlh pre ${person.name}?`, async () => {
-      closeConfirm()
-      animateDebtToZero(person.id)
-      await api.resetDebt(person.id)
-      await load()
-      setMsg(`Dlh pre ${person.name} bol vynulovaný`)
-    })
+  const resetDebt = async (person) => {
+    const ok = await askConfirm(
+      `Vynulovať dlh pre ${person.name}?`,
+      `Aktuálny dlh ${(debts[person.id] ?? 0).toFixed(2)} € sa nastaví na nulu. Túto akciu nie je možné vrátiť späť.`,
+      'Vynulovať',
+    )
+    if (!ok) return
+    animateDebtToZero(person.id)
+    await api.resetDebt(person.id)
+    await load()
+    setMsg(`Dlh pre ${person.name} je vynulovaný`)
   }
 
   const filteredItems = items
@@ -470,9 +465,13 @@ const addCoffeeFilter = async (e) => {
       g_max: normDec(cfForm.g_max, 3),
     };
     if (overlapsAny(coffeeFilters, cand)) {
-      if (!confirm("Tento interval sa prekrýva s existujúcim. Pokračovať?")) {
-        setCfLoading(false); return;
-      }
+      const go = await dialog.confirm({
+        title: "Intervaly sa prekrývajú",
+        text: "Tento interval gramáže sa prekrýva s existujúcim filtrom. Pri výpočte ceny sa použije len jeden z nich.",
+        confirmLabel: "Aj tak pridať",
+        tone: "danger",
+      })
+      if (!go) { setCfLoading(false); return; }
     }
 
     await api.addCoffeeFilter({
@@ -521,9 +520,13 @@ const saveCoffeeFilter = async (id) => {
       g_max: normDec(cfEditForm.g_max, 3),
     };
     if (overlapsAny(coffeeFilters, cand, id)) {
-      if (!confirm("Tento interval sa prekrýva s iným filtrom. Pokračovať?")) {
-        setCfLoading(false); return;
-      }
+      const go = await dialog.confirm({
+        title: "Intervaly sa prekrývajú",
+        text: "Tento interval gramáže sa prekrýva s iným filtrom. Pri výpočte ceny sa použije len jeden z nich.",
+        confirmLabel: "Aj tak uložiť",
+        tone: "danger",
+      })
+      if (!go) { setCfLoading(false); return; }
     }
 
     await api.updateCoffeeFilter(id, {
@@ -546,82 +549,81 @@ const saveCoffeeFilter = async (id) => {
   }
 };
 
-  const deleteCoffeeFilter = (f) => {
-    showConfirm(`Zmazať filter ${f.label ? `"${f.label}"` : `${f.g_min}–${f.g_max} g`}?`, async () => {
-      closeConfirm()
-      await api.deleteCoffeeFilter(f.id)
-      await loadCoffeeFilters()
-      setMsg("Kávový filter zmazaný")
-    })
+  const deleteCoffeeFilter = async (f) => {
+    const name = f.label ? `„${f.label}"` : `${f.g_min}–${f.g_max} g`
+    const ok = await askConfirm('Zmazať kávový filter?', `Filter ${name} sa odstráni z výpočtu ceny.`, 'Zmazať')
+    if (!ok) return
+    await api.deleteCoffeeFilter(f.id)
+    await loadCoffeeFilters()
+    setMsg("Kávový filter je zmazaný")
   }
 
   return (
     <div className="container py-3">
-      <NavDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
-
-      {confirmModal.open && (
-        <ConfirmModal
-          msg={confirmModal.msg}
-          onConfirm={confirmModal.onConfirm}
-          onCancel={closeConfirm}
-        />
-      )}
+      <PageHeader title="Admin" icon="admin">
+        {authed && <button onClick={logout} className="btn btn-sm btn-outline-secondary">Odhlásiť</button>}
+      </PageHeader>
 
       {/* ── Cold Brew modal ── */}
       {coldBrewModal && (
-        <div
-          onClick={() => setColdBrewModal(null)}
-          style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center' }}
+        <Modal
+          onClose={() => setColdBrewModal(null)}
+          icon="coldBrew"
+          size="sm"
+          title={`Pridať „${coldBrewModal.item.name}" ako Cold Brew`}
+          actions={
+            <>
+              <button className="btn btn-outline-secondary" onClick={() => setColdBrewModal(null)}>Zrušiť</button>
+              <button className="btn btn-primary" onClick={confirmColdBrew} disabled={loading}>Vytvoriť</button>
+            </>
+          }
         >
-          <div className="card shadow-lg pop-in" style={{ maxWidth:360, width:'92%' }} onClick={e=>e.stopPropagation()}>
-            <div className="card-body p-4 text-center">
-              <div style={{ fontSize:'2rem', marginBottom:'0.5rem' }}>❄️</div>
-              {coldBrewModal.label.split('\n').map((line, i) => (
-                <p key={i} className={i === 0 ? 'fw-semibold mb-2' : 'text-muted small mb-1'}>{line}</p>
-              ))}
-              <div className="d-flex gap-2 mt-3">
-                <button className="btn btn-info flex-fill" onClick={confirmColdBrew} disabled={loading}>Vytvoriť</button>
-                <button className="btn btn-secondary flex-fill" onClick={() => setColdBrewModal(null)}>Zrušiť</button>
-              </div>
-            </div>
-          </div>
-        </div>
+          {coldBrewModal.lines.map((line, i) => (
+            <p key={i} className="num text-muted mb-1" style={{ fontSize: 'var(--fs-sm)' }}>{line}</p>
+          ))}
+        </Modal>
       )}
 
       {/* ── Stock nastavenie modal ── */}
       {stockModal && (
-        <div onClick={() => setStockModal(null)} style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <div className="card shadow-lg pop-in" style={{ maxWidth:360, width:'90%' }} onClick={e=>e.stopPropagation()}>
-            <div className="card-body p-4">
-              <div style={{ fontSize:'2rem', textAlign:'center', marginBottom:'0.5rem' }}>📦</div>
-              <h6 className="text-center mb-1">Aktivovať: <strong>{stockModal.item.name}</strong></h6>
-              <p className="text-muted small text-center mb-3">Koľko naskladniť? ({stockUnit(stockModal.item)})</p>
-              <input
-                className="form-control mb-3"
-                type="number"
-                min="0"
-                step="any"
-                placeholder={`Množstvo v ${stockUnit(stockModal.item)}`}
-                value={stockInput}
-                onChange={e => setStockInput(e.target.value)}
-                autoFocus
-              />
-              <div className="d-flex gap-2">
-                <button className="btn btn-success flex-fill" onClick={() => {
-                  const n = Number(stockInput.replace(',', '.'))
+        <Modal
+          onClose={() => setStockModal(null)}
+          icon="stock"
+          size="sm"
+          title={`Aktivovať ${stockModal.item.name}`}
+          subtitle={`Koľko naskladniť? Zadaj množstvo v ${stockUnit(stockModal.item)}, alebo pokračuj bez sledovania zásob.`}
+          actions={
+            <>
+              <button className="btn btn-outline-secondary" onClick={() => stockModal.onConfirm(null)}>
+                Bez sledovania
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  const n = Number(String(stockInput).replace(',', '.'))
                   if (!stockInput || isNaN(n) || n < 0) { setMsg("Zadaj platné množstvo"); return }
                   stockModal.onConfirm(n)
-                }}>
-                  ✓ Aktivovať so zásobou
-                </button>
-                <button className="btn btn-outline-secondary" onClick={() => stockModal.onConfirm(null)}>
-                  Bez sledovania
-                </button>
-              </div>
-              <button className="btn btn-link btn-sm w-100 mt-2 text-muted" onClick={() => setStockModal(null)}>Zrušiť</button>
-            </div>
-          </div>
-        </div>
+                }}
+              >
+                Aktivovať so zásobou
+              </button>
+            </>
+          }
+        >
+          <label className="form-label" htmlFor="stock-qty">Množstvo ({stockUnit(stockModal.item)})</label>
+          <input
+            id="stock-qty"
+            className="form-control"
+            type="number"
+            min="0"
+            step="any"
+            inputMode="decimal"
+            placeholder="napr. 1000"
+            value={stockInput}
+            data-autofocus
+            onChange={e => setStockInput(e.target.value)}
+          />
+        </Modal>
       )}
 
       {/* ── Settle modal ── */}
@@ -633,46 +635,36 @@ const saveCoffeeFilter = async (id) => {
         const domestic = persons.filter(p => !p.is_guest && p.active)
         const perPerson = domestic.length > 0 ? (Number(value) / domestic.length).toFixed(2) : '—'
         return (
-          <div onClick={() => setSettleModal(null)} style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <div className="card shadow-lg pop-in" style={{ maxWidth:400, width:'90%' }} onClick={e=>e.stopPropagation()}>
-              <div className="card-body p-4">
-                <div style={{ fontSize:'2rem', textAlign:'center', marginBottom:'0.5rem' }}>⚖️</div>
-                <h6 className="text-center mb-3">Rozrátať zostatok</h6>
-                <table className="table table-sm mb-3">
-                  <tbody>
-                    <tr><td className="text-muted">Položka</td><td><strong>{it.name}</strong></td></tr>
-                    <tr><td className="text-muted">Zostatok</td><td><strong>{remaining.toFixed(1)} {unit}</strong></td></tr>
-                    <tr><td className="text-muted">Hodnota</td><td><strong>{value} €</strong></td></tr>
-                    <tr><td className="text-muted">Domáci</td><td>{domestic.map(p => p.name).join(', ') || '—'}</td></tr>
-                    <tr><td className="text-muted">Každý zaplatí</td><td><strong>{perPerson} €</strong></td></tr>
-                  </tbody>
-                </table>
-                <p className="text-muted small mb-3">Vytvorí sa transakcia pre každého domáceho a položka sa deaktivuje.</p>
-                <div className="d-flex gap-2">
-                  <button className="btn btn-warning flex-fill" disabled={settleLoading} onClick={doSettle}>
-                    {settleLoading ? '...' : '⚖️ Rozrátať'}
-                  </button>
-                  <button className="btn btn-secondary flex-fill" onClick={() => setSettleModal(null)}>Zrušiť</button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <Modal
+            onClose={() => setSettleModal(null)}
+            icon="scales"
+            tone="warning"
+            title="Rozrátať zostatok"
+            subtitle="Vytvorí sa transakcia pre každého domáceho a položka sa deaktivuje."
+            actions={
+              <>
+                <button className="btn btn-outline-secondary" onClick={() => setSettleModal(null)}>Zrušiť</button>
+                <button className="btn btn-primary" disabled={settleLoading} onClick={doSettle}>
+                  {settleLoading ? 'Rozrátavam…' : 'Rozrátať'}
+                </button>
+              </>
+            }
+          >
+            <table className="table table-sm mb-0">
+              <tbody>
+                <tr><td className="text-muted">Položka</td><td className="text-end fw-semibold">{it.name}</td></tr>
+                <tr><td className="text-muted">Zostatok</td><td className="num text-end fw-semibold">{remaining.toFixed(1)} {unit}</td></tr>
+                <tr><td className="text-muted">Hodnota</td><td className="num text-end fw-semibold">{value} €</td></tr>
+                <tr><td className="text-muted">Domáci</td><td className="text-end">{domestic.map(p => p.name).join(', ') || '—'}</td></tr>
+                <tr><td className="text-muted">Každý zaplatí</td><td className="num text-end fw-bold" style={{ color: 'var(--warn)' }}>{perPerson} €</td></tr>
+              </tbody>
+            </table>
+          </Modal>
         )
       })()}
 
-      {/* ── Hlavička ── */}
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2 className="mb-0">Admin</h2>
-        <div className="d-flex align-items-center gap-2">
-          {authed && (
-            <button onClick={logout} className="btn btn-sm btn-outline-danger">Odhlásiť</button>
-          )}
-          <HamburgerBtn onClick={() => setDrawerOpen(true)} />
-        </div>
-      </div>
-
       {msg && (
-        <div className="alert alert-info alert-flash py-2 mb-3 position-relative overflow-hidden">
+        <div className="alert alert-info alert-flash py-2 mb-3 position-relative overflow-hidden" role="status">
           {msg}
           <div className="alert-dismiss-bar" style={{ animationDuration: '3.5s' }} />
         </div>
@@ -682,25 +674,28 @@ const saveCoffeeFilter = async (id) => {
       {!authed ? (
         <div className="row justify-content-center mt-4">
           <div className="col-12 col-sm-8 col-md-5 col-lg-4">
-            <div className="card shadow-lg">
+            <div className="card">
               <div className="card-body p-4">
                 <div className="text-center mb-4">
-                  <div className="display-4 mb-2">🔐</div>
-                  <h4 className="mb-1">Admin</h4>
-                  <p className="text-muted small">Zadaj PIN pre prístup</p>
+                  <span className="page-header-icon mx-auto mb-3"><Icon name="admin" size={22} /></span>
+                  <h1 style={{ fontSize: 'var(--fs-lg)' }}>Admin</h1>
+                  <p className="text-muted mb-0" style={{ fontSize: 'var(--fs-sm)' }}>
+                    Táto sekcia je chránená PIN kódom.
+                  </p>
                 </div>
                 <form onSubmit={login}>
+                  <label className="form-label" htmlFor="admin-pin">PIN</label>
                   <input
-                    className="form-control form-control-lg mb-3"
-                    type="text"
+                    id="admin-pin"
+                    className="form-control form-control-lg num mb-3"
+                    type="password"
                     inputMode="numeric"
-                    pattern="[0-9]*"
                     value={pin}
                     onChange={e => setPin(e.target.value)}
-                    placeholder="PIN"
+                    placeholder="••••"
                     autoFocus
                   />
-                  <button className="btn btn-primary w-100 btn-lg" type="submit">Prihlásiť</button>
+                  <button className="btn btn-primary w-100 btn-lg" type="submit" disabled={!pin}>Prihlásiť</button>
                 </form>
               </div>
             </div>
@@ -712,33 +707,33 @@ const saveCoffeeFilter = async (id) => {
           <div className="card p-3 mb-4 fade-in-up" style={{ animationDelay: '0.05s' }}>
             <div className="row g-2 align-items-end">
               <div className="col-12 col-md-6">
-                <div className="text-muted small fw-bold mb-1">Stav</div>
+                <div className="nav-drawer-section-label px-0 pt-0">Stav</div>
                 <div className="d-flex gap-1 flex-wrap">
-                  {[['All','btn-secondary','btn-outline-secondary','Všetky'],
-                    ['Active','btn-success','btn-outline-success','✓ Aktívne'],
-                    ['Hidden','btn-warning text-dark','btn-outline-warning','👁 Skryté']
-                  ].map(([val, active, outline, label]) => (
+                  {[['All','Všetky'], ['Active','Aktívne'], ['Hidden','Skryté']].map(([val, label]) => (
                     <button
                       key={val}
-                      className={`btn btn-sm ${filterStatus===val ? active : outline} ${filterBounce==='s-'+val ? 'filter-btn-bounce' : ''}`}
+                      className={`btn btn-sm ${filterStatus===val ? 'btn-primary' : 'btn-outline-secondary'} ${filterBounce==='s-'+val ? 'filter-btn-bounce' : ''}`}
+                      aria-pressed={filterStatus===val}
                       onClick={() => setFilterWithBounce(setFilterStatus, val, 's-'+val)}
                     >{label}</button>
                   ))}
                 </div>
               </div>
               <div className="col-12 col-md-6">
-                <div className="text-muted small fw-bold mb-1">Kategória</div>
+                <div className="nav-drawer-section-label px-0 pt-0">Kategória</div>
                 <div className="d-flex gap-1 flex-wrap">
                   <button
-                    className={`btn btn-sm ${filterCat==='All'?'btn-primary':'btn-outline-primary'} ${filterBounce==='c-All'?'filter-btn-bounce':''}`}
+                    className={`btn btn-sm ${filterCat==='All'?'btn-primary':'btn-outline-secondary'} ${filterBounce==='c-All'?'filter-btn-bounce':''}`}
+                    aria-pressed={filterCat==='All'}
                     onClick={() => setFilterWithBounce(setFilterCat, 'All', 'c-All')}
                   >Všetko</button>
                   {cats.map(c => (
                     <button
                       key={c.id}
-                      className={`btn btn-sm ${filterCat===c.name?'btn-primary':'btn-outline-primary'} ${filterBounce==='c-'+c.name?'filter-btn-bounce':''}`}
+                      className={`btn btn-sm d-inline-flex align-items-center gap-1 ${filterCat===c.name?'btn-primary':'btn-outline-secondary'} ${filterBounce==='c-'+c.name?'filter-btn-bounce':''}`}
+                      aria-pressed={filterCat===c.name}
                       onClick={() => setFilterWithBounce(setFilterCat, c.name, 'c-'+c.name)}
-                    >{c.name === 'Beer' ? '🍺' : c.name === 'Coffee' ? '☕' : c.name === 'Cold Brew' ? '❄️' : '📦'} {c.name}</button>
+                    ><Icon name={categoryIcon(c.name)} size={13} /> {c.name}</button>
                   ))}
                 </div>
               </div>
@@ -749,7 +744,7 @@ const saveCoffeeFilter = async (id) => {
             {/* ── Zoznam položiek ── */}
             <div className="col-12 col-xl-7 fade-in-up" style={{ animationDelay: '0.1s' }}>
               <div className="card p-3">
-                <h5 className="mb-3">Položky</h5>
+                <h2 className="mb-3" style={{ fontSize: 'var(--fs-md)' }}>Položky</h2>
                 <div className="d-flex flex-column gap-2">
                   {filteredItems.map((it, idx) => (
                     <div
@@ -771,12 +766,12 @@ const saveCoffeeFilter = async (id) => {
                           <>
                             <div className="row g-2 mb-3">
                               <div className="col-12">
-                                <label className="form-label small text-muted mb-1">Názov</label>
+                                <label className="form-label">Názov</label>
                                 <input className="form-control" value={editForm.name}
                                   onChange={e=>setEditForm(f=>({...f, name:e.target.value}))} />
                               </div>
                               <div className="col-6">
-                                <label className="form-label small text-muted mb-1">Kategória</label>
+                                <label className="form-label">Kategória</label>
                                 <select className="form-select" value={editForm.category_id}
                                   onChange={e=>setEditForm(f=>({...f, category_id:e.target.value}))}>
                                   <option value="">—</option>
@@ -784,14 +779,14 @@ const saveCoffeeFilter = async (id) => {
                                 </select>
                               </div>
                               <div className="col-6">
-                                <label className="form-label small text-muted mb-1">Režim</label>
+                                <label className="form-label">Režim</label>
                                 <select className="form-select" value={editForm.pricing_mode}
                                   onChange={e=>setEditForm(f=>({...f, pricing_mode:e.target.value}))}>
-                                  {PRICING_MODES.map(m => <option key={m} value={m}>{m}</option>)}
+                                  {PRICING_MODES.map(m => <option key={m} value={m}>{PRICING_LABELS[m]}</option>)}
                                 </select>
                               </div>
                               <div className="col-8">
-                                <label className="form-label small text-muted mb-1">Cena</label>
+                                <label className="form-label">Cena</label>
                                 <input className="form-control" inputMode="decimal" value={editForm.price}
                                   onChange={e=>setEditForm(f=>({...f, price:e.target.value}))} />
                               </div>
@@ -808,8 +803,8 @@ const saveCoffeeFilter = async (id) => {
                                   onChange={e=>setEditForm(f=>({...f, color:e.target.value}))} />
                               </div>
                               <div className="col-12">
-                                <label className="form-label small text-muted mb-1">
-                                  📦 Zásoba ({editForm.pricing_mode === 'per_gram' ? 'g' : editForm.pricing_mode === 'per_ml' ? 'ml' : 'ks'}) <span className="text-muted">(prázdne = nesleduje sa)</span>
+                                <label className="form-label">
+                                  Zásoba ({editForm.pricing_mode === 'per_gram' ? 'g' : editForm.pricing_mode === 'per_ml' ? 'ml' : 'ks'}) <span className="text-muted fw-normal">— prázdne znamená, že sa nesleduje</span>
                                 </label>
                                 <input
                                   className="form-control"
@@ -824,33 +819,30 @@ const saveCoffeeFilter = async (id) => {
                               </div>
                             </div>
                             <div className="d-flex gap-2">
-                              <button className="btn btn-success flex-fill" onClick={()=>saveEditItem(it.id)}>✓ Uložiť</button>
-                              <button className="btn btn-secondary flex-fill" onClick={cancelEditItem}>✕ Zrušiť</button>
+                              <button className="btn btn-primary flex-fill" onClick={()=>saveEditItem(it.id)}>Uložiť</button>
+                              <button className="btn btn-outline-secondary flex-fill" onClick={cancelEditItem}>Zrušiť</button>
                             </div>
                           </>
                         ) : (
                           <>
                             <div className="d-flex justify-content-between align-items-center mb-2">
                               <div className="d-flex align-items-center gap-2 flex-wrap">
-                                <span
-                                  style={{
-                                    display: 'inline-block',
-                                    width: 14,
-                                    height: 14,
-                                    borderRadius: '50%',
-                                    backgroundColor: it.color || '#aaa',
-                                    border: '1px solid rgba(128,128,128,0.4)',
-                                    flexShrink: 0,
-                                  }}
-                                />
+                                <span className="item-dot" style={{ background: it.color || 'var(--text-dim)' }} />
                                 <span className="fw-semibold">{it.name}</span>
-                                <span className="badge bg-secondary">{it.category?.name ?? "—"}</span>
-                                <span className={`badge ${it.active?'bg-success':'bg-warning text-dark'}`}>
+                                <span className="badge" style={{ background: 'var(--surface-3)', color: 'var(--text-muted)' }}>
+                                  {it.category?.name ?? "—"}
+                                </span>
+                                <span
+                                  className="badge"
+                                  style={it.active
+                                    ? { background: 'var(--ok-soft)', color: 'var(--ok)' }
+                                    : { background: 'var(--warn-soft)', color: 'var(--warn)' }}
+                                >
                                   {it.active ? 'aktívne' : 'skryté'}
                                 </span>
                               </div>
                               <div className="text-end ms-2 flex-shrink-0">
-                                <span className="fw-bold text-primary">
+                                <span className="num fw-bold" style={{ color: 'var(--accent)' }}>
                                   {it.pricing_mode==='per_gram'
                                     ? `${Number(it.price).toFixed(3)} €/g`
                                     : it.pricing_mode==='per_ml'
@@ -862,46 +854,57 @@ const saveCoffeeFilter = async (id) => {
                             {/* Zásoby */}
                             {it.stock_quantity !== null && it.stock_quantity !== undefined && (
                               <div className="d-flex align-items-center gap-2 mt-2 mb-1 px-1">
-                                <span className="text-muted small">📦 Zostatok:</span>
-                                <span className="fw-bold" style={{ color: stockColor(it.stock_quantity, stockUnit(it)) }}>
+                                <span className="text-muted d-flex align-items-center gap-1" style={{ fontSize: 'var(--fs-sm)' }}>
+                                  <Icon name="stock" size={13} /> Zostatok
+                                </span>
+                                <span className="num fw-bold" style={{ color: stockColor(it.stock_quantity, stockUnit(it)) }}>
                                   {Number(it.stock_quantity).toFixed(1)} {stockUnit(it)}
                                 </span>
                                 {Number(it.stock_quantity) <= 0 && (
-                                  <span className="badge bg-danger ms-1">VYČERPANÉ</span>
+                                  <span className="badge ms-1" style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}>
+                                    vyčerpané
+                                  </span>
                                 )}
                               </div>
                             )}
 
-                            <div className="d-flex gap-2 pt-2 border-top">
-                              <button className="btn btn-sm btn-outline-primary flex-fill" onClick={()=>startEditItem(it)}>
-                                Upraviť
+                            <div className="d-flex gap-2 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                              <button className="btn btn-sm btn-outline-secondary flex-fill d-inline-flex align-items-center justify-content-center gap-1"
+                                onClick={()=>startEditItem(it)}>
+                                <Icon name="edit" size={13} /> Upraviť
                               </button>
-                              <button className={`btn btn-sm flex-fill ${it.active?'btn-outline-warning':'btn-outline-success'}`}
+                              <button className="btn btn-sm btn-outline-secondary flex-fill"
                                 onClick={()=>toggleActiveItem(it)}>
                                 {it.active ? 'Skryť' : 'Zobraziť'}
                               </button>
-                              <button className="btn btn-sm btn-outline-danger flex-fill"
-                                onClick={() => showConfirm('Naozaj zmazať túto položku?', async () => {
-                                  closeConfirm()
+                              <button className="btn btn-sm btn-outline-danger flex-fill d-inline-flex align-items-center justify-content-center gap-1"
+                                onClick={async () => {
+                                  const ok = await askConfirm(
+                                    `Zmazať ${it.name}?`,
+                                    'Položka sa odstráni natrvalo. Existujúce transakcie zostanú zachované.',
+                                    'Zmazať',
+                                  )
+                                  if (!ok) return
                                   setDeletingId(it.id)
                                   setTimeout(async () => { await api.deleteItem(it.id); await load(); setDeletingId(null) }, 250)
-                                })}>
-                                Zmazať
+                                }}>
+                                <Icon name="trash" size={13} /> Zmazať
                               </button>
                             </div>
                             {/* Settle tlačidlo */}
                             {it.stock_quantity !== null && it.stock_quantity !== undefined && Number(it.stock_quantity) > 0 && (
                               <div className="mt-2">
-                                <button className="btn btn-sm btn-outline-warning w-100" onClick={() => openSettle(it)}>
-                                  ⚖️ Rozrátať zostatok ({Number(it.stock_quantity).toFixed(1)} {stockUnit(it)})
+                                <button className="btn btn-sm btn-outline-secondary w-100 d-inline-flex align-items-center justify-content-center gap-2" onClick={() => openSettle(it)}>
+                                  <Icon name="scales" size={13} />
+                                  Rozrátať zostatok <span className="num">{Number(it.stock_quantity).toFixed(1)} {stockUnit(it)}</span>
                                 </button>
                               </div>
                             )}
                             {it.category?.name === 'Coffee' && it.pricing_mode === 'per_gram' &&
                               !items.some(x => x.pricing_mode === 'per_ml' && x.category?.name?.toLowerCase() === 'cold brew' && x.name.toLowerCase() === it.name.toLowerCase()) && (
                               <div className="mt-2">
-                                <button className="btn btn-sm btn-outline-info w-100" onClick={() => prefillAsColdBrew(it)}>
-                                  ❄️ Pridať ako Cold Brew
+                                <button className="btn btn-sm btn-outline-secondary w-100 d-inline-flex align-items-center justify-content-center gap-2" onClick={() => prefillAsColdBrew(it)}>
+                                  <Icon name="coldBrew" size={13} /> Pridať ako Cold Brew
                                 </button>
                               </div>
                             )}
@@ -911,7 +914,11 @@ const saveCoffeeFilter = async (id) => {
                     </div>
                   ))}
                   {filteredItems.length===0 && (
-                    <div className="text-center text-muted py-3">Žiadne položky</div>
+                    <EmptyState
+                      icon="stock"
+                      title="Žiadne položky"
+                      text="Pre zvolený filter tu nič nie je. Skús iný filter alebo pridaj novú položku."
+                    />
                   )}
                 </div>
               </div>
@@ -921,40 +928,41 @@ const saveCoffeeFilter = async (id) => {
             <div className="col-12 col-xl-5 fade-in-up" style={{ animationDelay: '0.15s' }}>
               {/* Pridať položku */}
               <div className="card mb-3">
-                <div
-                  className="card-header bg-primary text-white d-flex justify-content-between align-items-center"
-                  style={{cursor:'pointer'}}
+                <button
+                  className="card-header d-flex justify-content-between align-items-center w-100 border-0 text-start"
+                  style={{ minHeight: 'var(--tap-min)' }}
+                  aria-expanded={showAddItem}
                   onClick={()=>setShowAddItem(!showAddItem)}
                 >
-                  <h6 className="mb-0">➕ Pridať položku</h6>
-                  <span>{showAddItem ? '▼' : '▶'}</span>
-                </div>
+                  <span className="fw-semibold d-flex align-items-center gap-2"><Icon name="plus" size={15} /> Pridať položku</span>
+                  <Icon name={showAddItem ? 'caretUp' : 'caretDown'} size={13} />
+                </button>
                 {showAddItem && (
                   <div className="card-body">
                     <form onSubmit={saveItem} className="row g-2">
                       <div className="col-12">
-                        <label className="form-label small text-muted mb-1">Názov</label>
+                        <label className="form-label">Názov</label>
                         <input className="form-control" value={form.name} onChange={e=>setForm(f=>({...f, name:e.target.value}))} required />
                       </div>
                       <div className="col-6">
-                        <label className="form-label small text-muted mb-1">Kategória</label>
+                        <label className="form-label">Kategória</label>
                         <select className="form-select" value={form.category_id} onChange={e=>setForm(f=>({...f, category_id:e.target.value}))} required>
                           <option value="" disabled>Vyber…</option>
                           {cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                       </div>
                       <div className="col-6">
-                        <label className="form-label small text-muted mb-1">Režim</label>
+                        <label className="form-label">Režim</label>
                         <select className="form-select" value={form.pricing_mode} onChange={e=>setForm(f=>({...f, pricing_mode:e.target.value}))} required>
-                          {PRICING_MODES.map(m => <option key={m} value={m}>{m}</option>)}
+                          {PRICING_MODES.map(m => <option key={m} value={m}>{PRICING_LABELS[m]}</option>)}
                         </select>
                       </div>
                       <div className="col-8">
-                        <label className="form-label small text-muted mb-1">Cena</label>
+                        <label className="form-label">Cena</label>
                         <input className="form-control" inputMode="decimal" value={form.price} onChange={e=>setForm(f=>({...f, price:e.target.value}))} required />
                       </div>
                       <div className="col-4">
-                        <label className="form-label small text-muted mb-1">Farba</label>
+                        <label className="form-label">Farba</label>
                         <input type="color" className="form-control form-control-color w-100" value={form.color} onChange={e=>setForm(f=>({...f, color:e.target.value}))} />
                       </div>
                       <div className="col-12">
@@ -967,21 +975,22 @@ const saveCoffeeFilter = async (id) => {
 
               {/* Cold Brew výroba */}
               <div className="card mb-3">
-                <div
-                  className="card-header text-white d-flex justify-content-between align-items-center"
-                  style={{cursor:'pointer', background:'linear-gradient(135deg,#0062cc,#0ea5e9)'}}
+                <button
+                  className="card-header d-flex justify-content-between align-items-center w-100 border-0 text-start"
+                  style={{ minHeight: 'var(--tap-min)' }}
+                  aria-expanded={showBrewBatch}
                   onClick={()=>setShowBrewBatch(!showBrewBatch)}
                 >
-                  <span className="fw-semibold">❄️ Vyrobiť Cold Brew</span>
-                  <span className="opacity-75" style={{fontSize:'0.8rem'}}>{showBrewBatch ? '▼' : '▶'}</span>
-                </div>
+                  <span className="fw-semibold d-flex align-items-center gap-2"><Icon name="coldBrew" size={15} /> Vyrobiť Cold Brew</span>
+                  <Icon name={showBrewBatch ? 'caretUp' : 'caretDown'} size={13} />
+                </button>
                 {showBrewBatch && (
                   <div className="card-body p-3">
                     <form onSubmit={submitBrewBatch}>
 
                       {/* ── Zdroje ── */}
                       <div className="mb-3">
-                        <div className="text-muted small fw-bold mb-2" style={{letterSpacing:'0.04em'}}>☕ ZDROJE KÁVY</div>
+                        <div className="nav-drawer-section-label px-0 pt-0">Zdroje kávy</div>
                         {/* Primárna */}
                         <div className="d-flex gap-2 mb-2">
                           <div style={{flex:'1 1 0', minWidth:0}}>
@@ -1045,7 +1054,7 @@ const saveCoffeeFilter = async (id) => {
 
                       {/* ── Výstup ── */}
                       <div className="mb-3">
-                        <div className="text-muted small fw-bold mb-2" style={{letterSpacing:'0.04em'}}>❄️ VÝSTUP</div>
+                        <div className="nav-drawer-section-label px-0 pt-0">Výstup</div>
                         <div className="d-flex gap-2">
                           <div style={{flex:'1 1 0', minWidth:0}}>
                             <select
@@ -1089,13 +1098,15 @@ const saveCoffeeFilter = async (id) => {
                         if (!p1 || !g1 || !ml) return null
                         return (
                           <div className="brew-summary-pill mb-3">
-                            <span>☕ {totalG}g</span>
+                            <Icon name="coffee" size={13} />
+                            <span className="num">{totalG} g</span>
                             <span style={{opacity:0.5}}>→</span>
-                            <span>❄️ {ml}ml</span>
+                            <Icon name="coldBrew" size={13} />
+                            <span className="num">{ml} ml</span>
                             <span style={{opacity:0.4}}>·</span>
-                            <span>{totalCost.toFixed(2)} €</span>
+                            <span className="num">{totalCost.toFixed(2)} €</span>
                             <span style={{opacity:0.4}}>·</span>
-                            <span>{(totalCost / ml * 1000).toFixed(3)} €/ml</span>
+                            <span className="num">{(totalCost / ml * 1000).toFixed(3)} €/ml</span>
                           </div>
                         )
                       })()}
@@ -1108,28 +1119,34 @@ const saveCoffeeFilter = async (id) => {
                         onChange={e => setBrewForm(f => ({ ...f, note: e.target.value }))}
                       />
                       <button
-                        className="btn btn-sm w-100 text-white fw-semibold"
-                        style={{background:'linear-gradient(135deg,#0062cc,#0ea5e9)'}}
+                        className="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2"
                         type="submit"
                         disabled={brewLoading}
                       >
-                        {brewLoading ? '⏳ Vyrábam…' : '❄️ Vyrobiť Cold Brew'}
+                        <Icon name="coldBrew" size={15} />
+                        {brewLoading ? 'Vyrábam…' : 'Vyrobiť Cold Brew'}
                       </button>
                     </form>
 
                     {/* ── História ── */}
                     {brewBatches.length > 0 && (
                       <div className="mt-3">
-                        <div className="text-muted small fw-bold mb-2" style={{letterSpacing:'0.04em'}}>POSLEDNÉ VARENIA</div>
+                        <div className="nav-drawer-section-label px-0 pt-0">Posledné varenia</div>
                         <div className="d-flex flex-column gap-1">
                           {brewBatches.slice(0, 5).map(b => (
                             <div key={b.id} className="brew-history-item">
-                              <div className="fw-semibold">
+                              <div className="fw-semibold d-flex flex-wrap align-items-center gap-1">
                                 {(b.ingredients || []).map((ing, i) => (
-                                  <span key={i}>{i > 0 && <span className="text-muted"> + </span>}☕ {ing.coffee?.name} {ing.grams}g</span>
+                                  <span key={i} className="d-inline-flex align-items-center gap-1">
+                                    {i > 0 && <span className="text-muted">+</span>}
+                                    <Icon name="coffee" size={12} /> {ing.coffee?.name} <span className="num">{ing.grams} g</span>
+                                  </span>
                                 ))}
                                 <span className="text-muted mx-1">→</span>
-                                ❄️ {b.output_item?.name} <span style={{color:'#0ea5e9'}}>{b.output_ml}ml</span>
+                                <span className="d-inline-flex align-items-center gap-1">
+                                  <Icon name="coldBrew" size={12} /> {b.output_item?.name}
+                                  <span className="num" style={{color:'var(--accent)'}}>{b.output_ml} ml</span>
+                                </span>
                               </div>
                               <div className="brew-history-meta">
                                 {new Date(b.created_at).toLocaleString('sk-SK', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})}
@@ -1146,14 +1163,15 @@ const saveCoffeeFilter = async (id) => {
 
               {/* Kávové filtre */}
               <div className="card">
-                <div
-                  className="card-header bg-info text-white d-flex justify-content-between align-items-center"
-                  style={{cursor:'pointer'}}
+                <button
+                  className="card-header d-flex justify-content-between align-items-center w-100 border-0 text-start"
+                  style={{ minHeight: 'var(--tap-min)' }}
+                  aria-expanded={showCoffeeFilters}
                   onClick={()=>setShowCoffeeFilters(!showCoffeeFilters)}
                 >
-                  <h6 className="mb-0">☕ Kávové filtre</h6>
-                  <span>{showCoffeeFilters ? '▼' : '▶'}</span>
-                </div>
+                  <span className="fw-semibold d-flex align-items-center gap-2"><Icon name="coffee" size={15} /> Kávové filtre</span>
+                  <Icon name={showCoffeeFilters ? 'caretUp' : 'caretDown'} size={13} />
+                </button>
                 {showCoffeeFilters && (
                   <div className="card-body">
                     <p className="text-muted small mb-3">
@@ -1196,39 +1214,45 @@ const saveCoffeeFilter = async (id) => {
                               <td className="text-end" style={{whiteSpace:'nowrap'}}>
                                 {cfEditId===f.id ? (
                                   <div className="btn-group btn-group-sm">
-                                    <button className="btn btn-success" disabled={cfLoading} onClick={()=>saveCoffeeFilter(f.id)}>✓</button>
-                                    <button className="btn btn-outline-secondary" onClick={cancelEditCoffeeFilter}>✕</button>
+                                    <button className="btn btn-primary" disabled={cfLoading} onClick={()=>saveCoffeeFilter(f.id)} aria-label="Uložiť filter">
+                                      <Icon name="check" size={13} />
+                                    </button>
+                                    <button className="btn btn-outline-secondary" onClick={cancelEditCoffeeFilter} aria-label="Zrušiť úpravu">
+                                      <Icon name="close" size={13} />
+                                    </button>
                                   </div>
                                 ) : (
                                   <div className="btn-group btn-group-sm">
                                     <button className="btn btn-outline-secondary" onClick={()=>startEditCoffeeFilter(f)}>Upraviť</button>
-                                    <button className="btn btn-outline-danger" onClick={()=>deleteCoffeeFilter(f)}>✕</button>
+                                    <button className="btn btn-outline-danger" onClick={()=>deleteCoffeeFilter(f)} aria-label="Zmazať filter">
+                                      <Icon name="trash" size={13} />
+                                    </button>
                                   </div>
                                 )}
                               </td>
                             </tr>
                           ))}
                           {coffeeFilters.length===0 && (
-                            <tr><td colSpan="5" className="text-center text-muted py-2">Žiadne filtre</td></tr>
+                            <tr><td colSpan="5" className="text-center text-muted py-3">Žiadne filtre — prirážka sa neuplatní.</td></tr>
                           )}
                         </tbody>
                       </table>
                     </div>
                     <form onSubmit={addCoffeeFilter} className="row g-2">
                       <div className="col-12 col-sm-6">
-                        <label className="form-label small text-muted mb-1">Label</label>
+                        <label className="form-label">Label</label>
                         <input className="form-control form-control-sm" value={cfForm.label} onChange={e=>setCfForm(v=>({...v, label:e.target.value}))} placeholder="napr. Štandard" />
                       </div>
                       <div className="col-4 col-sm-2">
-                        <label className="form-label small text-muted mb-1">Od (g)</label>
+                        <label className="form-label">Od (g)</label>
                         <input className="form-control form-control-sm" inputMode="decimal" value={cfForm.g_min} onChange={e=>setCfForm(v=>({...v, g_min:e.target.value}))} required />
                       </div>
                       <div className="col-4 col-sm-2">
-                        <label className="form-label small text-muted mb-1">Do (g)</label>
+                        <label className="form-label">Do (g)</label>
                         <input className="form-control form-control-sm" inputMode="decimal" value={cfForm.g_max} onChange={e=>setCfForm(v=>({...v, g_max:e.target.value}))} required />
                       </div>
                       <div className="col-4 col-sm-2">
-                        <label className="form-label small text-muted mb-1">+ € </label>
+                        <label className="form-label">+ € </label>
                         <input className="form-control form-control-sm" inputMode="decimal" value={cfForm.extra_eur} onChange={e=>setCfForm(v=>({...v, extra_eur:e.target.value}))} required />
                       </div>
                       <div className="col-12">
@@ -1243,13 +1267,15 @@ const saveCoffeeFilter = async (id) => {
             {/* ── Osoby a dlhy ── */}
             <div className="col-12 fade-in-up" style={{ animationDelay: '0.2s' }}>
               <div className="card p-3">
-                <div className="d-flex justify-content-between align-items-center mb-3">
-                  <h5 className="mb-0">👥 Osoby a dlhy</h5>
+                <div className="d-flex justify-content-between align-items-center gap-3 mb-4">
+                  <h2 className="mb-0 d-flex align-items-center gap-2" style={{ fontSize: 'var(--fs-md)' }}>
+                    <Icon name="users" size={17} /> Osoby a dlhy
+                  </h2>
                   <div className="text-end">
-                    <div className="text-muted small">Celkový dlh</div>
-                    <h4 className="mb-0 text-danger fw-bold">
+                    <div className="text-muted" style={{ fontSize: 'var(--fs-xs)' }}>Celkový dlh</div>
+                    <div className="num fw-bold" style={{ fontSize: 'var(--fs-lg)', color: 'var(--danger)' }}>
                       {Object.values(debts).reduce((sum, d) => sum + d, 0).toFixed(2)} €
-                    </h4>
+                    </div>
                   </div>
                 </div>
                 <div className="row g-3">
@@ -1258,38 +1284,48 @@ const saveCoffeeFilter = async (id) => {
                     const displayDebt = displayDebts[p.id] ?? debt
                     return (
                       <div key={p.id} className="col-12 col-md-6 col-xl-4">
-                        <div className={`card h-100 ${debt > 0 ? 'border-danger' : 'border-success'}`}>
+                        <div className="card h-100" style={{ borderColor: debt > 0 ? 'var(--danger)' : 'var(--border)' }}>
                           <div className="card-body">
-                            <div className="d-flex justify-content-between align-items-start mb-2">
-                              <div>
-                                <h6 className="mb-1">{p.name}</h6>
-                                {p.is_guest && <span className="badge bg-secondary">Hosť</span>}
+                            <div className="d-flex justify-content-between align-items-start gap-2 mb-3">
+                              <div style={{ minWidth: 0 }}>
+                                <div className="fw-semibold">{p.name}</div>
+                                {p.is_guest && (
+                                  <span className="badge mt-1" style={{ background: 'var(--surface-3)', color: 'var(--text-muted)' }}>
+                                    Hosť
+                                  </span>
+                                )}
                               </div>
                               <div
-                                className="fs-5 fw-bold debt-value"
-                                style={{ color: debt > 0 ? '#dc3545' : '#198754' }}
+                                className="num fw-bold debt-value"
+                                style={{ fontSize: 'var(--fs-md)', color: debt > 0 ? 'var(--danger)' : 'var(--ok)' }}
                               >
                                 {displayDebt.toFixed(2)} €
                               </div>
                             </div>
-                            <div className="d-flex gap-3 mb-3 text-muted small">
-                              <span>🍺 {p.total_beers}</span>
-                              <span>☕ {p.total_coffees}</span>
+                            <div className="d-flex gap-3 mb-3 text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                              <span className="d-inline-flex align-items-center gap-1">
+                                <Icon name="beer" size={13} /> <span className="num">{p.total_beers}</span>
+                              </span>
+                              <span className="d-inline-flex align-items-center gap-1">
+                                <Icon name="coffee" size={13} /> <span className="num">{p.total_coffees}</span>
+                              </span>
                             </div>
                             <div className="d-flex flex-column gap-2">
-                              {debt > 0 && (
-                                <button className="btn btn-sm btn-outline-primary w-100"
-                                  onClick={()=>window.open(`/api/persons/${p.id}/pay-by-square/`, "_blank")}>
-                                  💳 Pay by Square
-                                </button>
-                              )}
-                              {debt > 0 && (
-                                <button className="btn btn-sm btn-outline-danger w-100" onClick={()=>resetDebt(p)}>
-                                  ✕ Vynulovať dlh
-                                </button>
-                              )}
-                              {debt === 0 && (
-                                <div className="text-center text-success small py-1">✓ Bez dlhu</div>
+                              {debt > 0 ? (
+                                <>
+                                  <button className="btn btn-sm btn-primary w-100 d-inline-flex align-items-center justify-content-center gap-2"
+                                    onClick={()=>window.open(`/api/persons/${p.id}/pay-by-square/`, "_blank")}>
+                                    <Icon name="euro" size={13} /> Pay by Square
+                                  </button>
+                                  <button className="btn btn-sm btn-outline-danger w-100" onClick={()=>resetDebt(p)}>
+                                    Vynulovať dlh
+                                  </button>
+                                </>
+                              ) : (
+                                <div className="text-center d-flex align-items-center justify-content-center gap-1 py-1"
+                                  style={{ color: 'var(--ok)', fontSize: 'var(--fs-sm)' }}>
+                                  <Icon name="check" size={13} /> Bez dlhu
+                                </div>
                               )}
                             </div>
                           </div>
@@ -1298,7 +1334,9 @@ const saveCoffeeFilter = async (id) => {
                     )
                   })}
                   {persons.length === 0 && (
-                    <div className="col-12 text-center text-muted py-3">Žiadne osoby</div>
+                    <div className="col-12">
+                      <EmptyState icon="users" title="Žiadne osoby" text="Osoby pridáš na domovskej obrazovke alebo v sekcii Používatelia." />
+                    </div>
                   )}
                 </div>
               </div>
