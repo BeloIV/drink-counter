@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../../api'
 import { isInCategory } from '../../lib/categories'
+import { debtsByPerson } from '../../lib/debts'
 import { CATEGORY_CHOICES } from './orderRules'
 
 const consumptionTotal = (person) => (person.total_beers || 0) + (person.total_coffees || 0)
@@ -11,14 +12,6 @@ function compareGuests(a, b) {
   const bHasPhoto = Boolean(b.avatar)
   if (aHasPhoto !== bHasPhoto) return bHasPhoto ? 1 : -1
   return consumptionTotal(b) - consumptionTotal(a)
-}
-
-function debtsByPerson(summary) {
-  const debts = {}
-  for (const row of summary?.per_person || []) {
-    debts[row.person_id] = Number(row.total_eur || 0)
-  }
-  return debts
 }
 
 /** People, active items and current debts for the order screen. */

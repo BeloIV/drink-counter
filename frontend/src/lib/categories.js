@@ -30,3 +30,6 @@ export const categoryIcon = (categoryName, fallback) =>
 
 export const categoryColor = (categoryName, fallback) =>
   CATEGORY_COLOR[categoryName?.toLowerCase()] ?? fallback
+
+export const findCategory = (categories, category) =>
+  categories.find((candidate) => candidate.name.toLowerCase() === category)

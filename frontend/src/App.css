@@ -791,6 +791,22 @@ code {
 .debt-pulse-slow   { animation: debt-pulse-slow-anim 1.6s ease-in-out infinite; }
 .debt-pulse-fast   { animation: debt-pulse-fast-anim 0.7s ease-in-out infinite; }
 
+/* ── Admin ───────────────────────────────────────────────────────────── */
+.item-row { transition: opacity 0.35s ease; }
+.item-row--hidden { opacity: 0.6; }
+.card.card--in-debt { border-color: var(--danger); }
+.color-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+}
+.field-grow { flex: 1 1 0; min-width: 0; }
+.field-amount { width: 80px; flex-shrink: 0; }
+.col-narrow { width: 90px; }
+
 /* ── Utilities ───────────────────────────────────────────────────────────
    Last in the cascade so they win over component rules of equal specificity.
 ──────────────────────────────────────────────────────────────────────── */
