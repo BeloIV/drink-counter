@@ -1,221 +1,260 @@
-/* ── App.css ──────────────────────────────────────────────────────
-   All dark-mode handling is done via CSS variables in index.css.
-   No @media (prefers-color-scheme) needed here — variables adapt
-   automatically based on :root[data-theme] or system preference.
-──────────────────────────────────────────────────────────────── */
+/* ── App.css ──────────────────────────────────────────────────────────────
+   Farby, tiene, rádiusy a vrstvenie žijú v styles/tokens.css.
+   Tu sú len Bootstrap overrides a vlastné komponenty.
+──────────────────────────────────────────────────────────────────────── */
 
-body {
-  background: var(--body-bg);
-  font-family: system-ui, sans-serif;
-  color: var(--body-color);
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-h2 {
-  font-weight: 600;
-  text-align: center;
-  color: var(--heading-color);
-}
-
-/* ── Bootstrap component overrides (theme-aware) ── */
+/* ── Bootstrap overrides ─────────────────────────────────────────────── */
 
 .card {
-  background-color: var(--card-bg) !important;
-  border-color: var(--card-border) !important;
+  background-color: var(--surface) !important;
+  border: 1px solid var(--border) !important;
   color: inherit;
-  border-radius: 1rem;
-  box-shadow: var(--shadow-card-lg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
 }
 
-.card-body {
-  padding: 1rem;
+.card-body { padding: var(--space-4); }
+
+.card-header {
+  background-color: var(--surface-2) !important;
+  border-bottom-color: var(--border) !important;
+  color: var(--text);
 }
 
 .form-control,
 .form-select {
-  background-color: var(--input-bg) !important;
-  border-color: var(--input-border) !important;
-  color: var(--input-color) !important;
+  background-color: var(--surface) !important;
+  border-color: var(--border-strong) !important;
+  color: var(--text) !important;
+  border-radius: var(--radius-md);
+  min-height: var(--tap-min);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .form-control:focus,
 .form-select:focus {
-  background-color: var(--input-bg) !important;
-  border-color: #3b82f6 !important;
-  color: var(--input-color) !important;
-  box-shadow: 0 0 0 0.2rem rgba(59,130,246,.25) !important;
+  background-color: var(--surface) !important;
+  border-color: var(--accent) !important;
+  color: var(--text) !important;
+  box-shadow: 0 0 0 3px var(--accent-ring) !important;
 }
 
-.form-control::placeholder {
-  color: var(--muted-color);
-  opacity: 0.8;
+.form-control::placeholder { color: var(--text-dim); opacity: 1; }
+
+/* Číselné inputy dostanú mono font — gramáž, ml, ceny */
+input[inputmode="decimal"],
+input[inputmode="numeric"],
+input[type="number"] {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
-/* Tables */
-.table {
-  color: var(--body-color);
-}
+.table { color: var(--text); }
 
 .table > :not(caption) > * > * {
   background-color: transparent;
   color: inherit;
-  border-bottom-color: var(--card-border);
+  border-bottom-color: var(--border);
 }
 
 .table thead th {
-  border-bottom-color: var(--card-border);
+  border-bottom-color: var(--border);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--track-wide);
 }
 
 .table-striped > tbody > tr:nth-of-type(odd) > * {
-  background: rgba(128,128,128,0.05) !important;
-  color: var(--body-color) !important;
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
 }
 
-.table-warning > * {
-  background-color: var(--table-warning-bg) !important;
-  color: var(--table-warning-color) !important;
-}
+.table-warning > * { background-color: var(--warn-soft) !important; color: var(--warn) !important; }
+.table-success > * { background-color: var(--ok-soft) !important;   color: var(--ok) !important; }
+.table-danger  > * { background-color: var(--danger-soft) !important; color: var(--danger) !important; }
+.table-info    > * { background-color: var(--accent-soft) !important; color: var(--accent) !important; }
 
-/* Typography */
-.text-muted {
-  color: var(--muted-color) !important;
-}
+.text-muted { color: var(--text-muted) !important; }
+.bg-light   { background-color: var(--surface-2) !important; }
 
-.bg-light {
-  background-color: var(--bg-light-custom) !important;
-}
-
-hr {
-  border-top: 2px solid var(--hr-color);
-}
+hr { border-top: 1px solid var(--border); opacity: 1; }
 
 code {
-  background: var(--code-bg);
-  color: var(--code-color);
+  background: var(--surface-2);
+  color: var(--accent);
+  font-family: var(--font-mono);
   padding: 0.15em 0.45em;
-  border-radius: 0.35em;
+  border-radius: var(--radius-sm);
   font-size: 0.875em;
 }
 
-/* Outline secondary button */
+/* Tlačidlá */
+.btn {
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s,
+              transform 0.1s ease, box-shadow 0.15s;
+}
+
+.btn-primary {
+  --bs-btn-bg: var(--accent);
+  --bs-btn-border-color: var(--accent);
+  --bs-btn-color: var(--on-accent);
+  --bs-btn-hover-bg: var(--accent-hover);
+  --bs-btn-hover-border-color: var(--accent-hover);
+  --bs-btn-hover-color: var(--on-accent);
+  --bs-btn-active-bg: var(--accent-press);
+  --bs-btn-active-border-color: var(--accent-press);
+  --bs-btn-active-color: var(--on-accent);
+  --bs-btn-disabled-bg: var(--accent);
+  --bs-btn-disabled-border-color: var(--accent);
+  --bs-btn-disabled-color: var(--on-accent);
+}
+
 .btn-outline-secondary {
-  color: var(--muted-color);
-  border-color: var(--card-border);
+  --bs-btn-color: var(--text-muted);
+  --bs-btn-border-color: var(--border-strong);
+  --bs-btn-hover-bg: var(--surface-2);
+  --bs-btn-hover-color: var(--text);
+  --bs-btn-hover-border-color: var(--border-strong);
+  --bs-btn-active-bg: var(--surface-3);
+  --bs-btn-active-color: var(--text);
+  --bs-btn-active-border-color: var(--border-strong);
 }
 
-.btn-outline-secondary:hover {
-  background: var(--muted-bg);
-  color: var(--body-color);
-  border-color: var(--card-border);
+.btn-success {
+  --bs-btn-bg: var(--ok);
+  --bs-btn-border-color: var(--ok);
+  --bs-btn-color: var(--on-accent);
+  --bs-btn-hover-bg: var(--ok);
+  --bs-btn-hover-border-color: var(--ok);
+  --bs-btn-hover-color: var(--on-accent);
 }
 
-/* Alert overrides — need explicit dark colours since Bootstrap hardcodes them */
-/* Uses :where() for low specificity so Bootstrap values still win in light mode */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .alert-info    { background: #1e3a5f; border-color: #2c5282; color: #93c5fd; }
-  :root:not([data-theme="light"]) .alert-success  { background: #14532d; border-color: #166534; color: #86efac; }
-  :root:not([data-theme="light"]) .alert-danger   { background: #450a0a; border-color: #7f1d1d; color: #fca5a5; }
-  :root:not([data-theme="light"]) .badge.bg-secondary { background: var(--muted-bg) !important; }
-  :root:not([data-theme="light"]) .spinner-border { color: #60a5fa; }
-}
+/* Alerts — Bootstrap ich hardcoduje, tu sú na tokenoch */
+.alert { border-radius: var(--radius-md); }
+.alert-info    { background: var(--accent-soft); border-color: var(--accent-ring); color: var(--accent); }
+.alert-success { background: var(--ok-soft);     border-color: var(--ok);     color: var(--ok); }
+.alert-danger  { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+.alert-warning { background: var(--warn-soft);   border-color: var(--warn);   color: var(--warn); }
 
-:root[data-theme="dark"] .alert-info    { background: #1e3a5f; border-color: #2c5282; color: #93c5fd; }
-:root[data-theme="dark"] .alert-success  { background: #14532d; border-color: #166534; color: #86efac; }
-:root[data-theme="dark"] .alert-danger   { background: #450a0a; border-color: #7f1d1d; color: #fca5a5; }
-:root[data-theme="dark"] .badge.bg-secondary { background: var(--muted-bg) !important; }
-:root[data-theme="dark"] .spinner-border { color: #60a5fa; }
+.badge.bg-secondary { background: var(--surface-3) !important; color: var(--text); }
+.spinner-border { color: var(--accent); }
+.form-text { color: var(--text-muted) !important; }
 
-/* ── Logo header ── */
-.logo-header {
+/* ── Hlavička stránky ────────────────────────────────────────────────── */
+.page-header {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  text-decoration: none;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.page-header-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 0;
   color: inherit;
+  text-align: left;
 }
 
-.logo-header img {
-  width: 80px;
-  height: 80px;
-}
-
-.logo-header h2 {
+.page-header-title h1 {
   margin: 0;
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  letter-spacing: var(--track-tight);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* ── Theme toggle button ── */
-.theme-toggle {
-  background: var(--card-bg);
-  border: 1.5px solid var(--card-border);
-  border-radius: 2rem;
-  padding: 0.3rem 0.65rem;
-  font-size: 1.15rem;
-  cursor: pointer;
-  color: var(--body-color);
-  line-height: 1;
-  transition: all 0.2s ease;
+.page-header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-lg);
 }
 
-.theme-toggle:hover {
-  box-shadow: var(--glow-primary);
-  transform: scale(1.08) rotate(15deg);
-}
+.page-header-logo { width: 42px; height: 42px; border-radius: var(--radius-md); }
 
-/* ── Stepper ── */
+/* ── Stepper ─────────────────────────────────────────────────────────── */
 .steps {
   display: flex;
-  gap: .5rem;
+  gap: var(--space-2);
   justify-content: center;
   flex-wrap: wrap;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
 }
 
 .steps span {
-  padding: .5rem .8rem;
-  border-radius: .75rem;
-  background: var(--steps-bg);
-  color: var(--steps-color);
-  font-size: .9rem;
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
   font-weight: 500;
-  transition: all 0.2s;
+  transition: background 0.2s, color 0.2s;
 }
 
 .steps span.active {
-  background: #0d6efd;
-  color: #fff;
-  box-shadow: 0 2px 10px rgba(13,110,253,0.45);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
 }
 
 .steps span.done {
-  background: var(--steps-done-bg);
-  color: var(--steps-done-color);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
-/* ── Choice grid ── */
+/* ── Mriežka výberu ──────────────────────────────────────────────────── */
 .grid-choices {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: .4rem;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: var(--space-3);
 }
 
+/* Karta sa roztiahne na celý stĺpec a drží štvorec — predtým mala pevných
+   150×150 v 180px stĺpci, takže mriežka mala diery. */
 .choice {
-  width: 150px;
-  height: 150px;
-  border: 2px solid var(--choice-border);
-  border-radius: 12px;
-  background: var(--choice-bg);
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
   background-size: cover;
   background-position: center;
   position: relative;
   overflow: hidden;
-  color: var(--body-color);
-  font-weight: bold;
-  font-size: 1.05rem;
+  color: var(--text);
+  font-weight: 600;
+  font-size: var(--fs-base);
   text-align: center;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
-  box-shadow: var(--shadow-card);
+  transition: transform 0.15s ease, box-shadow 0.15s ease,
+              border-color 0.15s ease, opacity 0.15s ease;
+  box-shadow: var(--shadow-1);
   will-change: transform;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -225,104 +264,54 @@ code {
 
 .choice:hover {
   transform: translateY(-3px);
-  box-shadow: var(--choice-hover-shadow);
-  border-color: #3b82f6;
+  box-shadow: var(--shadow-2);
+  border-color: var(--accent);
 }
 
-.choice:active { transform: scale(.96); }
+.choice:active { transform: scale(0.97); }
+.choice:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-.choice-beer {
-  background: var(--beer-bg) !important;
-  color: var(--beer-color) !important;
+.choice-beer      { background: var(--beer-bg)      !important; color: var(--beer-color)      !important; border-color: var(--beer-color); }
+.choice-coffee    { background: var(--coffee-bg)    !important; color: var(--coffee-color)    !important; border-color: var(--coffee-color); }
+.choice-cold-brew { background: var(--cold-brew-bg) !important; color: var(--cold-brew-color) !important; border-color: var(--cold-brew-color); }
+
+.choice-beer:hover,
+.choice-coffee:hover,
+.choice-cold-brew:hover { transform: translateY(-4px) scale(1.02); }
+
+/* Farba položky z DB ako pásik, nie ako pozadie celej karty.
+   Používatelia si volia aj bielu, ktorá by v tmavom režime prežiarila
+   celú mriežku a vynútila si čierny text. */
+.choice-swatch {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
 }
-.choice-beer:hover { transform: translateY(-6px) scale(1.04) !important; }
 
-.choice-coffee {
-  background: var(--coffee-bg) !important;
-  color: var(--coffee-color) !important;
+.item-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  border: 1px solid rgba(128,128,128,0.35);
 }
-.choice-coffee:hover { transform: translateY(-6px) scale(1.04) !important; }
 
-.choice-cold-brew {
-  background: var(--cold-brew-bg) !important;
-  color: var(--cold-brew-color) !important;
-}
-.choice-cold-brew:hover { transform: translateY(-6px) scale(1.04) !important; }
-
-.form-text { color: var(--muted-color) !important; }
-
-/* ── Initials cards (no photo) ── */
+/* Karta s iniciálkami (bez fotky) */
 .choice-initials .overlay {
-  /* subtle bottom-fade only — coloured gradient background is already readable */
-  background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.08) 60%);
+  background: linear-gradient(to top, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0.08) 60%);
 }
 
 .initials-letter {
-  font-size: 2.4rem;
-  font-weight: 800;
-  color: rgba(255,255,255,0.92);
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  letter-spacing: var(--track-tight);
+  color: rgba(255,255,255,0.94);
   line-height: 1;
-  text-shadow: 0 2px 8px rgba(0,0,0,0.35);
-  margin-bottom: 0.2rem;
-}
-
-/* ── Multi-select štýly ── */
-.choice.multi-selected {
-  border-color: #3b82f6;
-  border-width: 3px;
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.35);
-}
-
-.choice.multi-dim {
-  opacity: 0.55;
-}
-
-/* Checkbox krúžok v rohu */
-.multi-check {
-  position: absolute;
-  top: 7px;
-  right: 7px;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.7);
-  background: rgba(0,0,0,0.25);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.85rem;
-  font-weight: 900;
-  color: #fff;
-  transition: background 0.15s, border-color 0.15s, transform 0.15s;
-}
-
-.multi-check-on {
-  background: #2563eb;
-  border-color: #fff;
-  transform: scale(1.1);
-}
-
-
-.choice-enter {
-  animation: fade-in-up 0.26s ease both;
-}
-
-.choice .tick {
-  position: absolute;
-  top: 8px;
-  right: 10px;
-  font-weight: 900;
-  font-size: 1.75rem;
-  color: #fff;
-  background: #0d6efd;
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 3px 8px rgba(0,0,0,.3);
-  animation: pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  margin-bottom: var(--space-1);
 }
 
 .choice .overlay {
@@ -333,19 +322,101 @@ code {
   justify-content: center;
   align-items: center;
   flex-direction: column;
-  padding: 0.5rem;
-  color: #fff; /* always white — overlay is always dark regardless of theme */
+  padding: var(--space-2);
+  color: #fff; /* overlay je vždy tmavý, nezávisle od témy */
 }
 
-/* ── Fixed bottom button ── */
+/* Multi-select */
+.choice.multi-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring), var(--shadow-2);
+}
+
+.choice.multi-dim { opacity: 0.45; }
+
+.multi-check {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.7);
+  background: rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: #fff;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.multi-check-on {
+  background: var(--accent);
+  border-color: var(--on-accent);
+  color: var(--on-accent);
+  transform: scale(1.1);
+}
+
+.choice-enter { animation: fade-in-up 0.26s ease both; }
+
+.choice .tick {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  font-weight: 700;
+  font-size: var(--fs-lg);
+  color: var(--on-accent);
+  background: var(--accent);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-2);
+  animation: pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Krokové +/− tlačidlá v qty pickeri — plný dotykový cieľ */
+.qty-step {
+  width: var(--tap-min);
+  height: var(--tap-min);
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font-size: var(--fs-lg);
+  font-weight: 500;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.75;
+  transition: opacity 0.15s, background 0.15s, transform 0.1s;
+}
+.qty-step:hover  { opacity: 1; background: rgba(128,128,128,0.15); }
+.qty-step:active { transform: scale(0.92); }
+
+.qty-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  min-width: 42px;
+  text-align: center;
+}
+
+/* ── Fixné spodné tlačidlo ───────────────────────────────────────────── */
 .fixed-bottom-button {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 1rem;
-  background: linear-gradient(to top, var(--fixed-grad) 70%, var(--fixed-grad-end));
-  z-index: 1000;
+  padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--fade-to) 65%, var(--fade-from));
+  z-index: var(--z-sticky);
   display: flex;
   justify-content: center;
   pointer-events: none;
@@ -353,93 +424,286 @@ code {
 
 .fixed-bottom-button .btn {
   pointer-events: all;
-  min-width: 200px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  min-width: 220px;
+  box-shadow: var(--shadow-3);
 }
 
-/* ── Buttons ── */
 .btn-lg {
-  padding: 1rem;
-  font-size: 1.25rem;
-  border-radius: 0.75rem;
-  transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+  padding: var(--space-4) var(--space-5);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  min-height: 56px;
 }
 
-.btn-lg:active { transform: scale(0.95); }
+/* Sekundárne akcie v hustých zoznamoch — Bootstrap im dáva 31 px,
+   čo je na dotykovom kiosku pod hranicou použiteľnosti. */
+.btn-sm { min-height: 40px; }
 
-/* ── Avatar CSS classes (replaces inline styles in users.jsx) ── */
-.avatar-img {
-  width: 100px;
-  height: 100px;
-  object-fit: cover;
-  border: 3px solid var(--avatar-border);
-  transition: border-color 0.2s;
-}
+/* Jednotná odozva na stlačenie — predtým tri rôzne mierky. */
+.btn:active { transform: scale(0.97); }
 
-.avatar-img-edit {
-  width: 100px;
-  height: 100px;
-  object-fit: cover;
-  border: 3px solid var(--avatar-edit-border);
-}
-
+/* ── Avatar ──────────────────────────────────────────────────────────── */
+.avatar-img,
+.avatar-img-edit,
 .avatar-placeholder {
   width: 100px;
   height: 100px;
-  background-color: var(--bg-light-custom) !important;
-  color: var(--body-color);
-  font-size: 2rem;
+  object-fit: cover;
+  border-radius: var(--radius-lg);
+}
+.avatar-img        { border: 2px solid var(--border); transition: border-color 0.2s; }
+.avatar-img-edit   { border: 2px solid var(--accent); }
+.avatar-placeholder {
+  background-color: var(--surface-2) !important;
+  color: var(--text);
+  font-size: var(--fs-xl);
+  font-weight: 600;
 }
 
-/* ── Mobile ── */
-@media (max-width: 576px) {
-  .container {
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
-  }
+/* Squircle namiesto kruhu — menej generické než klasické avatar-kolieska */
+.avatar {
+  border-radius: 32%;
+  object-fit: cover;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #fff;
+  overflow: hidden;
+}
 
-  .logo-header img { width: 60px; height: 60px; }
-  .logo-header h2 { font-size: 1.4rem; }
+.avatar-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  padding: var(--space-1);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  transition: background 0.15s, border-color 0.15s;
+}
+.avatar-btn:hover { background: var(--surface-2); }
+.avatar-btn--on   { background: var(--accent-soft); border-color: var(--accent); }
+.avatar-btn-label {
+  font-size: var(--fs-xs);
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+.avatar-btn--on .avatar-btn-label { color: var(--accent); font-weight: 600; }
+
+/* ── Modal ────────────────────────────────────────────────────────────
+   Jedna implementácia pre celú appku — predtým ich bolo šesť, s piatimi
+   rôznymi z-index a štyrmi krytmi.
+──────────────────────────────────────────────────────────────────── */
+.dc-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: var(--overlay-scrim);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  animation: fade-in 0.18s ease both;
+}
+
+.dc-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3);
+  width: 100%;
+  max-width: 420px;
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  animation: pop-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.dc-modal--sm { max-width: 340px; }
+.dc-modal--lg { max-width: 640px; }
+
+.dc-modal--danger  { border-color: var(--danger); }
+.dc-modal--warning { border-color: var(--warn); }
+
+.dc-modal-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-5) var(--space-3);
+}
+
+.dc-modal-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-lg);
+}
+.dc-modal--danger  .dc-modal-icon { background: var(--danger-soft); color: var(--danger); }
+.dc-modal--warning .dc-modal-icon { background: var(--warn-soft);   color: var(--warn); }
+
+.dc-modal-title {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: var(--track-tight);
+}
+
+.dc-modal-sub {
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: var(--lh-snug);
+}
+
+.dc-modal-body { padding: 0 var(--space-5) var(--space-4); }
+
+.dc-modal-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-5) var(--space-5);
+  border-top: 1px solid var(--border);
+}
+.dc-modal-actions .btn { min-height: var(--tap-min); }
+
+/* ── Prázdny stav ────────────────────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-7) var(--space-4);
+  text-align: center;
+  color: var(--text-muted);
+}
+.empty-state-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: var(--fs-xl);
+}
+.empty-state-title { font-size: var(--fs-md); font-weight: 600; color: var(--text); }
+.empty-state-text  { font-size: var(--fs-sm); max-width: 38ch; }
+
+/* ── Skeleton ────────────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 37%, var(--surface-2) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+@keyframes skeleton-shimmer {
+  from { background-position: 100% 50%; }
+  to   { background-position: 0 50%; }
+}
+
+/* ── Hotovo ──────────────────────────────────────────────────────────── */
+.done-check {
+  font-size: var(--fs-3xl);
+  line-height: 1;
+  color: var(--ok);
+  animation: pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.funny-msg {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  animation: pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both;
+}
+.funny-msg-emoji { font-size: var(--fs-2xl); line-height: 1; margin-bottom: var(--space-1); }
+.funny-msg-text  { font-size: var(--fs-md); font-weight: 500; line-height: var(--lh-snug); }
+
+.countdown-bar {
+  height: 3px;
+  background: var(--surface-3);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+.countdown-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+  animation: shrink-bar linear forwards;
+}
+
+.alert-dismiss-bar {
+  position: absolute;
+  bottom: 0; left: 0;
+  height: 3px;
+  background: currentColor;
+  opacity: 0.35;
+  animation: shrink-bar linear forwards;
+}
+
+.debt-value { transition: color 0.7s ease; }
+
+/* Dlh v karte osoby — overlay je vždy tmavý, preto svetlé varianty farieb.
+   Predtým boli tieto tri stavy zapísané ako inline hexy v App.jsx. */
+.debt--ok   { color: rgba(255,255,255,0.85); }
+.debt--mid  { color: #fbbf24; text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
+.debt--high { color: #fca5a5; text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
+
+/* ── Mobil / úzky tablet ─────────────────────────────────────────────── */
+@media (max-width: 576px) {
+  .container { padding-left: var(--space-3); padding-right: var(--space-3); }
+
+  .page-header-title h1 { font-size: var(--fs-lg); }
+  .page-header-icon, .page-header-logo { width: 36px; height: 36px; }
 
   .steps {
     overflow-x: auto;
     white-space: nowrap;
-    padding-bottom: .5rem;
+    padding-bottom: var(--space-2);
     -webkit-overflow-scrolling: touch;
     justify-content: flex-start;
-    gap: .4rem;
+    gap: var(--space-1);
     scrollbar-width: none;
   }
   .steps::-webkit-scrollbar { display: none; }
-  .steps span { font-size: .75rem; padding: .4rem .7rem; flex-shrink: 0; }
+  .steps span { flex-shrink: 0; }
 
-  .grid-choices { grid-template-columns: repeat(2, 1fr); gap: .25rem; }
+  .grid-choices { grid-template-columns: repeat(2, 1fr); gap: var(--space-2); }
 
-  .choice {
-    width: 100%;
-    height: 170px;
-    border-radius: 16px;
-    padding: .9rem;
-  }
+  .table { font-size: var(--fs-sm); }
+  .table td, .table th { padding: var(--space-2) var(--space-1); }
 
-  .choice .overlay .fw-bold { font-size: 1.1rem; text-shadow: 0 2px 4px rgba(0,0,0,0.35); }
-  .choice .overlay .small { font-size: 0.9rem; }
-  .choice .tick { width: 32px; height: 32px; font-size: 1.5rem; top: 6px; right: 6px; }
-
-  .d-flex.justify-content-between { margin-bottom: 1rem; }
-  .d-flex.justify-content-between h5 { font-size: 1.1rem; }
-
-  .table { font-size: .9rem; }
-  .table td, .table th { padding: .5rem .4rem; }
-
-  .actions { display: flex; flex-wrap: wrap; gap: .35rem; }
+  .actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
   .actions .btn { flex: 1 1 48%; }
 
-  .form-control, .form-select, .btn { font-size: 1rem; }
-  .input-group .btn { min-width: 64px; }
+  .dc-modal-head    { padding: var(--space-4) var(--space-4) var(--space-3); }
+  .dc-modal-body    { padding: 0 var(--space-4) var(--space-3); }
+  .dc-modal-actions { padding: var(--space-3) var(--space-4) var(--space-4); }
+  .dc-modal-actions .btn { flex: 1 1 auto; }
 }
 
-/* ── Animations ── */
+/* ── Animácie ────────────────────────────────────────────────────────── */
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
 @keyframes pop-in {
   0%   { transform: scale(0.8) translateY(12px); opacity: 0; }
   65%  { transform: scale(1.04) translateY(-3px); }
@@ -456,58 +720,6 @@ code {
   to   { width: 0%; }
 }
 
-.pop-in {
-  animation: pop-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-.alert-flash {
-  animation: slide-down 0.3s ease both;
-}
-
-/* ── Done step ── */
-.done-check {
-  font-size: 3.5rem;
-  line-height: 1;
-  color: #22c55e;
-  animation: pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-.funny-msg {
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  animation: pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both;
-}
-
-.funny-msg-emoji {
-  font-size: 2.4rem;
-  line-height: 1;
-  margin-bottom: 0.35rem;
-}
-
-.funny-msg-text {
-  font-size: 1.05rem;
-  font-weight: 500;
-  color: var(--body-color);
-  line-height: 1.3;
-}
-
-.countdown-bar {
-  height: 3px;
-  background: var(--card-border);
-  border-radius: 99px;
-  overflow: hidden;
-}
-
-.countdown-bar-fill {
-  height: 100%;
-  background: linear-gradient(to right, #22c55e, #16a34a);
-  border-radius: 99px;
-  animation: shrink-bar linear forwards;
-}
-
-/* ── Admin animations ── */
 @keyframes slide-in-left {
   from { transform: translateX(-16px); opacity: 0; }
   to   { transform: translateX(0);     opacity: 1; }
@@ -518,8 +730,8 @@ code {
 }
 
 @keyframes flash-green {
-  0%, 100% { box-shadow: var(--shadow-card); }
-  35%       { box-shadow: 0 0 0 3px rgba(34,197,94,0.55); }
+  0%, 100% { box-shadow: var(--shadow-1); }
+  35%      { box-shadow: 0 0 0 3px var(--ok); }
 }
 
 @keyframes btn-bounce {
@@ -541,76 +753,27 @@ code {
 }
 
 @keyframes step-zoom-in {
-  from { transform: scale(0.93) translateY(8px); opacity: 0; }
+  from { transform: scale(0.96) translateY(8px); opacity: 0; }
   to   { transform: scale(1)    translateY(0);   opacity: 1; }
 }
 
-.step-zoom-in {
-  animation: step-zoom-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+@keyframes debt-pulse-slow-anim {
+  0%, 100% { opacity: 1;    transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(1.08); }
+}
+@keyframes debt-pulse-fast-anim {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(1.14); }
 }
 
+.pop-in            { animation: pop-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.alert-flash       { animation: slide-down 0.3s ease both; }
+.step-zoom-in      { animation: step-zoom-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .item-card-enter   { animation: slide-in-left 0.28s ease both; }
 .item-card-exit    { animation: card-exit 0.24s ease forwards; pointer-events: none; overflow: hidden; }
 .item-card-flash   { animation: flash-green 0.55s ease; }
 .filter-btn-bounce { animation: btn-bounce 0.22s ease; }
 .dot-pulse-anim    { animation: dot-pulse 0.38s ease; }
 .fade-in-up        { animation: fade-in-up 0.35s ease both; }
-
-/* Button micro-scale on click */
-.btn:not(.btn-lg):active {
-  transform: scale(0.93) !important;
-  transition: transform 0.07s ease !important;
-}
-
-/* Debt value smooth color transition */
-.debt-value {
-  transition: color 0.7s ease;
-  font-variant-numeric: tabular-nums;
-}
-
-@keyframes debt-pulse-slow-anim {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.55; transform: scale(1.08); }
-}
-@keyframes debt-pulse-fast-anim {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.4; transform: scale(1.14); }
-}
-.debt-pulse-slow { animation: debt-pulse-slow-anim 1.6s ease-in-out infinite; }
-.debt-pulse-fast { animation: debt-pulse-fast-anim 0.7s ease-in-out infinite; }
-
-/* Modal: vysoký dlh */
-.debt-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.65);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  backdrop-filter: blur(3px);
-}
-.debt-modal {
-  background: var(--card-bg);
-  border: 2px solid #ff4444;
-  border-radius: 16px;
-  padding: 2rem 1.5rem 1.5rem;
-  max-width: 340px;
-  width: 90%;
-  text-align: center;
-  box-shadow: 0 0 32px rgba(255,68,68,0.35);
-}
-.debt-modal-icon  { font-size: 2.8rem; margin-bottom: 0.5rem; }
-.debt-modal-title { font-size: 1.4rem; font-weight: 700; color: #ff4444; margin-bottom: 0.6rem; }
-.debt-modal-body  { font-size: 0.95rem; margin-bottom: 1.4rem; opacity: 0.9; line-height: 1.5; }
-.debt-modal-actions { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
-
-/* Alert dismiss progress bar */
-.alert-dismiss-bar {
-  position: absolute;
-  bottom: 0; left: 0;
-  height: 3px;
-  background: currentColor;
-  opacity: 0.35;
-  animation: shrink-bar linear forwards;
-}
+.debt-pulse-slow   { animation: debt-pulse-slow-anim 1.6s ease-in-out infinite; }
+.debt-pulse-fast   { animation: debt-pulse-fast-anim 0.7s ease-in-out infinite; }
