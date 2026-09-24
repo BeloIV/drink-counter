@@ -123,7 +123,7 @@ class SessionActiveView(APIView):
         if not session:
             return Response({"session": None, "per_person": [], "total": 0})
 
-        transactions = Transaction.objects.filter(session=session)
+        transactions = services.unpaid_transactions(session)
         per_person = (
             transactions.values("person_id")
             .annotate(

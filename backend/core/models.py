@@ -63,12 +63,29 @@ class Session(models.Model):
         return f"Session {self.id} ({self.started_at.date()})"
 
 
+class Payment(models.Model):
+    """A settled debt: the transactions it paid point to it and stay in the history."""
+    person = models.ForeignKey(Person, on_delete=models.PROTECT, related_name="payments")
+    amount = models.DecimalField(max_digits=10, decimal_places=3)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.person.name} zaplatil {self.amount} €"
+
+
 class Transaction(models.Model):
     # PROTECT everywhere: transactions are the history behind debts and stats, so
     # deleting what they point to must fail instead of silently taking them along.
     session = models.ForeignKey(Session, on_delete=models.PROTECT, related_name="transactions")
     person = models.ForeignKey(Person, on_delete=models.PROTECT, related_name="transactions")
     item = models.ForeignKey(Item, on_delete=models.PROTECT)
+    # Null while unpaid; the debt is the sum of unpaid transactions.
+    payment = models.ForeignKey(
+        Payment, on_delete=models.PROTECT, null=True, blank=True, related_name="transactions",
+    )
     # Pieces, grams or millilitres, depending on the item's pricing mode.
     quantity = models.DecimalField(max_digits=8, decimal_places=3, default=Decimal("1.000"))
     price_at_time = models.DecimalField(max_digits=10, decimal_places=3)

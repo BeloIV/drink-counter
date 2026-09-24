@@ -4,7 +4,7 @@ from django.test import override_settings
 from rest_framework.test import APITestCase
 
 from .models import (
-    BrewBatch, Category, CoffeePreset, Item, Person, Session, StockCheck, Transaction,
+    BrewBatch, Category, CoffeePreset, Item, Payment, Person, Session, StockCheck, Transaction,
 )
 
 
@@ -433,15 +433,57 @@ class SessionAndDebtTests(ApiTestCase):
         self.assertIsNotNone(response.data["previous"]["ended_at"])
         self.assertEqual(Session.objects.filter(ended_at__isnull=True).count(), 1)
 
-    def test_reset_debt_removes_person_transactions(self):
+    def reset_debt(self, person):
+        self.login_as_admin()
+        return self.client.post(f"/api/persons/{person.id}/reset-debt")
+
+    def test_reset_debt_keeps_transactions_and_records_payment(self):
         self.order(self.alice, self.beer)
         self.order(self.bob, self.beer)
-        self.login_as_admin()
 
-        response = self.client.post(f"/api/persons/{self.alice.id}/reset-debt")
+        response = self.reset_debt(self.alice)
 
         self.assertEqual(response.data, {"ok": True})
-        self.assertEqual(list(Transaction.objects.values_list("person_id", flat=True)), [self.bob.id])
+        self.assertEqual(Transaction.objects.count(), 2)
+        payment = Payment.objects.get()
+        self.assertEqual((payment.person, payment.amount), (self.alice, Decimal("1.500")))
+        self.assertEqual(Transaction.objects.get(person=self.alice).payment, payment)
+        self.assertIsNone(Transaction.objects.get(person=self.bob).payment)
+
+    def test_reset_debt_zeroes_debt_but_not_stats(self):
+        self.order(self.alice, self.beer)
+        self.reset_debt(self.alice)
+
+        session = self.client.get("/api/session/active").data
+        stats = self.client.get("/api/stats").data
+
+        self.assertEqual(session["per_person"], [])
+        self.assertEqual(session["total"], 0)
+        self.assertEqual(stats["grand_count"], 1)
+        self.assertEqual(Decimal(stats["grand_total"]), Decimal("1.500"))
+
+    def test_orders_after_reset_form_a_new_debt(self):
+        self.order(self.alice, self.beer)
+        self.reset_debt(self.alice)
+        self.order(self.alice, self.beer)
+
+        row = self.client.get("/api/session/active").data["per_person"][0]
+
+        self.assertEqual((row["count_items"], row["total_eur"]), (1, Decimal("1.500")))
+
+    def test_reset_without_debt_records_no_payment(self):
+        self.reset_debt(self.alice)
+
+        self.assertEqual(Payment.objects.count(), 0)
+
+    def test_undo_skips_paid_transactions(self):
+        self.order(self.alice, self.beer)
+        self.reset_debt(self.alice)
+
+        response = self.client.post("/api/transactions/undo", {"person_id": self.alice.id}, format="json")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(Transaction.objects.count(), 1)
 
     @override_settings(PAYMENT_IBAN="SK0000000000000000000000")
     def test_pay_by_square_renders_payment_page(self):

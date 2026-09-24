@@ -88,7 +88,12 @@ class TransactionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Transaction
-        fields = ["id", "session", "person", "item", "quantity", "price_at_time", "created_at"]
+        fields = ["id", "session", "person", "item", "quantity", "price_at_time", "created_at", "paid"]
+
+    paid = serializers.SerializerMethodField()
+
+    def get_paid(self, transaction):
+        return transaction.payment_id is not None
 
 
 class TransactionPatchSerializer(serializers.Serializer):

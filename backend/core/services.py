@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from .models import (
     CATEGORY_BEER, CATEGORY_COFFEE,
-    BrewBatch, BrewBatchIngredient, CoffeePreset, Item, Person, Session, StockCheck, Transaction,
+    BrewBatch, BrewBatchIngredient, CoffeePreset, Item, Payment, Person, Session, StockCheck, Transaction,
 )
 
 DECIMAL_STEP = Decimal("0.001")
@@ -56,16 +56,28 @@ def start_new_session():
     return previous, Session.objects.create()
 
 
+def unpaid_transactions(session):
+    return Transaction.objects.filter(session=session, payment__isnull=True)
+
+
 def session_debt(person):
     debt = (
-        Transaction.objects.filter(session=active_session(), person=person)
+        unpaid_transactions(active_session()).filter(person=person)
         .aggregate(total=Sum("price_at_time"))["total"]
     )
     return debt or 0
 
 
 def clear_session_debt(person):
-    Transaction.objects.filter(session=active_session(), person=person).delete()
+    """Mark the person's unpaid transactions as paid by one payment; return it, or None without debt."""
+    with db_transaction.atomic():
+        unpaid = unpaid_transactions(active_session()).select_for_update().filter(person=person)
+        total = unpaid.aggregate(total=Sum("price_at_time"))["total"]
+        if total is None:
+            return None
+        payment = Payment.objects.create(person=person, amount=total)
+        unpaid.update(payment=payment)
+    return payment
 
 
 # ── Pricing ───────────────────────────────────────────────────────────────
@@ -204,7 +216,7 @@ def delete_transaction(transaction):
 def last_session_transaction(person_id):
     return (
         Transaction.objects.select_related("item__category")
-        .filter(session=active_session(), person_id=person_id)
+        .filter(session=active_session(), person_id=person_id, payment__isnull=True)
         .order_by("-id")
         .first()
     )

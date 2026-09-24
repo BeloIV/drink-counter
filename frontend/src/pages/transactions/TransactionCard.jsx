@@ -32,7 +32,10 @@ export function TransactionCard({ transaction, index, onEdit, onDelete }) {
           </div>
         </div>
         <div className="d-flex justify-content-between align-items-center gap-2 pt-3 border-top">
-          <span className="num text-muted fs-xs">{formatDateTime(transaction.created_at)}</span>
+          <span className="d-flex align-items-center gap-2">
+            <span className="num text-muted fs-xs">{formatDateTime(transaction.created_at)}</span>
+            {transaction.paid && <span className="badge badge-tone-ok">zaplatené</span>}
+          </span>
           <div className="d-flex gap-2">
             <button className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1" onClick={() => onEdit(transaction)}>
               <Icon name="edit" size={13} /> Upraviť

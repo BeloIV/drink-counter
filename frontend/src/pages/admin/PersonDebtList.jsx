@@ -99,7 +99,7 @@ export function PersonDebtList({ persons, debts, reload, notify }) {
   const resetDebt = async (person) => {
     const confirmed = await dialog.confirm({
       title: `Vynulovať dlh pre ${person.name}?`,
-      text: `Aktuálny dlh ${(debts[person.id] ?? 0).toFixed(2)} € sa nastaví na nulu. Túto akciu nie je možné vrátiť späť.`,
+      text: `Dlh ${(debts[person.id] ?? 0).toFixed(2)} € sa zapíše ako zaplatený. Objednávky ostanú v histórii a štatistikách.`,
       confirmLabel: 'Vynulovať',
       tone: 'danger',
     })
