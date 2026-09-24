@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Icon } from './Icon'
 
 const FOCUSABLE_SELECTOR =
@@ -50,7 +51,9 @@ function useModalBehaviour(panelRef, onClose, dismissable) {
 
 /**
  * The app's only modal: closes on Escape and backdrop click, traps focus and
- * returns it to the element that opened the modal.
+ * returns it to the element that opened the modal. It renders into <body>, because
+ * an animated ancestor with a transform would otherwise anchor its `position: fixed`
+ * backdrop to that ancestor instead of the viewport.
  * `tone` is 'danger' | 'warning', `size` is 'sm' | 'lg'.
  */
 export function Modal({ onClose, title, subtitle, icon, tone, size, children, actions, dismissable = true }) {
@@ -61,7 +64,7 @@ export function Modal({ onClose, title, subtitle, icon, tone, size, children, ac
     .filter(Boolean)
     .join(' ')
 
-  return (
+  return createPortal(
     <div className="dc-modal-backdrop" onClick={() => dismissable && onClose?.()}>
       <div
         ref={panelRef}
@@ -85,6 +88,7 @@ export function Modal({ onClose, title, subtitle, icon, tone, size, children, ac
 
         {actions && <div className="dc-modal-actions">{actions}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
