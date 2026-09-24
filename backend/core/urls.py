@@ -6,7 +6,7 @@ from .views import (
     BrewBatchView, CategoryViewSet,
     CoffeePresetViewSet, CsrfView, GoogleLoginView, GoogleLogoutView, HealthView, ItemSetStockView, ItemSettleView, ItemViewSet,
     PayBySquareView, PersonViewSet, ResetPersonDebtView, SessionActiveView, SessionResetView,
-    StatsView, TransactionDetailView, TransactionListView, TransactionUndoView, TransactionView,
+    StatsView, StockCheckView, TransactionDetailView, TransactionListView, TransactionUndoView, TransactionView,
 )
 
 router = DefaultRouter()
@@ -40,4 +40,5 @@ urlpatterns = [
     path("items/<int:pk>/settle", ItemSettleView.as_view(), name="item-settle"),
     path("stats", StatsView.as_view()),
     path("brew-batches", BrewBatchView.as_view(), name="brew-batches"),
+    path("stock-checks", StockCheckView.as_view(), name="stock-checks"),
 ]

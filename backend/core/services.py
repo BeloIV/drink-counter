@@ -9,13 +9,13 @@ from django.utils import timezone
 
 from .models import (
     CATEGORY_BEER, CATEGORY_COFFEE,
-    BrewBatch, BrewBatchIngredient, CoffeePreset, Item, Person, Session, Transaction,
+    BrewBatch, BrewBatchIngredient, CoffeePreset, Item, Person, Session, StockCheck, Transaction,
 )
 
 DECIMAL_STEP = Decimal("0.001")
 ZERO = Decimal("0")
 GRAMS_PER_COFFEE_CUP = Decimal("15")
-BREWS_PER_STOCK_CHECK = 10
+BREWS_PER_STOCK_CHECK = 3
 
 
 class InsufficientStockError(Exception):
@@ -147,6 +147,17 @@ def restore_stock(transaction):
     Item.objects.filter(pk=item.pk).update(**changes)
 
 
+def is_restock(was_active, changes):
+    """Activating a hidden item with stock means a new bag or crate arrived."""
+    stock = changes.get("stock_quantity")
+    return not was_active and changes.get("active") is True and stock is not None and stock > ZERO
+
+
+def count_restock(item):
+    Item.objects.filter(pk=item.pk).update(restock_count=F("restock_count") + 1)
+    item.refresh_from_db(fields=["restock_count"])
+
+
 def register_coffee_brew(item):
     """Count a per-gram coffee brew; return True when a stock check is due."""
     if item.pricing_mode != "per_gram" or category_key(item) != CATEGORY_COFFEE:
@@ -154,6 +165,15 @@ def register_coffee_brew(item):
     Item.objects.filter(pk=item.pk).update(brew_count=F("brew_count") + 1)
     item.refresh_from_db(fields=["brew_count"])
     return item.brew_count % BREWS_PER_STOCK_CHECK == 0
+
+
+def record_stock_check(item, measured_grams, tare_grams):
+    """Log a weighing against the stock the system expects right now."""
+    item.refresh_from_db(fields=["stock_quantity"])
+    return StockCheck.objects.create(
+        item=item, measured_grams=measured_grams, tare_grams=tare_grams,
+        expected_grams=item.stock_quantity,
+    )
 
 
 # ── Transactions ──────────────────────────────────────────────────────────
@@ -250,4 +270,6 @@ def _add_brewed_stock(item, millilitres):
         new_stock = millilitres
     else:
         new_stock = F("stock_quantity") + millilitres
-    Item.objects.filter(pk=item.pk).update(stock_quantity=new_stock, active=True)
+    Item.objects.filter(pk=item.pk).update(
+        stock_quantity=new_stock, active=True, restock_count=F("restock_count") + 1,
+    )

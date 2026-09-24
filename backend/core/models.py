@@ -45,8 +45,10 @@ class Item(models.Model):
     active = models.BooleanField(default=True)
     # Remaining stock in the pricing mode's unit; null means stock is not tracked.
     stock_quantity = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True)
-    # Brews so far; every tenth one prompts a stock check.
+    # Brews so far; every few prompt a stock check (services.BREWS_PER_STOCK_CHECK).
     brew_count = models.PositiveIntegerField(default=0)
+    # How many times the item was stocked up; favourites keep their place in the admin list.
+    restock_count = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -105,6 +107,30 @@ class BrewBatchIngredient(models.Model):
 
     def __str__(self):
         return f"{self.coffee.name} {self.grams}g"
+
+
+class StockCheck(models.Model):
+    """A weighing of a coffee bag, kept to see how the real stock drifts from the system's."""
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name="stock_checks")
+    measured_grams = models.DecimalField(max_digits=10, decimal_places=3)
+    tare_grams = models.DecimalField(max_digits=8, decimal_places=3)
+    # What the system expected at the moment of weighing.
+    expected_grams = models.DecimalField(max_digits=10, decimal_places=3)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    @property
+    def net_grams(self):
+        return max(self.measured_grams - self.tare_grams, Decimal("0"))
+
+    @property
+    def difference_grams(self):
+        return self.net_grams - self.expected_grams
+
+    def __str__(self):
+        return f"{self.item.name}: {self.net_grams} g (systém {self.expected_grams} g)"
 
 
 class AllowedEmail(models.Model):

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { api } from '../../api'
 import { Icon } from '../../components/Icon'
 import { Modal } from '../../components/Modal'
 import { BAG_TARES, NO_BAG } from '../../lib/bagTares'
@@ -70,10 +71,26 @@ function WeighingTable({ measured, tare, net, systemStock, difference }) {
   )
 }
 
-/** Shown every tenth brew: weigh the bag and compare the beans left with the stock the system expects. */
+function CheckActions({ canSave, saveState, onSave, onClose }) {
+  if (saveState === 'saved') {
+    return <button className="btn btn-primary" onClick={onClose}>Hotovo</button>
+  }
+  return (
+    <>
+      <button className="btn btn-outline-secondary" onClick={onClose}>Preskočiť</button>
+      <button className="btn btn-primary" disabled={!canSave || saveState === 'saving'} onClick={onSave}>
+        <Icon name="check" size={15} /> Zapísať kontrolu
+      </button>
+    </>
+  )
+}
+
+/** Shown every few brews: weigh the bag, compare it with the stock the system expects and log the result. */
 export function CoffeeCheckModal({ item, onClose }) {
   const [measuredInput, setMeasuredInput] = useState('')
   const [bagIndex, setBagIndex] = useState(0)
+  // 'idle' | 'saving' | 'saved' | 'failed'
+  const [saveState, setSaveState] = useState('idle')
 
   const tare = BAG_CHOICES[bagIndex].grams
   const measured = parseDecimal(measuredInput)
@@ -82,13 +99,23 @@ export function CoffeeCheckModal({ item, onClose }) {
   const systemStock = Number(item.stock_quantity)
   const difference = net - systemStock
 
+  const save = async () => {
+    setSaveState('saving')
+    try {
+      await api.addStockCheck({ item_id: item.id, measured_grams: measured, tare_grams: tare })
+      setSaveState('saved')
+    } catch {
+      setSaveState('failed')
+    }
+  }
+
   return (
     <Modal
       onClose={onClose}
       icon="scales"
       title="Kontrola zásoby kávy"
-      subtitle="Každých 10 šálok — odváž sáčok a skontrolujme zásoby."
-      actions={<button className="btn btn-outline-secondary" onClick={onClose}>Zavrieť</button>}
+      subtitle="Každé 3 šálky — odváž sáčok a zapíšeme, koľko kávy ostalo."
+      actions={<CheckActions canSave={hasMeasurement} saveState={saveState} onSave={save} onClose={onClose} />}
     >
       <p className="fw-semibold mb-3 d-flex align-items-center gap-2">
         <Icon name="coffee" /> {item.name}
@@ -106,12 +133,20 @@ export function CoffeeCheckModal({ item, onClose }) {
           placeholder="napr. 320"
           value={measuredInput}
           onChange={(event) => setMeasuredInput(event.target.value)}
+          disabled={saveState === 'saved'}
           data-autofocus
         />
       </div>
 
       {hasMeasurement && (
         <WeighingTable measured={measured} tare={tare} net={net} systemStock={systemStock} difference={difference} />
+      )}
+
+      {saveState === 'saved' && (
+        <div className="alert alert-success py-2 mb-2 fs-sm">Zapísané — história je v Admin → Kontroly kávy.</div>
+      )}
+      {saveState === 'failed' && (
+        <div className="alert alert-danger py-2 mb-2 fs-sm">Kontrolu sa nepodarilo zapísať, skús znova.</div>
       )}
 
       {hasMeasurement && difference !== 0 && (

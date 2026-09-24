@@ -11,6 +11,7 @@ import { CoffeeFilterPanel } from './CoffeeFilterPanel'
 import { ItemFilters } from './ItemFilters'
 import { ItemList } from './ItemList'
 import { PersonDebtList } from './PersonDebtList'
+import { StockCheckPanel } from './StockCheckPanel'
 import { useAdminData } from './useAdminData'
 
 const FLASH_DURATION_MS = 3500
@@ -33,6 +34,7 @@ function AdminDashboard({ data, notify, onSessionExpired }) {
             onSessionExpired={onSessionExpired}
           />
           <BrewBatchPanel items={data.items} brewBatches={data.brewBatches} reload={data.loadAll} notify={notify} />
+          <StockCheckPanel stockChecks={data.stockChecks} />
           <CoffeeFilterPanel coffeeFilters={data.coffeeFilters} reload={data.loadCoffeeFilters} notify={notify} />
         </div>
         <div className="col-12 fade-in-up" style={{ animationDelay: '0.2s' }}>

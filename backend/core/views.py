@@ -1,7 +1,7 @@
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
-from django.db.models import Count, F, Sum
+from django.db.models import Count, F, Max, Sum
 from django.http import HttpResponse, JsonResponse
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
@@ -13,19 +13,20 @@ from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
 from . import google_auth, services
-from .models import AllowedEmail, BrewBatch, Category, CoffeePreset, Item, Person, Transaction
+from .models import AllowedEmail, BrewBatch, Category, CoffeePreset, Item, Person, StockCheck, Transaction
 from .payments import render_payment_page
 from .permissions import CanManageAccess, IsAdminSession, ReadOnlyOrAdmin, can_manage_access
 from .serializers import (
     AdminLoginSerializer, AllowedEmailSerializer, BrewBatchCreateSerializer, BrewBatchSerializer,
     CategorySerializer, CoffeePresetSerializer, ItemSerializer, PersonSerializer,
-    SessionSerializer, TransactionCreateSerializer, TransactionPatchSerializer,
+    SessionSerializer, StockCheckCreateSerializer, StockCheckSerializer, TransactionCreateSerializer, TransactionPatchSerializer,
     TransactionSerializer,
 )
 
 DEFAULT_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 500
 BREW_HISTORY_LIMIT = 30
+STOCK_CHECK_HISTORY_LIMIT = 100
 TOP_ITEMS_LIMIT = 10
 
 
@@ -65,7 +66,10 @@ class ItemViewSet(viewsets.ModelViewSet):
     permission_classes = [ReadOnlyOrAdmin]
 
     def get_queryset(self):
-        items = super().get_queryset()
+        # Usage lets the admin list put what is actually drunk on top.
+        items = super().get_queryset().annotate(
+            last_used_at=Max("transaction__created_at"), use_count=Count("transaction"),
+        )
         active = self.request.query_params.get("active")
         category = self.request.query_params.get("category")
         if active is not None:
@@ -73,6 +77,17 @@ class ItemViewSet(viewsets.ModelViewSet):
         if category:
             items = items.filter(category__name__iexact=category)
         return items
+
+    def perform_create(self, serializer):
+        item = serializer.save()
+        if item.stock_quantity is not None and item.stock_quantity > 0:
+            services.count_restock(item)
+
+    def perform_update(self, serializer):
+        was_active = serializer.instance.active
+        item = serializer.save()
+        if services.is_restock(was_active, serializer.validated_data):
+            services.count_restock(item)
 
 
 class CoffeePresetViewSet(viewsets.ModelViewSet):
@@ -342,6 +357,30 @@ class BrewBatchView(APIView):
             message = f"Nedostatok zásoby pre {coffee.name}: {coffee.stock_quantity} g < {error.requested} g"
             return Response({"error": message}, status=400)
         return Response(BrewBatchSerializer(batch).data, status=status.HTTP_201_CREATED)
+
+
+class StockCheckView(APIView):
+    """The kiosk logs coffee weighings; only the admin reads the history."""
+    throttle_classes = [TransactionThrottle]
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [IsAdminSession()]
+        return super().get_permissions()
+
+    def get(self, request):
+        checks = StockCheck.objects.select_related("item")
+        item_id = request.query_params.get("item_id")
+        if item_id and item_id.isdigit():
+            checks = checks.filter(item_id=item_id)
+        return Response(StockCheckSerializer(checks[:STOCK_CHECK_HISTORY_LIMIT], many=True).data)
+
+    def post(self, request):
+        serializer = StockCheckCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        check = services.record_stock_check(data["item"], data["measured_grams"], data["tare_grams"])
+        return Response(StockCheckSerializer(check).data, status=status.HTTP_201_CREATED)
 
 
 # ── Auth and health ───────────────────────────────────────────────────────

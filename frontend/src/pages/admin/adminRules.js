@@ -15,10 +15,20 @@ export const PRICING_MODE_LABELS = { per_item: 'za kus', per_gram: 'za gram', pe
 
 // ── Items ─────────────────────────────────────────────────────────────────
 
+const lastUsedTime = (item) => (item.last_used_at ? Date.parse(item.last_used_at) : 0)
+
+// Active items lead; below them, items bought again and again stay above one-off bags even when sold out.
+const compareItems = (a, b) =>
+  Number(b.active) - Number(a.active)
+  || (b.restock_count ?? 0) - (a.restock_count ?? 0)
+  || lastUsedTime(b) - lastUsedTime(a)
+  || Date.parse(b.created_at) - Date.parse(a.created_at)
+
 export function filterItems(items, { category, status }) {
   return items
     .filter((item) => category === ALL || item.category?.name === category)
     .filter((item) => status === ALL || (status === 'Active' ? item.active : !item.active))
+    .sort(compareItems)
 }
 
 /** Colour class for remaining stock; grams and ml run in hundreds, pieces in single digits. */

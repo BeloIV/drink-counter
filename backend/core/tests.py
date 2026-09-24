@@ -4,7 +4,7 @@ from django.test import override_settings
 from rest_framework.test import APITestCase
 
 from .models import (
-    BrewBatch, Category, CoffeePreset, Item, Person, Session, Transaction,
+    BrewBatch, Category, CoffeePreset, Item, Person, Session, StockCheck, Transaction,
 )
 
 
@@ -83,10 +83,10 @@ class CreateTransactionTests(ApiTestCase):
         self.alice.refresh_from_db()
         self.assertEqual(self.alice.total_coffees, 3)
 
-    def test_every_tenth_coffee_brew_triggers_stock_check(self):
-        responses = [self.order(self.alice, self.coffee, quantity="1") for _ in range(10)]
+    def test_every_third_coffee_brew_triggers_stock_check(self):
+        responses = [self.order(self.alice, self.coffee, quantity="1") for _ in range(6)]
 
-        self.assertEqual([r.data["trigger_check"] for r in responses], [False] * 9 + [True])
+        self.assertEqual([r.data["trigger_check"] for r in responses], [False, False, True] * 2)
 
     def test_per_ml_order_has_no_surcharge_and_no_counters(self):
         CoffeePreset.objects.create(g_min=Decimal("0"), g_max=Decimal("1000"), extra_eur=Decimal("5"))
@@ -228,6 +228,57 @@ class SettleItemTests(ApiTestCase):
         self.assertEqual(response.status_code, 400)
 
 
+class ItemUsageTests(ApiTestCase):
+    def test_item_list_reports_usage(self):
+        self.order(self.alice, self.beer)
+        self.order(self.bob, self.beer)
+
+        items = {item["id"]: item for item in self.client.get("/api/items/").data}
+
+        self.assertEqual(items[self.beer.id]["use_count"], 2)
+        self.assertIsNotNone(items[self.beer.id]["last_used_at"])
+        self.assertEqual(items[self.coffee.id]["use_count"], 0)
+        self.assertIsNone(items[self.coffee.id]["last_used_at"])
+
+
+class RestockCountTests(ApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.login_as_admin()
+
+    def activate(self, item, payload):
+        Item.objects.filter(pk=item.pk).update(active=False)
+        return self.client.patch(f"/api/items/{item.id}/", {"active": True, **payload}, format="json")
+
+    def test_activating_with_stock_counts_a_restock(self):
+        response = self.activate(self.coffee, {"stock_quantity": "250"})
+
+        self.assertEqual(response.data["restock_count"], 1)
+
+    def test_activating_without_stock_is_not_a_restock(self):
+        self.activate(self.coffee, {})
+
+        self.coffee.refresh_from_db()
+        self.assertEqual(self.coffee.restock_count, 0)
+
+    def test_editing_stock_of_an_active_item_is_not_a_restock(self):
+        self.client.patch(f"/api/items/{self.coffee.id}/", {"stock_quantity": "80"}, format="json")
+
+        self.coffee.refresh_from_db()
+        self.assertEqual(self.coffee.restock_count, 0)
+
+    def test_brewing_cold_brew_counts_a_restock_of_the_output(self):
+        payload = {
+            "ingredients": [{"coffee_id": self.coffee.id, "grams": "50"}],
+            "output_item_id": self.cold_brew.id,
+            "output_ml": "1000",
+        }
+        self.client.post("/api/brew-batches", payload, format="json")
+
+        self.cold_brew.refresh_from_db()
+        self.assertEqual(self.cold_brew.restock_count, 1)
+
+
 class StockTests(ApiTestCase):
     def test_set_stock_rejects_negative_quantity(self):
         self.login_as_admin()
@@ -289,6 +340,39 @@ class BrewBatchTests(ApiTestCase):
         response = self.client.get("/api/brew-batches")
 
         self.assertEqual(response.status_code, 403)
+
+
+class StockCheckTests(ApiTestCase):
+    def weigh(self, measured, tare="14", item=None):
+        payload = {"item_id": (item or self.coffee).id, "measured_grams": measured, "tare_grams": tare}
+        return self.client.post("/api/stock-checks", payload, format="json")
+
+    def test_kiosk_records_weighing_against_system_stock(self):
+        self.order(self.alice, self.coffee, quantity="20")
+
+        response = self.weigh("100")
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Decimal(response.data["expected_grams"]), Decimal("80"))
+        self.assertEqual(Decimal(response.data["net_grams"]), Decimal("86"))
+        self.assertEqual(Decimal(response.data["difference_grams"]), Decimal("6"))
+        self.assertEqual(StockCheck.objects.count(), 1)
+
+    def test_item_without_tracked_stock_is_rejected(self):
+        response = self.weigh("100", item=self.cold_brew)
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_history_requires_admin_and_filters_by_item(self):
+        self.weigh("100")
+        self.assertEqual(self.client.get("/api/stock-checks").status_code, 403)
+
+        self.login_as_admin()
+        response = self.client.get(f"/api/stock-checks?item_id={self.coffee.id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["item_name"], "Ethiopia")
 
 
 class SessionAndDebtTests(ApiTestCase):

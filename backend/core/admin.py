@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.db.models import Sum
 from django.utils import timezone
 
-from .models import Category, CoffeePreset, Item, Person, Session, Transaction
+from .models import Category, CoffeePreset, Item, Person, Session, StockCheck, Transaction
 
 
 @admin.action(description="Aktivovať označené osoby")
@@ -86,3 +86,9 @@ class CoffeePresetAdmin(admin.ModelAdmin):
     search_fields = ("label",)
     list_editable = ("g_min", "g_max", "extra_eur")
     ordering = ("g_min", "id")
+
+
+@admin.register(StockCheck)
+class StockCheckAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "item", "measured_grams", "tare_grams", "expected_grams")
+    list_filter = ("item",)

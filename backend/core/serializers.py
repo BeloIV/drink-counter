@@ -5,7 +5,8 @@ from rest_framework import serializers
 
 from .avatars import thumbnail_url
 from .models import (
-    AllowedEmail, BrewBatch, BrewBatchIngredient, Category, CoffeePreset, Item, Person, Session, Transaction,
+    AllowedEmail, BrewBatch, BrewBatchIngredient, Category, CoffeePreset, Item, Person, Session, StockCheck,
+    Transaction,
 )
 
 
@@ -45,6 +46,9 @@ class ItemSerializer(serializers.ModelSerializer):
         queryset=Category.objects.all(),
         write_only=True,
     )
+    # Only the item endpoints annotate usage; nested items elsewhere report none.
+    last_used_at = serializers.SerializerMethodField()
+    use_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Item
@@ -53,7 +57,16 @@ class ItemSerializer(serializers.ModelSerializer):
             "category", "category_id",
             "price", "pricing_mode",
             "note", "color", "active", "stock_quantity", "created_at",
+            "restock_count", "last_used_at", "use_count",
         ]
+        read_only_fields = ["restock_count"]
+
+    def get_last_used_at(self, item):
+        last_used_at = getattr(item, "last_used_at", None)
+        return last_used_at.isoformat() if last_used_at else None
+
+    def get_use_count(self, item):
+        return getattr(item, "use_count", 0)
 
 
 class SessionSerializer(serializers.ModelSerializer):
@@ -115,6 +128,32 @@ class BrewBatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = BrewBatch
         fields = ["id", "ingredients", "output_item", "output_ml", "note", "created_at"]
+
+
+class StockCheckCreateSerializer(serializers.Serializer):
+    item_id = serializers.PrimaryKeyRelatedField(source="item", queryset=Item.objects.all())
+    measured_grams = serializers.DecimalField(max_digits=10, decimal_places=3, min_value=Decimal("0"))
+    tare_grams = serializers.DecimalField(max_digits=8, decimal_places=3, min_value=Decimal("0"))
+
+    def validate_item_id(self, item):
+        if item.stock_quantity is None:
+            raise serializers.ValidationError("Položka nesleduje zásobu.")
+        return item
+
+
+class StockCheckSerializer(serializers.ModelSerializer):
+    item_id = serializers.IntegerField(read_only=True)
+    item_name = serializers.CharField(source="item.name", read_only=True)
+    item_color = serializers.CharField(source="item.color", read_only=True)
+    net_grams = serializers.DecimalField(max_digits=10, decimal_places=3, read_only=True)
+    difference_grams = serializers.DecimalField(max_digits=11, decimal_places=3, read_only=True)
+
+    class Meta:
+        model = StockCheck
+        fields = [
+            "id", "item_id", "item_name", "item_color", "measured_grams", "tare_grams",
+            "net_grams", "expected_grams", "difference_grams", "created_at",
+        ]
 
 
 class AdminLoginSerializer(serializers.Serializer):

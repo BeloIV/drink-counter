@@ -10,6 +10,7 @@ export function useAdminData() {
   const [debts, setDebts] = useState({})
   const [coffeeFilters, setCoffeeFilters] = useState([])
   const [brewBatches, setBrewBatches] = useState([])
+  const [stockChecks, setStockChecks] = useState([])
 
   const loadCoffeeFilters = useCallback(async () => {
     setCoffeeFilters(await api.getCoffeeFilters())
@@ -20,6 +21,14 @@ export function useAdminData() {
       setBrewBatches(await api.getBrewBatches())
     } catch {
       // Brew history is optional; the dashboard works without it.
+    }
+  }, [])
+
+  const loadStockChecks = useCallback(async () => {
+    try {
+      setStockChecks(await api.getStockChecks())
+    } catch {
+      // Like brew history, the weighing log is optional for the dashboard.
     }
   }, [])
 
@@ -34,8 +43,8 @@ export function useAdminData() {
     setItems(nextItems)
     setPersons(nextPersons)
     setDebts(debtsByPerson(session))
-    await Promise.all([loadCoffeeFilters(), loadBrewBatches()])
-  }, [loadCoffeeFilters, loadBrewBatches])
+    await Promise.all([loadCoffeeFilters(), loadBrewBatches(), loadStockChecks()])
+  }, [loadCoffeeFilters, loadBrewBatches, loadStockChecks])
 
-  return { categories, items, persons, debts, coffeeFilters, brewBatches, loadAll, loadCoffeeFilters }
+  return { categories, items, persons, debts, coffeeFilters, brewBatches, stockChecks, loadAll, loadCoffeeFilters }
 }

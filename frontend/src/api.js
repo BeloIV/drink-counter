@@ -104,6 +104,9 @@ export const api = {
   getBrewBatches: () => request('/brew-batches'),
   createBrewBatch: (payload) => post('/brew-batches', payload),
 
+  getStockChecks: () => request('/stock-checks'),
+  addStockCheck: (payload) => post('/stock-checks', payload),
+
   stats: () => request('/stats'),
 }
 
