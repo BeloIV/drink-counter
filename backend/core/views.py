@@ -1,13 +1,13 @@
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
-from django.db.models import Count, F, Max, Sum
+from django.db.models import Count, F, Max, ProtectedError, Sum
 from django.http import HttpResponse, JsonResponse
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import mixins, status, viewsets
-from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.exceptions import APIException, NotFound, ValidationError
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
@@ -48,19 +48,38 @@ def get_or_not_found(queryset, pk, label):
 
 # ── Catalogue ─────────────────────────────────────────────────────────────
 
-class PersonViewSet(viewsets.ModelViewSet):
+class Conflict(APIException):
+    status_code = status.HTTP_409_CONFLICT
+    default_code = "conflict"
+
+
+class KeepHistoryMixin:
+    """Refuse to delete a record that transactions still point to; hiding it is the way out."""
+    in_use_message = "Záznam sa používa a nedá sa zmazať."
+
+    def perform_destroy(self, instance):
+        try:
+            instance.delete()
+        except ProtectedError:
+            raise Conflict({"error": self.in_use_message}) from None
+
+
+class PersonViewSet(KeepHistoryMixin, viewsets.ModelViewSet):
+    in_use_message = "Osoba má históriu objednávok, preto sa nedá zmazať. Nastav ju ako neaktívnu."
     queryset = Person.objects.all().order_by("id")
     serializer_class = PersonSerializer
     permission_classes = [ReadOnlyOrAdmin]
 
 
-class CategoryViewSet(viewsets.ModelViewSet):
+class CategoryViewSet(KeepHistoryMixin, viewsets.ModelViewSet):
+    in_use_message = "Kategória obsahuje položky, preto sa nedá zmazať."
     queryset = Category.objects.all().order_by("id")
     serializer_class = CategorySerializer
     permission_classes = [ReadOnlyOrAdmin]
 
 
-class ItemViewSet(viewsets.ModelViewSet):
+class ItemViewSet(KeepHistoryMixin, viewsets.ModelViewSet):
+    in_use_message = "Položka má históriu objednávok alebo várok, preto sa nedá zmazať. Skry ju."
     queryset = Item.objects.all().order_by("id")
     serializer_class = ItemSerializer
     permission_classes = [ReadOnlyOrAdmin]

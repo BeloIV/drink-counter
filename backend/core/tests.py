@@ -279,6 +279,38 @@ class RestockCountTests(ApiTestCase):
         self.assertEqual(self.cold_brew.restock_count, 1)
 
 
+class KeepHistoryTests(ApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.login_as_admin()
+
+    def test_item_with_orders_cannot_be_deleted(self):
+        self.order(self.alice, self.beer)
+
+        response = self.client.delete(f"/api/items/{self.beer.id}/")
+
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("error", response.data)
+        self.assertEqual(Transaction.objects.count(), 1)
+
+    def test_person_with_orders_cannot_be_deleted(self):
+        self.order(self.alice, self.beer)
+
+        response = self.client.delete(f"/api/persons/{self.alice.id}/")
+
+        self.assertEqual(response.status_code, 409)
+        self.assertTrue(Person.objects.filter(pk=self.alice.pk).exists())
+
+    def test_category_with_items_cannot_be_deleted(self):
+        response = self.client.delete(f"/api/categories/{self.beer_category.id}/")
+
+        self.assertEqual(response.status_code, 409)
+
+    def test_unused_item_and_person_can_still_be_deleted(self):
+        self.assertEqual(self.client.delete(f"/api/items/{self.beer.id}/").status_code, 204)
+        self.assertEqual(self.client.delete(f"/api/persons/{self.guest.id}/").status_code, 204)
+
+
 class StockTests(ApiTestCase):
     def test_set_stock_rejects_negative_quantity(self):
         self.login_as_admin()

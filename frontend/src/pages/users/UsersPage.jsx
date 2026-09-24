@@ -8,6 +8,7 @@ import { PinLoginCard } from '../../components/PinLogin'
 import { Skeleton } from '../../components/Skeleton'
 import { useAdminAuth } from '../../hooks/useAdminAuth'
 import { useDialog } from '../../lib/dialogContext'
+import { errorMessage } from '../../lib/errors'
 import { UserCard } from './UserCard'
 import { UserEditForm } from './UserEditForm'
 
@@ -64,8 +65,9 @@ function useUserManagement() {
     setMessage(null)
     try {
       await task()
-    } catch {
-      setMessage({ tone: 'error', text: failureText })
+    } catch (error) {
+      // A refusal the backend explains (a person with history) beats the generic text.
+      setMessage({ tone: 'error', text: error.status === 409 ? errorMessage(error) : failureText })
     } finally {
       setIsBusy(false)
     }
@@ -82,7 +84,7 @@ function useUserManagement() {
   const remove = async (person) => {
     const confirmed = await dialog.confirm({
       title: `Odstrániť ${person.name}?`,
-      text: 'Osoba zmizne zo zoznamu. Túto akciu nie je možné vrátiť späť.',
+      text: 'Zmazať sa dá len osoba bez objednávok. Tú s históriou radšej nastav ako neaktívnu.',
       confirmLabel: 'Odstrániť',
       tone: 'danger',
     })

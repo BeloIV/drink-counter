@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../../api'
 import { useDialog } from '../../lib/dialogContext'
+import { errorMessage } from '../../lib/errors'
 import { buildColdBrewDraft, itemUpdatePayload } from './adminRules'
 
 const EXIT_ANIMATION_MS = 250
@@ -50,7 +51,7 @@ export function useItemActions({ data, notify }) {
   const remove = async (item) => {
     const confirmed = await dialog.confirm({
       title: `Zmazať ${item.name}?`,
-      text: 'Položka sa odstráni natrvalo. Existujúce transakcie zostanú zachované.',
+      text: 'Zmazať sa dá len položka, ktorú si ešte nikto neobjednal. Položku s históriou radšej skry.',
       confirmLabel: 'Zmazať',
       tone: 'danger',
     })
@@ -58,7 +59,11 @@ export function useItemActions({ data, notify }) {
     setDeletingId(item.id)
     // Let the exit animation finish before the card leaves the list.
     setTimeout(async () => {
-      await api.deleteItem(item.id)
+      try {
+        await api.deleteItem(item.id)
+      } catch (error) {
+        notify(errorMessage(error))
+      }
       await data.loadAll()
       setDeletingId(null)
     }, EXIT_ANIMATION_MS)

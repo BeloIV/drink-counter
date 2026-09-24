@@ -35,7 +35,7 @@ class Category(models.Model):
 
 class Item(models.Model):
     name = models.CharField(max_length=100)
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="items")
+    category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="items")
     # Price of one unit of the pricing mode: a piece, a gram or a millilitre.
     price = models.DecimalField(max_digits=8, decimal_places=3, default=Decimal("0.000"))
     pricing_mode = models.CharField(max_length=16, choices=PRICING_CHOICES, default="per_item")
@@ -64,9 +64,11 @@ class Session(models.Model):
 
 
 class Transaction(models.Model):
-    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name="transactions")
-    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="transactions")
-    item = models.ForeignKey(Item, on_delete=models.CASCADE)
+    # PROTECT everywhere: transactions are the history behind debts and stats, so
+    # deleting what they point to must fail instead of silently taking them along.
+    session = models.ForeignKey(Session, on_delete=models.PROTECT, related_name="transactions")
+    person = models.ForeignKey(Person, on_delete=models.PROTECT, related_name="transactions")
+    item = models.ForeignKey(Item, on_delete=models.PROTECT)
     # Pieces, grams or millilitres, depending on the item's pricing mode.
     quantity = models.DecimalField(max_digits=8, decimal_places=3, default=Decimal("1.000"))
     price_at_time = models.DecimalField(max_digits=10, decimal_places=3)
