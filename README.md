@@ -1,167 +1,197 @@
 # Drink Counter 🍺☕
 
-Modern web application for tracking beverage consumption and managing debts in households or shared spaces. Built with Django REST Framework backend and React frontend, orchestrated with Docker Compose.
+Web app for tracking beverage consumption and debts in a shared household. A tablet
+on the LAN acts as a kiosk; the same app is reachable on a public domain behind
+Google sign-in. Django REST Framework backend, React frontend, PostgreSQL, all in
+Docker Compose.
 
 ## ✨ Features
 
-- 📊 **Consumption Tracking** - Track beers, coffees, and other beverages
-- 👥 **Person Management** - Home members and guests
-- 💰 **Automatic Debt Calculation** - Per-item or per-gram pricing
-- 📱 **Responsive Design** - Optimized for mobile and desktop
-- 🔄 **Multi-select Mode** - Add transactions for multiple people at once
-- 🎨 **Modern UI** - Bootstrap 5 with custom CSS enhancements
-- 🔐 **Admin Panel** - Manage items, persons, and transactions
+- 📊 **Consumption tracking** – beer, coffee, cold brew; per-item, per-gram or per-ml pricing
+- 👥 **Home members and guests** – with avatars, lifetime beer/coffee counters
+- 🔄 **Multi-person mode** – one order for several people, coffee grams split evenly
+- ↩️ **Undo and editing** – undo the last order, edit or delete transactions in the history
+- 💰 **Debts** – settling a debt records a `Payment`; transactions stay in the history
+- 🧾 **Pay by Square** – QR code for paying a debt by bank transfer
+- 🧊 **Cold brew batches** – mix a batch from coffee stock, cold brew stock is priced from it
+- ⚖️ **Stock tracking** – every 3rd brew the kiosk asks to weigh the coffee; weighings are logged
+- 📈 **Statistics** – consumption overview on its own page
+- 🔐 **Access** – admin PIN on the kiosk, Google allowlist on the public domain
+- 📱 **PWA** – installable, light and dark theme
 
 ## 🚀 Technologies
 
-### Backend
-- Django 5.1.4
-- Django REST Framework
-- PostgreSQL 16
-- Python 3.12
-
-### Frontend
-- React 18
-- Vite
-- React Router
-- Bootstrap 5
-- React Icons
-
-### DevOps
-- Docker & Docker Compose
-- Multi-stage builds
-- Hot reload in dev mode
+| Part | Stack |
+|------|-------|
+| Backend | Python 3.12, Django 5.1, Django REST Framework, drf-spectacular, gunicorn, whitenoise, google-auth |
+| Frontend | React 19, Vite 7, React Router 7, Bootstrap 5, React Icons |
+| Database | PostgreSQL 16 |
+| Serving | nginx (static build + `/api` proxy), multi-stage frontend image |
 
 ## 📦 Installation & Setup
 
-### Prerequisites
-- Docker
-- Docker Compose
-- Git
-
-### Steps
+Prerequisites: Docker with Compose v2 (`docker compose`, not `docker-compose`).
 
 1. **Clone the repository**
-```bash
-git clone https://github.com/BeloIV/drink-counter.git
-cd drink-counter
-```
+   ```bash
+   git clone https://github.com/BeloIV/drink-counter.git
+   cd drink-counter
+   ```
 
-2. **Start the application**
-```bash
-docker compose up --build
-```
+2. **Create the backend env file** – Compose requires it
+   ```bash
+   cp backend/.env.example backend/.env
+   ```
+   Fill in at least `SECRET_KEY` and `ADMIN_PIN` (see [Configuration](#-configuration)).
 
-3. **Access the application**
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- Admin panel: http://localhost:8000/admin
+3. **Start the application**
+   ```bash
+   # production: nginx + gunicorn
+   docker compose up --build -d
 
-4. **Create a superuser (for admin panel)**
-```bash
-docker compose exec backend python manage.py createsuperuser
-```
+   # development: Vite HMR + Django runserver, DEBUG on
+   docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up --build
+   ```
+
+4. **Open it**
+
+   | What | Production | Development |
+   |------|-----------|-------------|
+   | App | http://localhost:5173 | http://localhost:5173 |
+   | API | http://localhost:5173/api/ | http://localhost:8001/api/ |
+   | Django admin | http://localhost:5173/django-admin/ | http://localhost:8001/django-admin/ |
+   | Swagger docs | – | http://localhost:8001/api/docs/ |
+
+   In production the backend is not published on the host; nginx proxies `/api/`,
+   `/media/` and `/django-admin/` to it. PostgreSQL is published on host port `5437`.
+
+5. **Create a superuser** (only needed for Django admin)
+   ```bash
+   docker compose exec backend python manage.py createsuperuser
+   ```
 
 ## 📁 Project Structure
 
 ```
 drink-counter/
-├── backend/              # Django REST API
-│   ├── backend/         # Project settings
-│   ├── core/           # Main app (models, views, serializers, services)
-│   ├── manage.py
-│   └── requirements.txt
-├── frontend/            # React application
+├── backend/
+│   ├── backend/            # Django settings, root URLs (api/, django-admin/, media/)
+│   ├── core/               # Main app
+│   │   ├── models.py       # Data model
+│   │   ├── services.py     # Business rules: pricing, stock, debts, brewing
+│   │   ├── views.py        # API views (validate + respond)
+│   │   ├── serializers.py
+│   │   ├── permissions.py  # Admin PIN / Google admin checks
+│   │   ├── middleware.py   # Google sign-in gate for PUBLIC_HOST
+│   │   ├── google_auth.py  # Google ID token verification
+│   │   ├── payments.py     # Pay by Square QR
+│   │   ├── avatars.py      # Avatar thumbnails
+│   │   └── tests.py, test_*.py
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── .env.example
+├── frontend/
 │   ├── src/
-│   │   ├── pages/      # One folder per page: order, admin, transactions, brew, users, stats
-│   │   ├── components/ # Shared UI: modal, dialogs, page header, PIN login
-│   │   ├── hooks/      # Shared hooks: theme, flash messages, admin auth
-│   │   ├── lib/        # Pure helpers: units, categories, pricing, colours
-│   │   ├── styles/     # Design tokens
-│   │   ├── assets/     # Images, avatars
-│   │   ├── main.jsx    # Router and providers
-│   │   └── api.js      # API client
-│   ├── public/
-│   └── package.json
-├── docker-compose.yaml  # Service orchestration
-└── README.md
+│   │   ├── pages/          # order (kiosk home), brew, admin, transactions, users, access, stats
+│   │   ├── components/     # Modal, dialogs, page header, nav drawer, PIN login, Google gate
+│   │   ├── hooks/          # Theme, flash messages, admin auth, Google button
+│   │   ├── lib/            # Pure helpers: units, pricing, debts, colours, contexts
+│   │   ├── styles/         # Design tokens
+│   │   ├── main.jsx        # Router and providers
+│   │   └── api.js          # API client
+│   ├── public/             # Fonts, manifest, service worker
+│   ├── nginx.conf          # Production server config
+│   ├── Dockerfile          # Multi-stage: Vite build → nginx
+│   └── Dockerfile.dev      # Vite dev server
+├── docker-compose.yaml     # Production
+└── docker-compose.dev.yaml # Development override
 ```
 
 ## 🎯 Usage
 
-### Adding a transaction (single mode)
-1. Select a person from home members or guests
-2. Choose category (Beer/Coffee)
-3. Select specific beverage
-4. For coffee, enter gram amount
-5. Debt is automatically added
+### Pages
 
-### Adding a transaction (multi mode)
-1. Activate "Multiple people" button
-2. Select multiple persons
-3. Click "Continue"
-4. Choose category and beverage
-5. For coffee, grams are evenly distributed
+| Route | Purpose |
+|-------|---------|
+| `/` | Kiosk: pick person → category → item → quantity/grams |
+| `/brew` | Mix a cold brew batch from coffee stock |
+| `/transactions` | Calendar history, edit and delete transactions |
+| `/admin` | Items, stock, debts, coffee filters, brew batches, stock checks (PIN) |
+| `/users` | Manage home members and guests (PIN) |
+| `/access` | Google sign-in allowlist (**Prístupy**) |
+| `/stats` | Statistics |
 
-### Admin panel
-- Add/edit items
-- Manage persons
-- View all transactions
-- Close/open sessions
-- Pay-by-square QR codes
+### Ordering
+1. Pick a person (or switch on multi-person mode and pick several)
+2. Choose a category and an item – the category step is skipped if there is only one
+3. For per-item drinks set the count (auto-submits after 5 s); for coffee enter grams
+4. The debt is added; the last order can be undone
+
+### Debts
+"Vynulovať dlh" in the admin panel creates a `Payment` and links it to the person's
+unpaid transactions. The debt is the sum of unpaid transactions; statistics count all
+of them. Persons, items and categories that have transactions cannot be deleted
+(the API returns `409 Conflict`) – deactivate them instead.
 
 ## 🛠️ Development
 
-### Backend development
+### Backend
 ```bash
-# Access backend container
 docker compose exec backend bash
-
-# Create migrations
-python manage.py makemigrations
-
-# Apply migrations
+python manage.py makemigrations   # migrations are not committed (gitignored)
 python manage.py migrate
-
-# Run tests
-python manage.py test
+python manage.py test core
 ```
 
-### Frontend development
+### Frontend
+Dependencies are installed only inside the image (`npm ci`). To add a package, run
+`npm install <package>` in the dev container and rebuild the image.
 ```bash
-# Access frontend container
-docker compose exec frontend sh
-
-# Install new dependencies
-npm install <package>
+docker compose -f docker-compose.yaml -f docker-compose.dev.yaml exec frontend sh
+npm run lint
+npm run build
 ```
 
-### Hot reload
-Both containers have hot reload configured - changes are reflected automatically.
+In development Vite proxies `/api` and `/media` to `http://backend:8001`
+(see `vite.config.js`); in production nginx does the same.
 
 ## 📝 API Endpoints
 
-- `GET /api/persons/` - List persons
-- `POST /api/persons/` - Create person
-- `GET /api/items/` - List items
-- `POST /api/transactions/` - Add transaction
-- `GET /api/session/active/` - Active session with summary
-- `POST /api/session/close/` - Close session
+All under `/api/`. Paths have no trailing slash except router resources.
+
+| Area | Endpoints |
+|------|-----------|
+| Resources (CRUD) | `persons/`, `categories/`, `items/`, `coffee-presets/` (alias `coffee-filters/`), `allowed-emails/` |
+| Orders | `POST transactions`, `GET transactions/list`, `PATCH/DELETE transactions/<id>`, `POST transactions/undo` |
+| Session | `GET session/active` (active session with summary), `POST session/reset` |
+| Debts | `POST persons/<id>/reset-debt`, `GET persons/<id>/pay-by-square/` |
+| Stock | `POST items/<id>/set-stock`, `POST items/<id>/settle`, `brew-batches`, `stock-checks` |
+| Stats | `GET stats` |
+| Auth | `auth/csrf`, `auth/admin-login`, `auth/admin-logout`, `auth/admin-check`, `auth/me`, `auth/google`, `auth/google-logout` |
+| Health | `GET health` |
+
+Full schema: `/api/docs/` (only with `DEBUG=true`).
 
 ## 🔧 Configuration
 
-### Backend (.env or docker-compose.yaml)
+### `backend/.env`
 ```env
-POSTGRES_DB=drinkdb
-POSTGRES_USER=drinkuser
-POSTGRES_PASSWORD=drinkpass
-POSTGRES_HOST=db
-POSTGRES_PORT=5432
+SECRET_KEY=                 # Django secret key – set it in production
+DEBUG=false
+HTTPS=false                 # true behind HTTPS → secure cookies
+ADMIN_PIN=                  # PIN for the admin pages on the kiosk (default 1234)
+PAYMENT_IBAN=               # IBAN used in Pay by Square QR codes
+PUBLIC_HOST=drinkcounter.bytboyzserver.xyz
+GOOGLE_CLIENT_ID=
+BOOTSTRAP_ADMIN_EMAILS=
 ```
+Database credentials (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`,
+`POSTGRES_HOST`, `POSTGRES_PORT`) are set in `docker-compose.yaml`.
 
 ### Google sign-in (public domain)
 On `PUBLIC_HOST` only Google accounts from the allowlist get in; the kiosk on the LAN
-address needs no login. Admins manage the allowlist on the **Prístupy** page.
+address needs no login and uses the admin PIN. Admins manage the allowlist on the
+**Prístupy** page.
 ```env
 PUBLIC_HOST=drinkcounter.bytboyzserver.xyz
 GOOGLE_CLIENT_ID=<OAuth client ID from Google Cloud Console>
@@ -170,48 +200,43 @@ BOOTSTRAP_ADMIN_EMAILS=admin@example.com   # comma-separated, always admins
 In Google Cloud Console, add `https://<PUBLIC_HOST>` as an authorized JavaScript origin
 of the OAuth client. Without `GOOGLE_CLIENT_ID` nobody can sign in on the public domain.
 
-### Frontend (src/api.js)
-```javascript
-const API_BASE = '/api'
-```
-In development Vite proxies `/api` to the backend (see `vite.config.js`).
-
 ## 📊 Database Models
 
-- **Person** - Home members and guests
-- **Category** - Beverage categories (Beer, Coffee)
-- **Item** - Specific beverages (price, pricing mode)
-- **Session** - Tracking periods
-- **Transaction** - Individual consumption records
+| Model | Purpose |
+|-------|---------|
+| `Person` | Home member or guest; avatar, active flag, lifetime beer/coffee counters |
+| `Category` | Beverage category (beer, coffee, cold brew) |
+| `Item` | Beverage: price, pricing mode (`per_item` / `per_gram` / `per_ml`), colour, stock, brew and restock counts |
+| `Session` | Tracking period |
+| `Transaction` | One consumption record: quantity, price at the time, optional `Payment` |
+| `Payment` | A settled debt; the transactions it paid point to it |
+| `BrewBatch`, `BrewBatchIngredient` | A cold brew run and the coffees that went in |
+| `StockCheck` | A coffee weighing: measured grams, tare, expected stock |
+| `CoffeePreset` | Extra price by gram amount ("coffee filter") |
+| `AllowedEmail` | Google allowlist entry, optionally admin |
 
-## 🎨 UI Features
-
-- Person avatars with overlay effect
-- Fixed button when scrolling
-- Visual checkmarks for multi-person selection
-- Progress stepper
-- Notice notifications
-- Responsive grid layout
+Transaction foreign keys use `PROTECT`, so history can never be deleted by cascade.
 
 ## 🐛 Troubleshooting
 
-**Port already in use:**
-```bash
-# Change port in docker-compose.yaml
+**Port already in use** – change the host side in `docker-compose.yaml`:
+```yaml
 ports:
-  - "5174:5173"  # frontend
-  - "8001:8000"  # backend
+  - "5174:80"   # frontend (production)
 ```
 
-**Database won't start:**
+**Container fails with `KeyError: ContainerConfig`** – you are using Compose v1;
+use `docker compose` instead of `docker-compose`.
+
+**Changes not reflected in production** – the frontend is a static build, rebuild it:
 ```bash
-docker compose down -v  # Delete volumes
-docker compose up --build
+docker compose up --build -d frontend
 ```
 
-**Changes not reflected:**
+**Database won't start** – ⚠️ this deletes all data:
 ```bash
-docker compose up --build --force-recreate
+docker compose down -v
+docker compose up --build -d
 ```
 
 ## 📄 License
@@ -220,8 +245,4 @@ MIT
 
 ## 👨‍💻 Author
 
-Created by: BeloIV
-
----
-
-⭐ If you like this project, give it a star on GitHub!
+Created by BeloIV
