@@ -1,3 +1,4 @@
+import process from 'node:process'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -20,7 +21,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: true,
-    allowedHosts: ['drinkcounter.bytboyzserver.xyz'],
+    allowedHosts: process.env.PUBLIC_HOST ? [process.env.PUBLIC_HOST] : [],
     proxy: {
       '/api': backendProxy(),
       '/media': backendProxy(),

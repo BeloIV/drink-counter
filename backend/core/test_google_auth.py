@@ -6,12 +6,15 @@ from rest_framework.test import APITestCase
 
 from .models import AllowedEmail, Person
 
-PUBLIC_HOST = "drinkcounter.bytboyzserver.xyz"
+PUBLIC_HOST = "drinks.example.com"
 ENV_ADMIN = "boss@example.com"
 VERIFY_TOKEN = "core.google_auth.id_token.verify_oauth2_token"
 
 
-@override_settings(PUBLIC_HOST=PUBLIC_HOST, GOOGLE_CLIENT_ID="test-client", BOOTSTRAP_ADMIN_EMAILS=ENV_ADMIN)
+@override_settings(
+    PUBLIC_HOST=PUBLIC_HOST, ALLOWED_HOSTS=[PUBLIC_HOST, "testserver"],
+    GOOGLE_CLIENT_ID="test-client", BOOTSTRAP_ADMIN_EMAILS=ENV_ADMIN,
+)
 class GoogleAuthTestCase(APITestCase):
     def setUp(self):
         # The sign-in throttle would otherwise count requests across tests.

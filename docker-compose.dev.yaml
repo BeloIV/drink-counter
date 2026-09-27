@@ -27,6 +27,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.dev
     command: npm run dev -- --host 0.0.0.0
+    # PUBLIC_HOST, which the Vite dev server must accept as a host name.
+    env_file:
+      - ./backend/.env
     ports: !override
       - "5173:5173"
     volumes:

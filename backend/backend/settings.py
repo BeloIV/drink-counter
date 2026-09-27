@@ -8,10 +8,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-o!wu-wv1!5^)*vvlmf&s6cop9e3le%tr2upd(#5qn8vmr)9dvl')
 DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
 
+# The kiosk opens the app on a LAN address; everyone else comes through the public domain.
+# Either may be left empty, e.g. for local development.
+LAN_HOST = os.getenv("LAN_HOST", "")
+PUBLIC_HOST = os.getenv("PUBLIC_HOST", "")
+LOCAL_FRONTEND_ORIGIN = "http://localhost:5173"
+LAN_ORIGINS = [f"http://{LAN_HOST}:5173", f"http://{LAN_HOST}:8001", f"http://{LAN_HOST}"] if LAN_HOST else []
+PUBLIC_ORIGINS = [f"https://{PUBLIC_HOST}"] if PUBLIC_HOST else []
+
 ALLOWED_HOSTS = [
-    "192.168.1.250", "localhost", "127.0.0.1",
-    "drinkcounter.bytboyzserver.xyz",
-    "backend",
+    host for host in (LAN_HOST, "localhost", "127.0.0.1", PUBLIC_HOST, "backend") if host
 ]
 
 INSTALLED_APPS = [
@@ -107,18 +113,8 @@ USE_X_FORWARDED_HOST = True
 
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [
-    "http://192.168.1.250:5173",
-    "http://localhost:5173",
-    "https://drinkcounter.bytboyzserver.xyz",
-]
-CSRF_TRUSTED_ORIGINS = [
-    "http://192.168.1.250:5173",
-    "http://192.168.1.250:8001",
-    "http://192.168.1.250",
-    "http://localhost:5173",
-    "https://drinkcounter.bytboyzserver.xyz",
-]
+CORS_ALLOWED_ORIGINS = LAN_ORIGINS[:1] + [LOCAL_FRONTEND_ORIGIN] + PUBLIC_ORIGINS
+CSRF_TRUSTED_ORIGINS = LAN_ORIGINS + [LOCAL_FRONTEND_ORIGIN] + PUBLIC_ORIGINS
 
 # Lax cookies keep the session working on the plain-HTTP LAN address.
 SESSION_COOKIE_SAMESITE = "Lax"
@@ -159,7 +155,6 @@ SPECTACULAR_SETTINGS = {
 
 ADMIN_PIN = os.getenv("ADMIN_PIN", "1234")
 PAYMENT_IBAN = os.getenv("PAYMENT_IBAN", "SK9365000000003650622489")
-PUBLIC_HOST = os.getenv("PUBLIC_HOST", "drinkcounter.bytboyzserver.xyz")
 # Google sign-in on PUBLIC_HOST. Without a client ID nobody can sign in there.
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 # Comma-separated emails that are always admins of the access page.

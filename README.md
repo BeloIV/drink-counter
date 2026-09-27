@@ -182,7 +182,8 @@ DEBUG=false
 HTTPS=false                 # true behind HTTPS → secure cookies
 ADMIN_PIN=                  # PIN for the admin pages on the kiosk (default 1234)
 PAYMENT_IBAN=               # IBAN used in Pay by Square QR codes
-PUBLIC_HOST=drinkcounter.bytboyzserver.xyz
+LAN_HOST=                   # LAN address the kiosk uses, e.g. 192.168.1.250
+PUBLIC_HOST=                # public domain behind Google sign-in, e.g. drinks.example.com
 GOOGLE_CLIENT_ID=
 BOOTSTRAP_ADMIN_EMAILS=
 ```
@@ -198,7 +199,7 @@ On `PUBLIC_HOST` only Google accounts from the allowlist get in; the kiosk on th
 address needs no login and uses the admin PIN. Admins manage the allowlist on the
 **Prístupy** page.
 ```env
-PUBLIC_HOST=drinkcounter.bytboyzserver.xyz
+PUBLIC_HOST=drinks.example.com
 GOOGLE_CLIENT_ID=<OAuth client ID from Google Cloud Console>
 BOOTSTRAP_ADMIN_EMAILS=admin@example.com   # comma-separated, always admins
 ```
