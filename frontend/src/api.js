@@ -8,6 +8,9 @@ function readCsrfToken() {
   return match ? match[1] : ''
 }
 
+// Sets the csrftoken cookie that every write request echoes back.
+const fetchCsrfCookie = () => fetch(`${API_BASE}/auth/csrf`, { credentials: 'include' })
+
 function buildOptions(method, data) {
   const isForm = data instanceof FormData
   const headers = isForm ? {} : { 'Content-Type': 'application/json' }
@@ -29,6 +32,8 @@ function signalLostGoogleAccess(status, body) {
 
 /** Call the API; a failed response throws an Error carrying the body and `status`. */
 async function request(path, { method = 'GET', data } = {}) {
+  // The backend refuses every write without the token, even on a kiosk that never fetched it.
+  if (method !== 'GET' && !readCsrfToken()) await fetchCsrfCookie()
   const response = await fetch(`${API_BASE}${path}`, buildOptions(method, data))
   if (!response.ok) {
     const body = await response.text()
@@ -51,8 +56,7 @@ function transactionListPath(limit, offset, personIds) {
 }
 
 export const api = {
-  // Sets the csrftoken cookie that every write request echoes back.
-  csrf: () => fetch(`${API_BASE}/auth/csrf`, { credentials: 'include' }),
+  csrf: fetchCsrfCookie,
   // On the LAN the PIN also unlocks access management, so the gate re-reads the status after it changes.
   login: async (pin) => {
     const result = await post('/auth/admin-login', { pin })
@@ -109,6 +113,3 @@ export const api = {
 
   stats: () => request('/stats'),
 }
-
-/** Payment page with a QR code; opened in a new tab rather than fetched. */
-export const payBySquareUrl = (personId) => `${API_BASE}/persons/${personId}/pay-by-square/`

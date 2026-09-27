@@ -4,10 +4,12 @@ from io import BytesIO
 
 import qrcode
 from django.utils.html import escape
+from django.core import signing
 from qrcode.constants import ERROR_CORRECT_M
 from qrcode.image.pil import PilImage
 
 CURRENCY = "EUR"
+PAY_LINK_SALT = "pay-by-square"
 
 PAYMENT_PAGE_TEMPLATE = """
 <html>
@@ -24,6 +26,16 @@ PAYMENT_PAGE_TEMPLATE = """
   </body>
 </html>
 """
+
+
+def pay_link_token(person):
+    """A signed person id: the link is shared with guests, so a guessable id would expose everyone's debt."""
+    return signing.dumps(person.pk, salt=PAY_LINK_SALT)
+
+
+def person_id_from_pay_link(token):
+    """Return the person id a pay link was signed for; raises signing.BadSignature for a forged one."""
+    return signing.loads(token, salt=PAY_LINK_SALT)
 
 
 def build_spd_payload(account, amount, variable_symbol, message):

@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from . import google_auth
 
 # Reachable without signing in: the login flow itself, and Pay by Square links shared with guests.
-OPEN_PATHS = re.compile(r"^/api/(auth/(csrf|me|google|google-logout)|persons/\d+/pay-by-square/)")
+OPEN_PATHS = re.compile(r"^/api/(auth/(csrf|me|google|google-logout)|pay/[^/]+/)")
 
 
 class GoogleAuthMiddleware:

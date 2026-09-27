@@ -83,7 +83,9 @@ class PublicDomainGateTests(GoogleAuthTestCase):
     def test_pay_by_square_links_stay_open(self):
         guest = Person.objects.create(name="Guest", is_guest=True)
 
-        response = self.public("get", f"/api/persons/{guest.id}/pay-by-square/")
+        pay_url = self.client.get(f"/api/persons/{guest.id}/").data["pay_by_square_url"]
+
+        response = self.public("get", pay_url)
 
         # 400 "No debt to pay" comes from the view, so the gate let the request through.
         self.assertEqual(response.status_code, 400)

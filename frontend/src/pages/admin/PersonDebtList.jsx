@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, payBySquareUrl } from '../../api'
+import { api } from '../../api'
 import { EmptyState } from '../../components/EmptyState'
 import { Icon } from '../../components/Icon'
 import { useDialog } from '../../lib/dialogContext'
@@ -56,7 +56,7 @@ function DebtActions({ person, debt, onReset }) {
     <>
       <button
         className="btn btn-sm btn-primary w-100 d-inline-flex align-items-center justify-content-center gap-2"
-        onClick={() => window.open(payBySquareUrl(person.id), '_blank')}
+        onClick={() => window.open(person.pay_by_square_url, '_blank')}
       >
         <Icon name="euro" size={13} /> Pay by Square
       </button>

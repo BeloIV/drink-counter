@@ -1,6 +1,7 @@
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
+from django.core import signing
 from django.db.models import Count, F, Max, ProtectedError, Sum
 from django.http import HttpResponse, JsonResponse
 from django.middleware.csrf import get_token
@@ -14,7 +15,7 @@ from rest_framework.views import APIView
 
 from . import google_auth, services
 from .models import AllowedEmail, BrewBatch, Category, CoffeePreset, Item, Person, StockCheck, Transaction
-from .payments import render_payment_page
+from .payments import person_id_from_pay_link, render_payment_page
 from .permissions import CanManageAccess, IsAdminSession, ReadOnlyOrAdmin, can_manage_access
 from .serializers import (
     AdminLoginSerializer, AllowedEmailSerializer, BrewBatchCreateSerializer, BrewBatchSerializer,
@@ -162,7 +163,11 @@ class ResetPersonDebtView(APIView):
 
 
 class PayBySquareView(APIView):
-    def get(self, request, pk):
+    def get(self, request, token):
+        try:
+            pk = person_id_from_pay_link(token)
+        except signing.BadSignature:
+            raise NotFound({"error": "Person not found"}) from None
         person = get_or_not_found(Person.objects.all(), pk, "Person")
         debt = services.session_debt(person)
         if debt <= 0:

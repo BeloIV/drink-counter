@@ -127,8 +127,21 @@ _HTTPS = os.environ.get("HTTPS", "false").lower() == "true"
 CSRF_COOKIE_SECURE = _HTTPS
 SESSION_COOKIE_SECURE = _HTTPS
 
+# Throttle counters must be shared by all gunicorn workers, or each worker allows its own quota.
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': '/tmp/drink-counter-cache',
+    }
+}
+
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'core.authentication.CsrfSessionAuthentication',
+    ],
+    # nginx replaces X-Forwarded-For with the one client address it trusts.
+    'NUM_PROXIES': 1,
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],

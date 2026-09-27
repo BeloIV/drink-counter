@@ -1,17 +1,22 @@
 from decimal import Decimal
 
+from django.core import signing
+from django.core.cache import cache
 from django.test import override_settings
-from rest_framework.test import APITestCase
+from rest_framework.test import APIClient, APITestCase
 
 from .models import (
     BrewBatch, Category, CoffeePreset, Item, Payment, Person, Session, StockCheck, Transaction,
 )
+from .payments import PAY_LINK_SALT
 
 
 class ApiTestCase(APITestCase):
     """Shared fixtures: one item per pricing mode and a few people."""
 
     def setUp(self):
+        # Throttle counters live in a shared cache and would carry over between tests.
+        cache.clear()
         self.beer_category = Category.objects.create(name="Beer")
         self.coffee_category = Category.objects.create(name="Coffee")
         self.cold_brew_category = Category.objects.create(name="Cold Brew")
@@ -485,20 +490,31 @@ class SessionAndDebtTests(ApiTestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(Transaction.objects.count(), 1)
 
+    def pay_by_square_url(self, person):
+        return self.client.get(f"/api/persons/{person.id}/").data["pay_by_square_url"]
+
     @override_settings(PAYMENT_IBAN="SK0000000000000000000000")
     def test_pay_by_square_renders_payment_page(self):
         self.order(self.alice, self.beer)
 
-        response = self.client.get(f"/api/persons/{self.alice.id}/pay-by-square/")
+        response = self.client.get(self.pay_by_square_url(self.alice))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "SK0000000000000000000000")
         self.assertContains(response, "1.50 EUR")
 
     def test_pay_by_square_without_debt_is_rejected(self):
-        response = self.client.get(f"/api/persons/{self.bob.id}/pay-by-square/")
+        response = self.client.get(self.pay_by_square_url(self.bob))
 
         self.assertEqual(response.status_code, 400)
+
+    def test_pay_by_square_link_cannot_be_forged(self):
+        self.order(self.alice, self.beer)
+        forged_token = signing.dumps(self.alice.id, key="attacker-key", salt=PAY_LINK_SALT)
+
+        self.assertEqual(self.client.get(f"/api/pay/{forged_token}/").status_code, 404)
+        self.assertEqual(self.client.get(f"/api/pay/{self.alice.id}/").status_code, 404)
+        self.assertEqual(self.client.get(f"/api/persons/{self.alice.id}/pay-by-square/").status_code, 404)
 
 
 class StatsTests(ApiTestCase):
@@ -514,6 +530,14 @@ class StatsTests(ApiTestCase):
 
 @override_settings(ADMIN_PIN="4321")
 class AdminAuthTests(APITestCase):
+    def setUp(self):
+        cache.clear()
+
+    def wrong_pin(self, client_ip):
+        return self.client.post(
+            "/api/auth/admin-login", {"pin": "0000"}, format="json", HTTP_X_FORWARDED_FOR=client_ip,
+        )
+
     def test_correct_pin_grants_admin_session(self):
         login = self.client.post("/api/auth/admin-login", {"pin": "4321"}, format="json")
         check = self.client.get("/api/auth/admin-check")
@@ -532,3 +556,44 @@ class AdminAuthTests(APITestCase):
         self.client.post("/api/auth/admin-logout")
 
         self.assertEqual(self.client.get("/api/auth/admin-check").status_code, 403)
+
+    def test_pin_guessing_is_throttled_per_client(self):
+        for _ in range(10):
+            self.wrong_pin("203.0.113.7")
+
+        self.assertEqual(self.wrong_pin("203.0.113.7").status_code, 429)
+        self.assertEqual(self.wrong_pin("203.0.113.8").status_code, 401)
+
+    def test_forged_forwarded_for_entries_do_not_reset_the_throttle(self):
+        for attempt in range(10):
+            self.wrong_pin(f"10.0.0.{attempt}, 203.0.113.7")
+
+        self.assertEqual(self.wrong_pin("10.0.0.99, 203.0.113.7").status_code, 429)
+
+
+class CsrfTests(ApiTestCase):
+    """Admin rights are a session flag, not a Django user, so DRF's own check would skip them."""
+
+    def setUp(self):
+        super().setUp()
+        self.client = APIClient(enforce_csrf_checks=True)
+        self.login_as_admin()
+
+    def test_write_without_token_is_rejected(self):
+        response = self.client.post("/api/categories/", {"name": "Wine"}, format="json")
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(Category.objects.filter(name="Wine").exists())
+
+    def test_kiosk_order_without_token_is_rejected(self):
+        self.assertEqual(self.order(self.alice, self.beer).status_code, 403)
+
+    def test_write_with_token_succeeds(self):
+        token = self.client.get("/api/auth/csrf").json()["csrftoken"]
+
+        response = self.client.post("/api/categories/", {"name": "Wine"}, format="json", HTTP_X_CSRFTOKEN=token)
+
+        self.assertEqual(response.status_code, 201)
+
+    def test_reads_need_no_token(self):
+        self.assertEqual(self.client.get("/api/items/").status_code, 200)

@@ -35,7 +35,7 @@ urlpatterns = [
     path("transactions/<int:pk>", TransactionDetailView.as_view()),
     path("transactions/undo", TransactionUndoView.as_view()),
     path("persons/<int:pk>/reset-debt", ResetPersonDebtView.as_view()),
-    path("persons/<int:pk>/pay-by-square/", PayBySquareView.as_view(), name="pay-by-square"),
+    path("pay/<str:token>/", PayBySquareView.as_view(), name="pay-by-square"),
     path("items/<int:pk>/set-stock", ItemSetStockView.as_view(), name="item-set-stock"),
     path("items/<int:pk>/settle", ItemSettleView.as_view(), name="item-settle"),
     path("stats", StatsView.as_view()),

@@ -5,9 +5,9 @@ services:
     environment:
       POSTGRES_DB: drinkdb
       POSTGRES_USER: drinkuser
-      POSTGRES_PASSWORD: drinkpass
-    ports:
-      - "5437:5432"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    # No published port: the backend reaches the database on the compose network,
+    # and backups run pg_dump through docker exec.
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -27,7 +27,7 @@ services:
       PYTHONUNBUFFERED: "1"
       POSTGRES_DB: drinkdb
       POSTGRES_USER: drinkuser
-      POSTGRES_PASSWORD: drinkpass
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
     command: >

@@ -38,11 +38,12 @@ Prerequisites: Docker with Compose v2 (`docker compose`, not `docker-compose`).
    cd drink-counter
    ```
 
-2. **Create the backend env file** – Compose requires it
+2. **Create the env files** – Compose requires both
    ```bash
+   cp .env.example .env                  # database password
    cp backend/.env.example backend/.env
    ```
-   Fill in at least `SECRET_KEY` and `ADMIN_PIN` (see [Configuration](#-configuration)).
+   Fill in `POSTGRES_PASSWORD` and at least `SECRET_KEY` and `ADMIN_PIN` (see [Configuration](#-configuration)).
 
 3. **Start the application**
    ```bash
@@ -63,7 +64,7 @@ Prerequisites: Docker with Compose v2 (`docker compose`, not `docker-compose`).
    | Swagger docs | – | http://localhost:8001/api/docs/ |
 
    In production the backend is not published on the host; nginx proxies `/api/`,
-   `/media/` and `/django-admin/` to it. PostgreSQL is published on host port `5437`.
+   `/media/` and `/django-admin/` to it. PostgreSQL is not published on the host either.
 
 5. **Create a superuser** (only needed for Django admin)
    ```bash
@@ -164,7 +165,7 @@ All under `/api/`. Paths have no trailing slash except router resources.
 | Resources (CRUD) | `persons/`, `categories/`, `items/`, `coffee-presets/` (alias `coffee-filters/`), `allowed-emails/` |
 | Orders | `POST transactions`, `GET transactions/list`, `PATCH/DELETE transactions/<id>`, `POST transactions/undo` |
 | Session | `GET session/active` (active session with summary), `POST session/reset` |
-| Debts | `POST persons/<id>/reset-debt`, `GET persons/<id>/pay-by-square/` |
+| Debts | `POST persons/<id>/reset-debt`, `GET pay/<signed token>/` (link in the person's `pay_by_square_url`) |
 | Stock | `POST items/<id>/set-stock`, `POST items/<id>/settle`, `brew-batches`, `stock-checks` |
 | Stats | `GET stats` |
 | Auth | `auth/csrf`, `auth/admin-login`, `auth/admin-logout`, `auth/admin-check`, `auth/me`, `auth/google`, `auth/google-logout` |
@@ -185,8 +186,12 @@ PUBLIC_HOST=drinkcounter.bytboyzserver.xyz
 GOOGLE_CLIENT_ID=
 BOOTSTRAP_ADMIN_EMAILS=
 ```
-Database credentials (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`,
-`POSTGRES_HOST`, `POSTGRES_PORT`) are set in `docker-compose.yaml`.
+The database password comes from `POSTGRES_PASSWORD` in the root `.env`; the other
+database settings (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_HOST`, `POSTGRES_PORT`)
+are set in `docker-compose.yaml`.
+
+Every write request needs the CSRF token from `GET /api/auth/csrf`, sent back in the
+`X-CSRFToken` header; the frontend fetches it by itself.
 
 ### Google sign-in (public domain)
 On `PUBLIC_HOST` only Google accounts from the allowlist get in; the kiosk on the LAN

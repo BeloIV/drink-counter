@@ -1,9 +1,11 @@
 from decimal import Decimal
 from urllib.parse import urlparse
 
+from django.urls import reverse
 from rest_framework import serializers
 
 from .avatars import thumbnail_url
+from .payments import pay_link_token
 from .models import (
     AllowedEmail, BrewBatch, BrewBatchIngredient, Category, CoffeePreset, Item, Person, Session, StockCheck,
     Transaction,
@@ -13,16 +15,20 @@ from .models import (
 class PersonSerializer(serializers.ModelSerializer):
     avatar = serializers.ImageField(required=False, allow_null=True)
     avatar_thumbnail = serializers.SerializerMethodField()
+    pay_by_square_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Person
         fields = [
             "id", "name", "email", "avatar", "avatar_thumbnail", "is_guest", "active",
-            "created_at", "total_beers", "total_coffees",
+            "created_at", "total_beers", "total_coffees", "pay_by_square_url",
         ]
 
     def get_avatar_thumbnail(self, person):
         return thumbnail_url(person.avatar)
+
+    def get_pay_by_square_url(self, person):
+        return reverse("pay-by-square", args=[pay_link_token(person)])
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
