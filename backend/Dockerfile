@@ -4,6 +4,9 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends postgresql-client \
  && rm -rf /var/lib/apt/lists/*
 
+# gunicorn needs a home directory for its control socket.
+RUN useradd --uid 1000 --create-home --shell /usr/sbin/nologin app
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
@@ -12,6 +15,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY --chown=app:app . .
+RUN mkdir -p media staticfiles && chown app:app media staticfiles
+
+USER app
 
 EXPOSE 8001

@@ -83,6 +83,7 @@ class PublicDomainGateTests(GoogleAuthTestCase):
 
         self.assertEqual(self.public("get", "/api/items/").status_code, 401)
 
+    @override_settings(PAYMENT_IBAN="SK0000000000000000000000")
     def test_pay_by_square_links_stay_open(self):
         guest = Person.objects.create(name="Guest", is_guest=True)
 

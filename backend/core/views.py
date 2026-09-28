@@ -169,6 +169,8 @@ class PayBySquareView(APIView):
         except signing.BadSignature:
             raise NotFound({"error": "Person not found"}) from None
         person = get_or_not_found(Person.objects.all(), pk, "Person")
+        if not settings.PAYMENT_IBAN:
+            return JsonResponse({"error": "PAYMENT_IBAN is not configured"}, status=503)
         debt = services.session_debt(person)
         if debt <= 0:
             return JsonResponse({"error": "No debt to pay"}, status=400)
@@ -261,7 +263,7 @@ class TransactionDetailView(APIView):
 class TransactionUndoView(APIView):
     def post(self, request):
         person_id = request.data.get("person_id")
-        if not person_id:
+        if not str(person_id or "").isdigit():
             return Response({"detail": "person_id required"}, status=400)
 
         last = services.last_session_transaction(person_id)

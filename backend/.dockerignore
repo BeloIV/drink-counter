@@ -1,0 +1,5 @@
+# Secrets come from compose env_file, uploads from the media volume.
+.env
+media/
+.ruff_cache/
+**/__pycache__/

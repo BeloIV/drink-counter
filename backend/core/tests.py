@@ -130,6 +130,11 @@ class RemoveTransactionTests(ApiTestCase):
 
         self.assertEqual(response.status_code, 400)
 
+    def test_undo_with_malformed_person_is_rejected(self):
+        response = self.client.post("/api/transactions/undo", {"person_id": "abc"}, format="json")
+
+        self.assertEqual(response.status_code, 400)
+
     def test_undo_with_nothing_to_undo_returns_404(self):
         response = self.client.post("/api/transactions/undo", {"person_id": self.bob.id}, format="json")
 
@@ -503,6 +508,7 @@ class SessionAndDebtTests(ApiTestCase):
         self.assertContains(response, "SK0000000000000000000000")
         self.assertContains(response, "1.50 EUR")
 
+    @override_settings(PAYMENT_IBAN="SK0000000000000000000000")
     def test_pay_by_square_without_debt_is_rejected(self):
         response = self.client.get(self.pay_by_square_url(self.bob))
 
@@ -515,6 +521,12 @@ class SessionAndDebtTests(ApiTestCase):
         self.assertEqual(self.client.get(f"/api/pay/{forged_token}/").status_code, 404)
         self.assertEqual(self.client.get(f"/api/pay/{self.alice.id}/").status_code, 404)
         self.assertEqual(self.client.get(f"/api/persons/{self.alice.id}/pay-by-square/").status_code, 404)
+
+    @override_settings(PAYMENT_IBAN="")
+    def test_pay_by_square_without_iban_is_unavailable(self):
+        self.order(self.alice, self.beer)
+
+        self.assertEqual(self.client.get(self.pay_by_square_url(self.alice)).status_code, 503)
 
 
 class StatsTests(ApiTestCase):
@@ -597,3 +609,20 @@ class CsrfTests(ApiTestCase):
 
     def test_reads_need_no_token(self):
         self.assertEqual(self.client.get("/api/items/").status_code, 200)
+
+
+class HardeningTests(ApiTestCase):
+    def test_api_answers_json_only(self):
+        response = self.client.get("/api/items/", HTTP_ACCEPT="text/html")
+
+        self.assertEqual(response.status_code, 406)
+
+    def test_django_admin_is_switched_off(self):
+        self.assertEqual(self.client.get("/django-admin/login/").status_code, 404)
+
+    def test_cookies_are_secure_over_https_only(self):
+        https = self.client.get("/api/auth/csrf", HTTP_X_FORWARDED_PROTO="https")
+        plain = self.client.get("/api/auth/csrf")
+
+        self.assertTrue(https.cookies["csrftoken"]["secure"])
+        self.assertFalse(plain.cookies["csrftoken"]["secure"])

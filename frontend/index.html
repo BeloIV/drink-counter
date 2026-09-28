@@ -22,13 +22,7 @@
 
     <title>Drink Counter</title>
     <!-- Anti-flash: apply saved theme before first paint -->
-    <script>
-      ;(function(){
-        var t = localStorage.getItem('theme')
-        if (t !== 'dark' && t !== 'light') t = 'dark'  // dark-first kiosk
-        document.documentElement.setAttribute('data-theme', t)
-      })()
-    </script>
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

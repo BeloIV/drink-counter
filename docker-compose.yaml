@@ -28,6 +28,9 @@ services:
       POSTGRES_DB: drinkdb
       POSTGRES_USER: drinkuser
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      # The non-superuser role the app connects as; scripts/create-app-db-role.sh sets it up.
+      DB_USER: ${DB_USER:-}
+      DB_PASSWORD: ${DB_PASSWORD:-}
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
     command: >
@@ -37,7 +40,7 @@ services:
         done &&
         python manage.py migrate --noinput &&
         python manage.py collectstatic --noinput --clear &&
-        gunicorn backend.wsgi:application --bind 0.0.0.0:8001 --workers 2 --timeout 90 --access-logfile -
+        gunicorn backend.wsgi:application --bind 0.0.0.0:8001 --workers 2 --timeout 90 --access-logfile - --access-logformat '%({x-real-ip}i)s %(t)s \"%(r)s\" %(s)s %(b)s \"%(a)s\"'
       "
     volumes:
       - media_files:/app/media
@@ -60,3 +63,11 @@ services:
 volumes:
   pgdata:
   media_files:
+
+networks:
+  default:
+    ipam:
+      config:
+        # Pinned: nginx trusts the Docker gateway range (172.16.0.0/12) for the client
+        # address and scheme, and an auto-assigned 192.168.x pool would break both.
+        - subnet: 172.30.0.0/16

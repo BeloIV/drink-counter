@@ -36,6 +36,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'core.middleware.SecureCookiesOverHttpsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'core.middleware.GoogleAuthMiddleware',
@@ -69,8 +70,9 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.environ.get("POSTGRES_DB", "drinkdb"),
-        "USER": os.environ.get("POSTGRES_USER", "drinkuser"),
-        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "drinkpass"),
+        # The app role (DB_*) owns the data but is no superuser; POSTGRES_* is the fallback.
+        "USER": os.environ.get("DB_USER") or os.environ.get("POSTGRES_USER", "drinkuser"),
+        "PASSWORD": os.environ.get("DB_PASSWORD") or os.environ.get("POSTGRES_PASSWORD", ""),
         "HOST": os.environ.get("POSTGRES_HOST", "db"),
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
         "CONN_MAX_AGE": 600,
@@ -119,9 +121,6 @@ CSRF_TRUSTED_ORIGINS = LAN_ORIGINS + [LOCAL_FRONTEND_ORIGIN] + PUBLIC_ORIGINS
 # Lax cookies keep the session working on the plain-HTTP LAN address.
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
-_HTTPS = os.environ.get("HTTPS", "false").lower() == "true"
-CSRF_COOKIE_SECURE = _HTTPS
-SESSION_COOKIE_SECURE = _HTTPS
 
 # Throttle counters must be shared by all gunicorn workers, or each worker allows its own quota.
 CACHES = {
@@ -138,6 +137,9 @@ REST_FRAMEWORK = {
     ],
     # nginx replaces X-Forwarded-For with the one client address it trusts.
     'NUM_PROXIES': 1,
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ] + (['rest_framework.renderers.BrowsableAPIRenderer'] if DEBUG else []),
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
@@ -154,7 +156,7 @@ SPECTACULAR_SETTINGS = {
 }
 
 ADMIN_PIN = os.getenv("ADMIN_PIN", "1234")
-PAYMENT_IBAN = os.getenv("PAYMENT_IBAN", "SK9365000000003650622489")
+PAYMENT_IBAN = os.getenv("PAYMENT_IBAN", "")
 # Google sign-in on PUBLIC_HOST. Without a client ID nobody can sign in there.
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 # Comma-separated emails that are always admins of the access page.

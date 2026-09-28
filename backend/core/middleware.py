@@ -1,5 +1,6 @@
 import re
 
+from django.conf import settings
 from django.http import JsonResponse
 
 from . import google_auth
@@ -29,3 +30,22 @@ class GoogleAuthMiddleware:
         if not google_auth.is_allowed(email):
             return JsonResponse({"google_access_denied": True, "email": email}, status=403)
         return self.get_response(request)
+
+
+class SecureCookiesOverHttpsMiddleware:
+    """
+    Mark the session and CSRF cookies Secure on HTTPS requests only. The kiosk uses
+    plain HTTP on the LAN, where a Secure cookie would never be stored, while the
+    public domain is always HTTPS and must not leak its session over HTTP.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if request.is_secure():
+            for name in (settings.SESSION_COOKIE_NAME, settings.CSRF_COOKIE_NAME):
+                if name in response.cookies:
+                    response.cookies[name]["secure"] = True
+        return response

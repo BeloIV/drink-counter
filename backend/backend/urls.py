@@ -1,12 +1,11 @@
 from django.conf import settings
-from django.contrib import admin
 from django.urls import include, path, re_path
 from django.views.static import serve
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
-    # /admin belongs to the React admin page, so Django admin gets its own prefix.
-    path("django-admin/", admin.site.urls),
+    # Django admin is switched off: nobody uses it and it only added a login to brute-force.
+    # To bring it back: path("django-admin/", admin.site.urls), plus the nginx location.
     path("api/", include("core.urls")),
     # Django serves uploads in every environment; this homelab has no CDN.
     re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),

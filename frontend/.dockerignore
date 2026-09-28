@@ -1,0 +1,3 @@
+# Dependencies are installed and the bundle built inside the image.
+node_modules/
+dist/

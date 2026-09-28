@@ -23,7 +23,7 @@ Docker Compose.
 
 | Part | Stack |
 |------|-------|
-| Backend | Python 3.12, Django 5.1, Django REST Framework, drf-spectacular, gunicorn, whitenoise, google-auth |
+| Backend | Python 3.12, Django 5.2 LTS, Django REST Framework, drf-spectacular, gunicorn, whitenoise, google-auth |
 | Frontend | React 19, Vite 7, React Router 7, Bootstrap 5, React Icons |
 | Database | PostgreSQL 16 |
 | Serving | nginx (static build + `/api` proxy), multi-stage frontend image |
@@ -60,30 +60,33 @@ Prerequisites: Docker with Compose v2 (`docker compose`, not `docker-compose`).
    |------|-----------|-------------|
    | App | http://localhost:5173 | http://localhost:5173 |
    | API | http://localhost:5173/api/ | http://localhost:8001/api/ |
-   | Django admin | http://localhost:5173/django-admin/ | http://localhost:8001/django-admin/ |
    | Swagger docs | – | http://localhost:8001/api/docs/ |
 
-   In production the backend is not published on the host; nginx proxies `/api/`,
-   `/media/` and `/django-admin/` to it. PostgreSQL is not published on the host either.
+   In production the backend is not published on the host; nginx proxies `/api/` and
+   `/media/` to it. PostgreSQL is not published on the host either. Django admin is
+   switched off (see `backend/backend/urls.py` to bring it back).
 
-5. **Create a superuser** (only needed for Django admin)
+5. **Move the app onto its own database role** (once, with the stack running)
    ```bash
-   docker compose exec backend python manage.py createsuperuser
+   scripts/create-app-db-role.sh
    ```
+   The backend then connects as `drinkdb_app`, which owns the data but is no
+   superuser; `drinkuser` stays for backups and maintenance.
 
 ## 📁 Project Structure
 
 ```
 drink-counter/
 ├── backend/
-│   ├── backend/            # Django settings, root URLs (api/, django-admin/, media/)
+│   ├── backend/            # Django settings, root URLs (api/, media/)
 │   ├── core/               # Main app
 │   │   ├── models.py       # Data model
 │   │   ├── services.py     # Business rules: pricing, stock, debts, brewing
 │   │   ├── views.py        # API views (validate + respond)
 │   │   ├── serializers.py
 │   │   ├── permissions.py  # Admin PIN / Google admin checks
-│   │   ├── middleware.py   # Google sign-in gate for PUBLIC_HOST
+│   │   ├── authentication.py # Session auth that always checks CSRF
+│   │   ├── middleware.py   # Google sign-in gate, Secure cookies on HTTPS
 │   │   ├── google_auth.py  # Google ID token verification
 │   │   ├── payments.py     # Pay by Square QR
 │   │   ├── avatars.py      # Avatar thumbnails
@@ -100,10 +103,12 @@ drink-counter/
 │   │   ├── styles/         # Design tokens
 │   │   ├── main.jsx        # Router and providers
 │   │   └── api.js          # API client
-│   ├── public/             # Fonts, manifest, service worker
+│   ├── public/             # Fonts, manifest, service worker, theme init script
 │   ├── nginx.conf          # Production server config
+│   ├── nginx/              # Security and proxy header snippets
 │   ├── Dockerfile          # Multi-stage: Vite build → nginx
 │   └── Dockerfile.dev      # Vite dev server
+├── scripts/              # create-app-db-role.sh
 ├── docker-compose.yaml     # Production
 └── docker-compose.dev.yaml # Development override
 ```
@@ -179,7 +184,6 @@ Full schema: `/api/docs/` (only with `DEBUG=true`).
 ```env
 SECRET_KEY=                 # Django secret key – set it in production
 DEBUG=false
-HTTPS=false                 # true behind HTTPS → secure cookies
 ADMIN_PIN=                  # PIN for the admin pages on the kiosk (default 1234)
 PAYMENT_IBAN=               # IBAN used in Pay by Square QR codes
 LAN_HOST=                   # LAN address the kiosk uses, e.g. 192.168.1.250
@@ -192,7 +196,14 @@ database settings (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_HOST`, `POSTGRES_PO
 are set in `docker-compose.yaml`.
 
 Every write request needs the CSRF token from `GET /api/auth/csrf`, sent back in the
-`X-CSRFToken` header; the frontend fetches it by itself.
+`X-CSRFToken` header; the frontend fetches it by itself. Session and CSRF cookies are
+marked Secure on HTTPS requests only, so the kiosk keeps working over plain HTTP on the LAN.
+
+### Security in front of the backend
+`frontend/nginx.conf` resolves the real client address behind Cloudflare and NPM,
+rate-limits the login endpoints, sends security headers (CSP, HSTS, nosniff) and trusts
+`X-Forwarded-Proto` only from the Docker network, which `docker-compose.yaml` pins to
+`172.30.0.0/16`. The backend runs as an unprivileged user and answers JSON only.
 
 ### Google sign-in (public domain)
 On `PUBLIC_HOST` only Google accounts from the allowlist get in; the kiosk on the LAN
