@@ -4,6 +4,7 @@ import { Icon } from '../../components/Icon'
 import { Modal } from '../../components/Modal'
 import { BAG_TARES, NO_BAG } from '../../lib/bagTares'
 import { parseDecimal } from '../../lib/numbers'
+import { formatEuro, formatQuantity } from '../../lib/units'
 
 const BAG_CHOICES = [...BAG_TARES, NO_BAG]
 // Smaller differences are plausible weighing noise and show as a warning, not an error.
@@ -71,13 +72,10 @@ function WeighingTable({ measured, tare, net, systemStock, difference }) {
   )
 }
 
-function CheckActions({ canSave, saveState, onSave, onClose }) {
-  if (saveState === 'saved') {
-    return <button className="btn btn-primary" onClick={onClose}>Hotovo</button>
-  }
+function CheckActions({ canSave, saveState, onSave, onSkip }) {
   return (
     <>
-      <button className="btn btn-outline-secondary" onClick={onClose}>Preskočiť</button>
+      <button className="btn btn-outline-secondary" onClick={onSkip}>Preskočiť</button>
       <button className="btn btn-primary" disabled={!canSave || saveState === 'saving'} onClick={onSave}>
         <Icon name="check" size={15} /> Zapísať kontrolu
       </button>
@@ -86,10 +84,10 @@ function CheckActions({ canSave, saveState, onSave, onClose }) {
 }
 
 /** Shown every few brews: weigh the bag, compare it with the stock the system expects and log the result. */
-export function CoffeeCheckModal({ item, onClose }) {
+export function CoffeeCheckModal({ item, onSaved, onSkip }) {
   const [measuredInput, setMeasuredInput] = useState('')
   const [bagIndex, setBagIndex] = useState(0)
-  // 'idle' | 'saving' | 'saved' | 'failed'
+  // 'idle' | 'saving' | 'failed'
   const [saveState, setSaveState] = useState('idle')
 
   const tare = BAG_CHOICES[bagIndex].grams
@@ -103,7 +101,7 @@ export function CoffeeCheckModal({ item, onClose }) {
     setSaveState('saving')
     try {
       await api.addStockCheck({ item_id: item.id, measured_grams: measured, tare_grams: tare })
-      setSaveState('saved')
+      onSaved()
     } catch {
       setSaveState('failed')
     }
@@ -111,11 +109,11 @@ export function CoffeeCheckModal({ item, onClose }) {
 
   return (
     <Modal
-      onClose={onClose}
+      onClose={onSkip}
       icon="scales"
       title="Kontrola zásoby kávy"
       subtitle="Každé 3 šálky — odváž sáčok a zapíšeme, koľko kávy ostalo."
-      actions={<CheckActions canSave={hasMeasurement} saveState={saveState} onSave={save} onClose={onClose} />}
+      actions={<CheckActions canSave={hasMeasurement} saveState={saveState} onSave={save} onSkip={onSkip} />}
     >
       <p className="fw-semibold mb-3 d-flex align-items-center gap-2">
         <Icon name="coffee" /> {item.name}
@@ -133,7 +131,6 @@ export function CoffeeCheckModal({ item, onClose }) {
           placeholder="napr. 320"
           value={measuredInput}
           onChange={(event) => setMeasuredInput(event.target.value)}
-          disabled={saveState === 'saved'}
           data-autofocus
         />
       </div>
@@ -142,9 +139,6 @@ export function CoffeeCheckModal({ item, onClose }) {
         <WeighingTable measured={measured} tare={tare} net={net} systemStock={systemStock} difference={difference} />
       )}
 
-      {saveState === 'saved' && (
-        <div className="alert alert-success py-2 mb-2 fs-sm">Zapísané — história je v Admin → Kontroly kávy.</div>
-      )}
       {saveState === 'failed' && (
         <div className="alert alert-danger py-2 mb-2 fs-sm">Kontrolu sa nepodarilo zapísať, skús znova.</div>
       )}
@@ -153,6 +147,51 @@ export function CoffeeCheckModal({ item, onClose }) {
         <div className="alert alert-warning py-2 mb-0 fs-sm">
           Ak zásoby nesedia, uprav ich v <strong>Admin → položka → zásoby</strong>.
         </div>
+      )}
+    </Modal>
+  )
+}
+
+const orderQuantityDigits = (quantity) => (Number.isInteger(Number(quantity)) ? 0 : 1)
+
+function RecordedOrders({ orders }) {
+  return (
+    <table className="table table-sm mb-3">
+      <tbody>
+        {orders.map((order) => (
+          <tr key={order.id}>
+            <td className="fw-semibold">{order.person?.name}</td>
+            <td className="num">
+              {formatQuantity(order.quantity, order.item?.pricing_mode, orderQuantityDigits(order.quantity))}
+            </td>
+            <td className="num fw-bold tone-accent text-end">+{formatEuro(order.price_at_time)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+/** Follows the stock check, so it is clear the coffee itself was booked whatever happened with the weighing. */
+export function CoffeeCheckConfirmationModal({ orders, outcome, onClose }) {
+  const itemName = orders[0]?.item?.name
+
+  return (
+    <Modal
+      onClose={onClose}
+      icon="check"
+      size="sm"
+      title="Káva je zapísaná"
+      subtitle={itemName}
+      actions={<button className="btn btn-primary" onClick={onClose}>OK</button>}
+    >
+      <RecordedOrders orders={orders} />
+      {outcome === 'saved' ? (
+        <div className="alert alert-success py-2 mb-0 fs-sm">
+          Kontrola zásoby je zapísaná — história je v Admin → Kontroly kávy.
+        </div>
+      ) : (
+        <div className="alert alert-secondary py-2 mb-0 fs-sm">Kontrola zásoby bola preskočená.</div>
       )}
     </Modal>
   )

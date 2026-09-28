@@ -7,7 +7,7 @@ import { isInCategory } from '../../lib/categories'
 import { useDialog } from '../../lib/dialogContext'
 import { isMeasured } from '../../lib/units'
 import { CategoryStep } from './CategoryStep'
-import { CoffeeCheckModal } from './CoffeeCheckModal'
+import { CoffeeCheckConfirmationModal, CoffeeCheckModal } from './CoffeeCheckModal'
 import { DoneStep } from './DoneStep'
 import { ItemStep, PendingItemsButton } from './ItemStep'
 import { PersonStep } from './PersonStep'
@@ -96,8 +96,20 @@ export default function OrderPage() {
     <div className="container py-3">
       <PageHeader title="Drink Counter" icon="logo" onTitleClick={resetFlow} />
 
-      {submission.coffeeCheckItem && (
-        <CoffeeCheckModal item={submission.coffeeCheckItem} onClose={submission.closeCoffeeCheck} />
+      {submission.coffeeCheck && !submission.coffeeCheck.outcome && (
+        <CoffeeCheckModal
+          item={submission.coffeeCheck.item}
+          onSaved={() => submission.finishCoffeeCheck('saved')}
+          onSkip={() => submission.finishCoffeeCheck('skipped')}
+        />
+      )}
+
+      {submission.coffeeCheck?.outcome && (
+        <CoffeeCheckConfirmationModal
+          orders={submission.coffeeCheck.orders}
+          outcome={submission.coffeeCheck.outcome}
+          onClose={submission.closeCoffeeCheckConfirmation}
+        />
       )}
 
       <FlashAlert flash={notice} tone="success" className="" />

@@ -14,7 +14,8 @@ export function useOrderSubmission({ flow, data, notice, countdown }) {
   const [funnyMessage, setFunnyMessage] = useState(null)
   const [stockWarning, setStockWarning] = useState(null)
   const [debtWarning, setDebtWarning] = useState(null)
-  const [coffeeCheckItem, setCoffeeCheckItem] = useState(null)
+  // { item, orders, outcome }: outcome stays null while weighing, then 'saved' | 'skipped' for the confirmation.
+  const [coffeeCheck, setCoffeeCheck] = useState(null)
 
   const refreshAfterOrder = () => Promise.all([data.reloadSummary(), data.reloadItems()])
 
@@ -33,7 +34,7 @@ export function useOrderSubmission({ flow, data, notice, countdown }) {
     await refreshAfterOrder()
     notice.show(groupOrderNotice(item, quantity, groupSize))
     flow.setStep('person')
-    return created.find(needsStockCheck)
+    return created
   }
 
   const submitSingleOrder = async (item, quantity) => {
@@ -45,9 +46,10 @@ export function useOrderSubmission({ flow, data, notice, countdown }) {
     setLastOrder(created)
     await refreshAfterOrder()
     setFunnyMessage(getFunnyMessage())
-    countdown.start(DONE_COUNTDOWN_SECONDS)
+    // With a stock check due, the countdown waits until the check is confirmed, so the done step stays visible.
+    if (!needsStockCheck(created)) countdown.start(DONE_COUNTDOWN_SECONDS)
     flow.setStep('done')
-    return needsStockCheck(created) ? created : null
+    return [created]
   }
 
   const addItem = async (item, quantity) => {
@@ -55,10 +57,11 @@ export function useOrderSubmission({ flow, data, notice, countdown }) {
     if (!isGroup && !flow.selectedPerson) return
     setIsSubmitting(true)
     try {
-      const orderToCheck = isGroup
+      const orders = isGroup
         ? await submitGroupOrder(item, quantity)
         : await submitSingleOrder(item, quantity)
-      if (orderToCheck) setCoffeeCheckItem(orderToCheck.item)
+      const orderToCheck = orders.find(needsStockCheck)
+      if (orderToCheck) setCoffeeCheck({ item: orderToCheck.item, orders, outcome: null })
     } finally {
       setIsSubmitting(false)
     }
@@ -91,20 +94,26 @@ export function useOrderSubmission({ flow, data, notice, countdown }) {
     addItem(warning.item, warning.quantity)
   }
 
+  const closeCoffeeCheckConfirmation = () => {
+    setCoffeeCheck(null)
+    if (flow.step === 'done') countdown.start(DONE_COUNTDOWN_SECONDS)
+  }
+
   return {
     isSubmitting,
     lastOrder,
     funnyMessage,
     stockWarning,
     debtWarning,
-    coffeeCheckItem,
+    coffeeCheck,
     refreshAfterOrder,
     checkOrder,
     confirmStockWarning: () => addDespiteWarning(stockWarning, setStockWarning),
     dismissStockWarning: () => setStockWarning(null),
     confirmDebtWarning: () => addDespiteWarning(debtWarning, setDebtWarning),
     dismissDebtWarning: () => setDebtWarning(null),
-    closeCoffeeCheck: () => setCoffeeCheckItem(null),
+    finishCoffeeCheck: (outcome) => setCoffeeCheck((check) => ({ ...check, outcome })),
+    closeCoffeeCheckConfirmation,
     clearResult: () => {
       setFunnyMessage(null)
       setLastOrder(null)
