@@ -88,13 +88,22 @@ class TransactionCreateSerializer(serializers.Serializer):
     quantity = serializers.DecimalField(max_digits=8, decimal_places=3, required=False)
 
 
+class GroupTransactionCreateSerializer(serializers.Serializer):
+    person_ids = serializers.PrimaryKeyRelatedField(
+        source="people", queryset=Person.objects.all(), many=True, allow_empty=False,
+    )
+    item_id = serializers.PrimaryKeyRelatedField(source="item", queryset=Item.objects.all())
+    # Each person's share: pieces, grams or millilitres; defaults to one piece.
+    quantity = serializers.DecimalField(max_digits=8, decimal_places=3, required=False)
+
+
 class TransactionSerializer(serializers.ModelSerializer):
     person = PersonSerializer(read_only=True)
     item = ItemSerializer(read_only=True)
 
     class Meta:
         model = Transaction
-        fields = ["id", "session", "person", "item", "quantity", "price_at_time", "created_at", "paid"]
+        fields = ["id", "session", "person", "item", "quantity", "price_at_time", "group_id", "created_at", "paid"]
 
     paid = serializers.SerializerMethodField()
 

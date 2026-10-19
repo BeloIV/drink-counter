@@ -6,7 +6,8 @@ from .views import (
     BrewBatchView, CategoryViewSet,
     CoffeePresetViewSet, CsrfView, GoogleLoginView, GoogleLogoutView, HealthView, ItemSetStockView, ItemSettleView, ItemViewSet,
     PayBySquareView, PersonViewSet, ResetPersonDebtView, SessionActiveView, SessionResetView,
-    StatsView, StockCheckView, TransactionDetailView, TransactionListView, TransactionUndoView, TransactionView,
+    StatsView, StockCheckView, TransactionDetailView, TransactionGroupView, TransactionListView, TransactionUndoView,
+    TransactionView,
 )
 
 router = DefaultRouter()
@@ -31,7 +32,8 @@ urlpatterns = [
     path("session/active", SessionActiveView.as_view()),
     path("session/reset", SessionResetView.as_view()),
     path("transactions", TransactionView.as_view()),
-    path("transactions/list", TransactionListView.as_view()),
+    path("transactions/group", TransactionGroupView.as_view()),
+    path("transactions/list",TransactionListView.as_view()),
     path("transactions/<int:pk>", TransactionDetailView.as_view()),
     path("transactions/undo", TransactionUndoView.as_view()),
     path("persons/<int:pk>/reset-debt", ResetPersonDebtView.as_view()),

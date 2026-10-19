@@ -13,8 +13,9 @@ import { formatEuro } from '../../lib/units'
 import { CalendarDayCard } from './CalendarDayCard'
 import { EditTransactionModal } from './EditTransactionModal'
 import { PersonFilter } from './PersonFilter'
+import { GroupTransactionCard } from './GroupTransactionCard'
 import { TransactionCard } from './TransactionCard'
-import { groupByDay } from './transactionRules'
+import { groupBookings, groupByDay } from './transactionRules'
 import { useTransactions } from './useTransactions'
 
 const ERROR_DURATION_MS = 5000
@@ -63,8 +64,10 @@ function ListView({ list, onEdit, onDelete }) {
   return (
     <>
       <div className="d-flex flex-column gap-3">
-        {list.transactions.map((transaction, index) => (
-          <TransactionCard key={transaction.id} transaction={transaction} index={index} onEdit={onEdit} onDelete={onDelete} />
+        {groupBookings(list.transactions).map(({ key, transactions }, index) => (
+          transactions.length > 1
+            ? <GroupTransactionCard key={key} transactions={transactions} index={index} onEdit={onEdit} onDelete={onDelete} />
+            : <TransactionCard key={key} transaction={transactions[0]} index={index} onEdit={onEdit} onDelete={onDelete} />
         ))}
       </div>
       {list.hasMore && (

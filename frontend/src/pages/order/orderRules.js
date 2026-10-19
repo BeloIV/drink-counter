@@ -52,6 +52,6 @@ export function groupOrderNotice(item, quantity, groupSize) {
   return `Pridaný 1 ks pre ${groupSize} ľudí`
 }
 
-/** The backend flags every tenth brew of a coffee whose stock is tracked. */
-export const needsStockCheck = (transaction) =>
-  transaction.trigger_check && transaction.item?.stock_quantity !== null
+/** The backend flags every few brews of a coffee whose stock is tracked; a booking is a transaction or a group. */
+export const needsStockCheck = (booking) =>
+  booking.trigger_check && booking.item?.stock_quantity !== null

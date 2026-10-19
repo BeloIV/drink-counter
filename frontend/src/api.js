@@ -95,6 +95,7 @@ export const api = {
   sessionActive: () => request('/session/active'),
 
   addTransaction: (payload) => post('/transactions', payload),
+  addGroupTransactions: (payload) => post('/transactions/group', payload),
   getTransactions: (limit, offset, personIds = []) => request(transactionListPath(limit, offset, personIds)),
   updateTransaction: (id, payload) => patch(`/transactions/${id}`, payload),
   deleteTransaction: (id) => remove(`/transactions/${id}`),

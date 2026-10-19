@@ -1,4 +1,5 @@
 """Business rules for orders, stock, brewing and settling debts."""
+import uuid
 from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal
 from typing import NamedTuple
 
@@ -190,17 +191,33 @@ def record_stock_check(item, measured_grams, tare_grams):
 
 # ── Transactions ──────────────────────────────────────────────────────────
 
+def _record_order(session, person, item, quantity, price, group_id=None):
+    created = Transaction.objects.create(
+        session=session, person=person, item=item,
+        quantity=quantity, price_at_time=price, group_id=group_id,
+    )
+    increment_person_counters(person.pk, item, quantity)
+    deduct_stock(item, quantity)
+    return created
+
+
 def create_transaction(person, item, quantity):
     """Record an order and apply its side effects; return (transaction, stock_check_due)."""
     session = active_session()
     price = calculate_price(item, quantity)
     with db_transaction.atomic():
-        created = Transaction.objects.create(
-            session=session, person=person, item=item,
-            quantity=quantity, price_at_time=price,
-        )
-        increment_person_counters(person.pk, item, quantity)
-        deduct_stock(item, quantity)
+        created = _record_order(session, person, item, quantity, price)
+        stock_check_due = register_coffee_brew(item)
+    return created, stock_check_due
+
+
+def create_group_transactions(people, item, quantity):
+    """Book the same quantity to each person as one brew; return (transactions, stock_check_due)."""
+    session = active_session()
+    price = calculate_price(item, quantity)
+    group_id = uuid.uuid4()
+    with db_transaction.atomic():
+        created = [_record_order(session, person, item, quantity, price, group_id) for person in people]
         stock_check_due = register_coffee_brew(item)
     return created, stock_check_due
 
@@ -238,12 +255,13 @@ def settle_item_stock(item, people):
     value_shares = split_evenly(total_value, len(people))
     quantity_shares = split_evenly(remaining, len(people))
     session = active_session()
+    group_id = uuid.uuid4()
 
     with db_transaction.atomic():
         transactions = [
             Transaction.objects.create(
                 session=session, person=person, item=item,
-                quantity=quantity, price_at_time=value,
+                quantity=quantity, price_at_time=value, group_id=group_id,
             )
             for person, quantity, value in zip(people, quantity_shares, value_shares, strict=True)
         ]

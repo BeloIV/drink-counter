@@ -842,6 +842,37 @@ code {
   border: 1px solid var(--border);
 }
 .tx-tile-details { margin-top: 0.5rem; text-align: center; font-size: var(--fs-xs); line-height: 1.4; }
+/* A shared order reads as one unit: a soft panel around the avatars and each share. */
+.tx-tile--group {
+  width: 200px;
+  max-width: 100%;
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+}
+.tx-tile--group .avatar-stack .avatar { box-shadow: 0 0 0 2px var(--surface-2); }
+.tx-tile--group .tx-tile-badge { background: var(--surface-2); }
+.tx-tile-members { width: 100%; margin-top: var(--space-2); font-size: var(--fs-xs); }
+.tx-tile-member {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--border);
+}
+.tx-group-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border);
+}
+
+/* Overlapping avatars of a group order; the ring separates them on any background. */
+.avatar-stack { display: inline-flex; flex-shrink: 0; }
+.avatar-stack .avatar { box-shadow: 0 0 0 2px var(--surface); }
+.avatar-stack .avatar + .avatar { margin-left: -14px; }
+.avatar-stack-more { background: var(--surface-3); color: var(--text-muted); }
 .qty-step.qty-step--small { width: 36px; height: 36px; }
 .avatar-btn .avatar { transition: opacity 0.2s; }
 .avatar.avatar--dimmed { opacity: 0.4; }

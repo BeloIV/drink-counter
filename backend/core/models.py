@@ -89,6 +89,8 @@ class Transaction(models.Model):
     # Pieces, grams or millilitres, depending on the item's pricing mode.
     quantity = models.DecimalField(max_digits=8, decimal_places=3, default=Decimal("1.000"))
     price_at_time = models.DecimalField(max_digits=10, decimal_places=3)
+    # Shared by the transactions of one group order; null for a single order.
+    group_id = models.UUIDField(null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

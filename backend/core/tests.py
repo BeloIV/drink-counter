@@ -1,8 +1,12 @@
+from datetime import timedelta
 from decimal import Decimal
+from io import StringIO
 
 from django.core import signing
 from django.core.cache import cache
+from django.core.management import call_command
 from django.test import override_settings
+from django.utils import timezone
 from rest_framework.test import APIClient, APITestCase
 
 from .models import (
@@ -49,6 +53,12 @@ class ApiTestCase(APITestCase):
             payload["quantity"] = quantity
         return self.client.post("/api/transactions", payload, format="json")
 
+    def group_order(self, people, item, quantity=None):
+        payload = {"person_ids": [person.id for person in people], "item_id": item.id}
+        if quantity is not None:
+            payload["quantity"] = quantity
+        return self.client.post("/api/transactions/group", payload, format="json")
+
 
 class CreateTransactionTests(ApiTestCase):
     def test_per_item_order_charges_price_and_counts_beer(self):
@@ -92,6 +102,29 @@ class CreateTransactionTests(ApiTestCase):
         responses = [self.order(self.alice, self.coffee, quantity="1") for _ in range(6)]
 
         self.assertEqual([r.data["trigger_check"] for r in responses], [False, False, True] * 2)
+
+    def test_group_coffee_counts_as_one_brew(self):
+        responses = [self.group_order([self.alice, self.bob, self.guest], self.coffee, quantity="5") for _ in range(3)]
+
+        self.assertEqual([r.data["trigger_check"] for r in responses], [False, False, True])
+
+    def test_group_order_books_everyone_and_returns_stock_after_the_whole_group(self):
+        response = self.group_order([self.alice, self.bob], self.coffee, quantity="15")
+
+        self.assertEqual(response.status_code, 201)
+        group_ids = {transaction["group_id"] for transaction in response.data["transactions"]}
+        self.assertEqual(len(response.data["transactions"]), 2)
+        self.assertEqual(len(group_ids), 1)
+        self.assertIsNotNone(group_ids.pop())
+        self.assertEqual(Decimal(response.data["item"]["stock_quantity"]), Decimal("70"))
+        self.alice.refresh_from_db()
+        self.assertEqual(self.alice.total_coffees, 1)
+
+    def test_group_order_needs_someone(self):
+        response = self.group_order([], self.coffee, quantity="15")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Transaction.objects.count(), 0)
 
     def test_per_ml_order_has_no_surcharge_and_no_counters(self):
         CoffeePreset.objects.create(g_min=Decimal("0"), g_max=Decimal("1000"), extra_eur=Decimal("5"))
@@ -228,6 +261,7 @@ class SettleItemTests(ApiTestCase):
         quantities = [Decimal(t["quantity"]) for t in response.data["settled"]]
         self.assertEqual(shares, [Decimal("3.333"), Decimal("3.333"), Decimal("3.334")])
         self.assertEqual(quantities, [Decimal("3.333"), Decimal("3.333"), Decimal("3.334")])
+        self.assertEqual(len({t["group_id"] for t in response.data["settled"]}), 1)
         self.beer.refresh_from_db()
         self.assertEqual(self.beer.stock_quantity, Decimal("0"))
         self.assertFalse(self.beer.active)
@@ -626,3 +660,50 @@ class HardeningTests(ApiTestCase):
 
         self.assertTrue(https.cookies["csrftoken"]["secure"])
         self.assertFalse(plain.cookies["csrftoken"]["secure"])
+
+
+class PairGroupOrdersTests(ApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.start = timezone.now()
+
+    def book_at(self, person, quantity, seconds):
+        self.order(person, self.coffee, quantity=quantity)
+        transaction = Transaction.objects.latest("id")
+        Transaction.objects.filter(pk=transaction.pk).update(created_at=self.start + timedelta(seconds=seconds))
+
+    def test_parallel_orders_of_different_people_are_paired(self):
+        self.book_at(self.alice, "15", 0)
+        self.book_at(self.bob, "15", 1)
+
+        call_command("pair_group_orders", "--apply", stdout=StringIO())
+
+        group_ids = set(Transaction.objects.values_list("group_id", flat=True))
+        self.assertEqual(len(group_ids), 1)
+        self.assertIsNotNone(group_ids.pop())
+
+    def test_orders_apart_in_time_or_quantity_stay_single(self):
+        self.book_at(self.alice, "15", 0)
+        self.book_at(self.bob, "15", 30)
+        self.book_at(self.guest, "20", 30)
+
+        call_command("pair_group_orders", "--apply", stdout=StringIO())
+
+        self.assertFalse(Transaction.objects.filter(group_id__isnull=False).exists())
+
+    def test_settlement_with_rounding_remainder_is_paired_whole(self):
+        self.book_at(self.alice, "3.333", 0)
+        self.book_at(self.bob, "3.333", 0)
+        self.book_at(self.guest, "3.334", 0)
+
+        call_command("pair_group_orders", "--apply", stdout=StringIO())
+
+        self.assertEqual(Transaction.objects.filter(group_id__isnull=False).count(), 3)
+
+    def test_without_apply_nothing_is_written(self):
+        self.book_at(self.alice, "15", 0)
+        self.book_at(self.bob, "15", 0)
+
+        call_command("pair_group_orders", stdout=StringIO())
+
+        self.assertFalse(Transaction.objects.filter(group_id__isnull=False).exists())

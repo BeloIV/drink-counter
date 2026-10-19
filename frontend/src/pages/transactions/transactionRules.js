@@ -16,6 +16,33 @@ export function groupByDay(transactions) {
   return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a))
 }
 
+/**
+ * Gather the transactions of one group order into a single entry, in list order.
+ * The list holds only the people the filter matched, so a group shrinks to what was found.
+ */
+export function groupBookings(transactions) {
+  const entries = []
+  const entriesByGroup = new Map()
+  for (const transaction of transactions) {
+    const groupEntry = transaction.group_id && entriesByGroup.get(transaction.group_id)
+    if (groupEntry) {
+      groupEntry.transactions.push(transaction)
+      continue
+    }
+    const entry = { key: transaction.group_id ?? `tx-${transaction.id}`, transactions: [transaction] }
+    if (transaction.group_id) entriesByGroup.set(transaction.group_id, entry)
+    entries.push(entry)
+  }
+  // Within a group, keep the order the people were booked in.
+  for (const entry of entries) entry.transactions.sort((a, b) => a.id - b.id)
+  return entries
+}
+
+export const bookingTotals = (transactions) => ({
+  price: transactions.reduce((sum, transaction) => sum + Number(transaction.price_at_time), 0),
+  quantity: transactions.reduce((sum, transaction) => sum + Number(transaction.quantity), 0),
+})
+
 export function formatDayLabel(dateKey) {
   const [year, month, day] = dateKey.split('-').map(Number)
   return new Date(year, month - 1, day)

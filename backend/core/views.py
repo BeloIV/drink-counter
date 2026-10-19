@@ -19,7 +19,7 @@ from .payments import person_id_from_pay_link, render_payment_page
 from .permissions import CanManageAccess, IsAdminSession, ReadOnlyOrAdmin, can_manage_access
 from .serializers import (
     AdminLoginSerializer, AllowedEmailSerializer, BrewBatchCreateSerializer, BrewBatchSerializer,
-    CategorySerializer, CoffeePresetSerializer, ItemSerializer, PersonSerializer,
+    CategorySerializer, CoffeePresetSerializer, GroupTransactionCreateSerializer, ItemSerializer, PersonSerializer,
     SessionSerializer, StockCheckCreateSerializer, StockCheckSerializer, TransactionCreateSerializer, TransactionPatchSerializer,
     TransactionSerializer,
 )
@@ -195,6 +195,28 @@ class TransactionView(APIView):
         data = TransactionSerializer(created).data
         data["trigger_check"] = stock_check_due
         return Response(data, status=status.HTTP_201_CREATED)
+
+
+class TransactionGroupView(APIView):
+    """Book one order for several people at once; shared coffee counts as a single brew."""
+
+    throttle_classes = [TransactionThrottle]
+
+    def post(self, request):
+        serializer = GroupTransactionCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        item = serializer.validated_data["item"]
+        quantity = serializer.validated_data.get("quantity", Decimal("1.000"))
+
+        created, stock_check_due = services.create_group_transactions(
+            serializer.validated_data["people"], item, quantity,
+        )
+        # The item now holds the stock left after the whole group, which the stock check compares against.
+        return Response({
+            "transactions": TransactionSerializer(created, many=True).data,
+            "item": ItemSerializer(item).data,
+            "trigger_check": stock_check_due,
+        }, status=status.HTTP_201_CREATED)
 
 
 class TransactionListView(APIView):

@@ -19,22 +19,20 @@ export function useOrderSubmission({ flow, data, notice, countdown }) {
 
   const refreshAfterOrder = () => Promise.all([data.reloadSummary(), data.reloadItems()])
 
+  // One request for the whole group: the backend counts shared coffee as a single brew
+  // and returns the stock left after everyone, so a stock check compares against the right number.
   const submitGroupOrder = async (item, quantity) => {
     const groupSize = flow.selectedPersons.length
     const perPerson = quantityPerPerson(item, quantity, groupSize)
-    const created = await Promise.all(
-      flow.selectedPersons.map((person) =>
-        api.addTransaction({
-          person_id: person.id,
-          item_id: item.id,
-          ...(isMeasured(item.pricing_mode) ? { quantity: perPerson } : {}),
-        }),
-      ),
-    )
+    const booking = await api.addGroupTransactions({
+      person_ids: flow.selectedPersons.map((person) => person.id),
+      item_id: item.id,
+      ...(isMeasured(item.pricing_mode) ? { quantity: perPerson } : {}),
+    })
     await refreshAfterOrder()
     notice.show(groupOrderNotice(item, quantity, groupSize))
     flow.setStep('person')
-    return created
+    return booking
   }
 
   const submitSingleOrder = async (item, quantity) => {
@@ -49,7 +47,7 @@ export function useOrderSubmission({ flow, data, notice, countdown }) {
     // With a stock check due, the countdown waits until the check is confirmed, so the done step stays visible.
     if (!needsStockCheck(created)) countdown.start(DONE_COUNTDOWN_SECONDS)
     flow.setStep('done')
-    return [created]
+    return { transactions: [created], item: created.item, trigger_check: created.trigger_check }
   }
 
   const addItem = async (item, quantity) => {
@@ -57,11 +55,12 @@ export function useOrderSubmission({ flow, data, notice, countdown }) {
     if (!isGroup && !flow.selectedPerson) return
     setIsSubmitting(true)
     try {
-      const orders = isGroup
+      const booking = isGroup
         ? await submitGroupOrder(item, quantity)
         : await submitSingleOrder(item, quantity)
-      const orderToCheck = orders.find(needsStockCheck)
-      if (orderToCheck) setCoffeeCheck({ item: orderToCheck.item, orders, outcome: null })
+      if (needsStockCheck(booking)) {
+        setCoffeeCheck({ item: booking.item, orders: booking.transactions, outcome: null })
+      }
     } finally {
       setIsSubmitting(false)
     }
