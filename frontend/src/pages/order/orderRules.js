@@ -41,17 +41,6 @@ export function quantityPerPerson(item, quantity, groupSize) {
   return undefined
 }
 
-export function groupOrderNotice(item, quantity, groupSize) {
-  if (item.pricing_mode === 'per_ml') {
-    return `Pridané ${Number(quantity)} ml na osobu pre ${groupSize} ľudí`
-  }
-  if (item.pricing_mode === 'per_gram') {
-    const perPerson = quantityPerPerson(item, quantity, groupSize)
-    return `Pridané ${Number(quantity)} g → ${perPerson.toFixed(1)} g na osobu pre ${groupSize} ľudí`
-  }
-  return `Pridaný 1 ks pre ${groupSize} ľudí`
-}
-
 /** The backend flags every few brews of a coffee whose stock is tracked; a booking is a transaction or a group. */
 export const needsStockCheck = (booking) =>
   booking.trigger_check && booking.item?.stock_quantity !== null

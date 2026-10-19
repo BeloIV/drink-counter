@@ -7,7 +7,7 @@ import { isInCategory } from '../../lib/categories'
 import { useDialog } from '../../lib/dialogContext'
 import { isMeasured } from '../../lib/units'
 import { CategoryStep } from './CategoryStep'
-import { CoffeeCheckConfirmationModal, CoffeeCheckModal } from './CoffeeCheckModal'
+import { CoffeeCheckModal } from './CoffeeCheckModal'
 import { DoneStep } from './DoneStep'
 import { ItemStep, PendingItemsButton } from './ItemStep'
 import { PersonStep } from './PersonStep'
@@ -29,7 +29,7 @@ export default function OrderPage() {
   const notice = useFlashMessage(NOTICE_DURATION_MS)
   const flow = useOrderFlow(data.categories)
   const countdown = useCountdown(() => resetFlow())
-  const submission = useOrderSubmission({ flow, data, notice, countdown })
+  const submission = useOrderSubmission({ flow, data, countdown })
   const picker = useItemQuantityPicker(submission.checkOrder)
   const [isUndoing, setIsUndoing] = useState(false)
 
@@ -59,11 +59,18 @@ export default function OrderPage() {
     flow.setStep(isMeasured(flow.selectedItem?.pricing_mode) ? 'grams' : 'item')
   }
 
+  // Everyone the last booking charged; one person, or the whole group.
+  const bookedPeople = (submission.lastBooking?.transactions ?? []).map((transaction) => ({
+    transaction,
+    person: transaction.person,
+    debt: data.debts[transaction.person.id] ?? 0,
+  }))
+
   const undoLastOrder = async () => {
-    if (!flow.selectedPerson || isUndoing) return
+    if (bookedPeople.length === 0 || isUndoing) return
     setIsUndoing(true)
     try {
-      await api.undoTransaction(flow.selectedPerson.id)
+      for (const { person } of bookedPeople) await api.undoTransaction(person.id)
       await submission.refreshAfterOrder()
       resetFlow()
     } catch {
@@ -96,19 +103,11 @@ export default function OrderPage() {
     <div className="container py-3">
       <PageHeader title="Drink Counter" icon="logo" onTitleClick={resetFlow} />
 
-      {submission.coffeeCheck && !submission.coffeeCheck.outcome && (
+      {submission.coffeeCheck && (
         <CoffeeCheckModal
           item={submission.coffeeCheck.item}
           onSaved={() => submission.finishCoffeeCheck('saved')}
           onSkip={() => submission.finishCoffeeCheck('skipped')}
-        />
-      )}
-
-      {submission.coffeeCheck?.outcome && (
-        <CoffeeCheckConfirmationModal
-          orders={submission.coffeeCheck.orders}
-          outcome={submission.coffeeCheck.outcome}
-          onClose={submission.closeCoffeeCheckConfirmation}
         />
       )}
 
@@ -171,12 +170,12 @@ export default function OrderPage() {
         />
       )}
 
-      {flow.step === 'done' && !flow.isGroupOrder && (
+      {flow.step === 'done' && (
         <DoneStep
-          person={flow.selectedPerson}
-          debt={selectedPersonDebt}
-          lastOrder={submission.lastOrder}
+          people={bookedPeople}
+          booking={submission.lastBooking}
           funnyMessage={submission.funnyMessage}
+          stockCheckOutcome={submission.stockCheckOutcome}
           secondsLeft={countdown.secondsLeft}
           isUndoing={isUndoing}
           onAddAnother={addAnother}

@@ -4,7 +4,6 @@ import { Icon } from '../../components/Icon'
 import { Modal } from '../../components/Modal'
 import { BAG_TARES, NO_BAG } from '../../lib/bagTares'
 import { parseDecimal } from '../../lib/numbers'
-import { formatEuro, formatQuantity } from '../../lib/units'
 
 const BAG_CHOICES = [...BAG_TARES, NO_BAG]
 // Smaller differences are plausible weighing noise and show as a warning, not an error.
@@ -147,51 +146,6 @@ export function CoffeeCheckModal({ item, onSaved, onSkip }) {
         <div className="alert alert-warning py-2 mb-0 fs-sm">
           Ak zásoby nesedia, uprav ich v <strong>Admin → položka → zásoby</strong>.
         </div>
-      )}
-    </Modal>
-  )
-}
-
-const orderQuantityDigits = (quantity) => (Number.isInteger(Number(quantity)) ? 0 : 1)
-
-function RecordedOrders({ orders }) {
-  return (
-    <table className="table table-sm mb-3">
-      <tbody>
-        {orders.map((order) => (
-          <tr key={order.id}>
-            <td className="fw-semibold">{order.person?.name}</td>
-            <td className="num">
-              {formatQuantity(order.quantity, order.item?.pricing_mode, orderQuantityDigits(order.quantity))}
-            </td>
-            <td className="num fw-bold tone-accent text-end">+{formatEuro(order.price_at_time)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  )
-}
-
-/** Follows the stock check, so it is clear the coffee itself was booked whatever happened with the weighing. */
-export function CoffeeCheckConfirmationModal({ orders, outcome, onClose }) {
-  const itemName = orders[0]?.item?.name
-
-  return (
-    <Modal
-      onClose={onClose}
-      icon="check"
-      size="sm"
-      title="Káva je zapísaná"
-      subtitle={itemName}
-      actions={<button className="btn btn-primary" onClick={onClose}>OK</button>}
-    >
-      <RecordedOrders orders={orders} />
-      {outcome === 'saved' ? (
-        <div className="alert alert-success py-2 mb-0 fs-sm">
-          Kontrola zásoby je zapísaná — história je v Admin → Kontroly kávy.
-        </div>
-      ) : (
-        <div className="alert alert-secondary py-2 mb-0 fs-sm">Kontrola zásoby bola preskočená.</div>
       )}
     </Modal>
   )

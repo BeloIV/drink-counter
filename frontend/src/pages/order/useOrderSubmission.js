@@ -4,35 +4,45 @@ import { getFunnyMessage } from '../../lib/funnyMessages'
 import { hasTrackedStock, isMeasured } from '../../lib/units'
 import {
   DEBT_LIMIT_EUR, DONE_COUNTDOWN_SECONDS,
-  groupOrderNotice, highestDebt, needsStockCheck, quantityPerPerson, requiredStock,
+  highestDebt, needsStockCheck, quantityPerPerson, requiredStock,
 } from './orderRules'
 
 /** Sends orders after the stock and debt checks, and holds the resulting warnings and result. */
-export function useOrderSubmission({ flow, data, notice, countdown }) {
+export function useOrderSubmission({ flow, data, countdown }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [lastOrder, setLastOrder] = useState(null)
+  // { transactions, item }: what the done step shows, one transaction per person.
+  const [lastBooking, setLastBooking] = useState(null)
   const [funnyMessage, setFunnyMessage] = useState(null)
   const [stockWarning, setStockWarning] = useState(null)
   const [debtWarning, setDebtWarning] = useState(null)
-  // { item, orders, outcome }: outcome stays null while weighing, then 'saved' | 'skipped' for the confirmation.
+  // The coffee to weigh while the stock check is open.
   const [coffeeCheck, setCoffeeCheck] = useState(null)
+  // 'saved' | 'skipped' once a stock check was answered; the done step mentions it.
+  const [stockCheckOutcome, setStockCheckOutcome] = useState(null)
 
   const refreshAfterOrder = () => Promise.all([data.reloadSummary(), data.reloadItems()])
+
+  /** Show the done step; with a stock check due, the countdown waits until it is answered. */
+  const showResult = async (booking) => {
+    setLastBooking(booking)
+    setStockCheckOutcome(null)
+    await refreshAfterOrder()
+    setFunnyMessage(getFunnyMessage())
+    if (needsStockCheck(booking)) setCoffeeCheck({ item: booking.item })
+    else countdown.start(DONE_COUNTDOWN_SECONDS)
+    flow.setStep('done')
+  }
 
   // One request for the whole group: the backend counts shared coffee as a single brew
   // and returns the stock left after everyone, so a stock check compares against the right number.
   const submitGroupOrder = async (item, quantity) => {
     const groupSize = flow.selectedPersons.length
     const perPerson = quantityPerPerson(item, quantity, groupSize)
-    const booking = await api.addGroupTransactions({
+    return api.addGroupTransactions({
       person_ids: flow.selectedPersons.map((person) => person.id),
       item_id: item.id,
       ...(isMeasured(item.pricing_mode) ? { quantity: perPerson } : {}),
     })
-    await refreshAfterOrder()
-    notice.show(groupOrderNotice(item, quantity, groupSize))
-    flow.setStep('person')
-    return booking
   }
 
   const submitSingleOrder = async (item, quantity) => {
@@ -41,12 +51,6 @@ export function useOrderSubmission({ flow, data, notice, countdown }) {
       item_id: item.id,
       ...(quantity !== null && quantity !== undefined ? { quantity: Number(quantity) } : {}),
     })
-    setLastOrder(created)
-    await refreshAfterOrder()
-    setFunnyMessage(getFunnyMessage())
-    // With a stock check due, the countdown waits until the check is confirmed, so the done step stays visible.
-    if (!needsStockCheck(created)) countdown.start(DONE_COUNTDOWN_SECONDS)
-    flow.setStep('done')
     return { transactions: [created], item: created.item, trigger_check: created.trigger_check }
   }
 
@@ -58,9 +62,7 @@ export function useOrderSubmission({ flow, data, notice, countdown }) {
       const booking = isGroup
         ? await submitGroupOrder(item, quantity)
         : await submitSingleOrder(item, quantity)
-      if (needsStockCheck(booking)) {
-        setCoffeeCheck({ item: booking.item, orders: booking.transactions, outcome: null })
-      }
+      await showResult(booking)
     } finally {
       setIsSubmitting(false)
     }
@@ -93,29 +95,31 @@ export function useOrderSubmission({ flow, data, notice, countdown }) {
     addItem(warning.item, warning.quantity)
   }
 
-  const closeCoffeeCheckConfirmation = () => {
+  const finishCoffeeCheck = (outcome) => {
     setCoffeeCheck(null)
+    setStockCheckOutcome(outcome)
     if (flow.step === 'done') countdown.start(DONE_COUNTDOWN_SECONDS)
   }
 
   return {
     isSubmitting,
-    lastOrder,
+    lastBooking,
     funnyMessage,
     stockWarning,
     debtWarning,
     coffeeCheck,
+    stockCheckOutcome,
     refreshAfterOrder,
     checkOrder,
     confirmStockWarning: () => addDespiteWarning(stockWarning, setStockWarning),
     dismissStockWarning: () => setStockWarning(null),
     confirmDebtWarning: () => addDespiteWarning(debtWarning, setDebtWarning),
     dismissDebtWarning: () => setDebtWarning(null),
-    finishCoffeeCheck: (outcome) => setCoffeeCheck((check) => ({ ...check, outcome })),
-    closeCoffeeCheckConfirmation,
+    finishCoffeeCheck,
     clearResult: () => {
       setFunnyMessage(null)
-      setLastOrder(null)
+      setLastBooking(null)
+      setStockCheckOutcome(null)
     },
   }
 }
