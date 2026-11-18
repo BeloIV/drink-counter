@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     AdminCheckView, AdminLoginView, AdminLogoutView, AllowedEmailViewSet, AuthStatusView,
     BrewBatchView, CategoryViewSet,
-    CoffeePresetViewSet, CsrfView, GoogleLoginView, GoogleLogoutView, HealthView, ItemSetStockView, ItemSettleView, ItemViewSet,
+    CoffeePresetViewSet, CsrfView, EperaImportView, EperaOrderView, GoogleLoginView, GoogleLogoutView, HealthView, ItemSetStockView, ItemSettleView, ItemViewSet,
     PayBySquareView, PersonViewSet, ResetPersonDebtView, SessionActiveView, SessionResetView,
     StatsView, StockCheckView, TransactionDetailView, TransactionGroupView, TransactionListView, TransactionUndoView,
     TransactionView,
@@ -43,4 +43,6 @@ urlpatterns = [
     path("stats", StatsView.as_view()),
     path("brew-batches", BrewBatchView.as_view(), name="brew-batches"),
     path("stock-checks", StockCheckView.as_view(), name="stock-checks"),
+    path("epera/last-order", EperaOrderView.as_view(), name="epera-last-order"),
+    path("epera/import", EperaImportView.as_view(), name="epera-import"),
 ]

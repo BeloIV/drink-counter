@@ -49,6 +49,8 @@ class Item(models.Model):
     brew_count = models.PositiveIntegerField(default=0)
     # How many times the item was stocked up; favourites keep their place in the admin list.
     restock_count = models.PositiveIntegerField(default=0)
+    # "<coffee id>:<roast slug>" in the Epera group-order app, set by the first stock import.
+    epera_key = models.CharField(max_length=120, unique=True, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -185,3 +187,23 @@ class CoffeePreset(models.Model):
     def __str__(self):
         label = self.label or f"{self.g_min}-{self.g_max} g"
         return f"{label} (+{self.extra_eur} €)"
+
+
+class EperaImport(models.Model):
+    """One person's coffee from an Epera order round, added to stock; each line is booked once."""
+    round_id = models.PositiveIntegerField()
+    # "<coffee id>:<roast slug>:<member id>" in Epera.
+    line_key = models.CharField(max_length=160)
+    item = models.ForeignKey(Item, on_delete=models.SET_NULL, null=True, related_name="epera_imports")
+    grams = models.DecimalField(max_digits=10, decimal_places=3)
+    price = models.DecimalField(max_digits=8, decimal_places=3)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["round_id", "line_key"], name="epera_line_booked_once"),
+        ]
+
+    def __str__(self):
+        return f"Epera round {self.round_id}, {self.line_key}"

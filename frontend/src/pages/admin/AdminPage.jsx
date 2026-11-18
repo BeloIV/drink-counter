@@ -8,6 +8,7 @@ import { AddItemPanel } from './AddItemPanel'
 import { ALL, filterItems } from './adminRules'
 import { BrewBatchPanel } from './BrewBatchPanel'
 import { CoffeeFilterPanel } from './CoffeeFilterPanel'
+import { EperaImportPanel } from './EperaImportPanel'
 import { ItemFilters } from './ItemFilters'
 import { ItemList } from './ItemList'
 import { PersonDebtList } from './PersonDebtList'
@@ -27,6 +28,7 @@ function AdminDashboard({ data, notify, onSessionExpired }) {
           <ItemList items={filterItems(data.items, filters)} data={data} notify={notify} />
         </div>
         <div className="col-12 col-xl-5 fade-in-up" style={{ animationDelay: '0.15s' }}>
+          <EperaImportPanel items={data.items} reload={data.loadAll} notify={notify} />
           <AddItemPanel
             categories={data.categories}
             reload={data.loadAll}

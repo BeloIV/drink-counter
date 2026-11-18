@@ -14,6 +14,7 @@ Docker Compose.
 - 💰 **Debts** – settling a debt records a `Payment`; transactions stay in the history
 - 🧾 **Pay by Square** – QR code for paying a debt by bank transfer
 - 🧊 **Cold brew batches** – mix a batch from coffee stock, cold brew stock is priced from it
+- 📦 **Epera import** – adds the household's coffee from the last Epera group order to stock, bag by bag
 - ⚖️ **Stock tracking** – every 3rd brew the kiosk asks to weigh the coffee; weighings are logged
 - 📈 **Statistics** – consumption overview on its own page
 - 🔐 **Access** – admin PIN on the kiosk, Google allowlist on the public domain
@@ -171,7 +172,7 @@ All under `/api/`. Paths have no trailing slash except router resources.
 | Orders | `POST transactions`, `GET transactions/list`, `PATCH/DELETE transactions/<id>`, `POST transactions/undo` |
 | Session | `GET session/active` (active session with summary), `POST session/reset` |
 | Debts | `POST persons/<id>/reset-debt`, `GET pay/<signed token>/` (link in the person's `pay_by_square_url`) |
-| Stock | `POST items/<id>/set-stock`, `POST items/<id>/settle`, `brew-batches`, `stock-checks` |
+| Stock | `POST items/<id>/set-stock`, `POST items/<id>/settle`, `brew-batches`, `stock-checks`, `GET epera/last-order`, `POST epera/import` |
 | Stats | `GET stats` |
 | Auth | `auth/csrf`, `auth/admin-login`, `auth/admin-logout`, `auth/admin-check`, `auth/me`, `auth/google`, `auth/google-logout` |
 | Health | `GET health` |
@@ -190,6 +191,8 @@ LAN_HOST=                   # LAN address the kiosk uses, e.g. 192.168.1.250
 PUBLIC_HOST=                # public domain behind Google sign-in, e.g. drinks.example.com
 GOOGLE_CLIENT_ID=
 BOOTSTRAP_ADMIN_EMAILS=
+EPERA_API_URL=http://epera-backend:8000
+EPERA_API_TOKEN=            # same as INTERNAL_API_TOKEN in the Epera app; empty = import off
 ```
 The database password comes from `POSTGRES_PASSWORD` in the root `.env`; the other
 database settings (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_HOST`, `POSTGRES_PORT`)
@@ -198,6 +201,19 @@ are set in `docker-compose.yaml`.
 Every write request needs the CSRF token from `GET /api/auth/csrf`, sent back in the
 `X-CSRFToken` header; the frontend fetches it by itself. Session and CSRF cookies are
 marked Secure on HTTPS requests only, so the kiosk keeps working over plain HTTP on the LAN.
+
+### Epera stock import
+**Admin → Objednávka z Epery** reads the newest Epera round already ordered from the shop (*ordered*
+or *done*; a round is marked done only once everyone has their bags) in which anyone from the household
+has coffee. The household is every e-mail Drink Counter knows (people, the Google allowlist,
+`BOOTSTRAP_ADMIN_EMAILS`). Each person's coffee and roast is one line with a checkbox; unchecked lines
+stay for later. Pick an existing coffee or let it create a new one with the bag's label colour; two
+people's bags of a new coffee share one item. Stock goes up by the grams, the price per gram is what
+was paid, averaged with the stock that's left. The chosen item is remembered (`Item.epera_key`), and
+each line is booked once only (`EperaImport`). Code: `backend/core/epera.py`.
+
+The backends talk over the external Docker network `epera-bridge` (create it once with
+`docker network create epera-bridge`); Epera's `/internal/` API is not reachable through its nginx.
 
 ### Security in front of the backend
 `frontend/nginx.conf` resolves the real client address behind Cloudflare and NPM,

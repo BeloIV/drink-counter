@@ -161,3 +161,7 @@ PAYMENT_IBAN = os.getenv("PAYMENT_IBAN", "")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 # Comma-separated emails that are always admins of the access page.
 BOOTSTRAP_ADMIN_EMAILS = os.getenv("BOOTSTRAP_ADMIN_EMAILS", "")
+# Epera group-order app on the shared Docker network epera-bridge; the stock import
+# reads the last delivered order from it. Without a token the import is switched off.
+EPERA_API_URL = os.getenv("EPERA_API_URL", "http://epera-backend:8000").rstrip("/")
+EPERA_API_TOKEN = os.getenv("EPERA_API_TOKEN", "")

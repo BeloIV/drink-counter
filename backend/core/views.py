@@ -13,7 +13,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
-from . import google_auth, services
+from . import epera, google_auth, services
 from .models import AllowedEmail, BrewBatch, Category, CoffeePreset, Item, Person, StockCheck, Transaction
 from .payments import person_id_from_pay_link, render_payment_page
 from .permissions import CanManageAccess, IsAdminSession, ReadOnlyOrAdmin, can_manage_access
@@ -379,6 +379,37 @@ class ItemSettleView(APIView):
             "per_person": str(settlement.share),
             "count": len(members),
         }, status=status.HTTP_201_CREATED)
+
+
+class EperaOrderView(APIView):
+    """The household's coffee from the last Epera order placed with the shop, matched to stock items."""
+    permission_classes = [IsAdminSession]
+
+    def get(self, request):
+        try:
+            return Response(epera.preview())
+        except epera.EperaError as error:
+            return Response({"error": str(error)}, status=status.HTTP_502_BAD_GATEWAY)
+
+
+class EperaImportView(APIView):
+    """Add chosen lines to stock: {"round_id": 7, "choices": {"<line key>": <item id> | null}}."""
+    permission_classes = [IsAdminSession]
+
+    def post(self, request):
+        round_id = request.data.get("round_id")
+        choices = request.data.get("choices") or {}
+        if not isinstance(round_id, int) or not isinstance(choices, dict):
+            return Response({"error": "round_id and choices required"}, status=400)
+        if any(value is not None and not isinstance(value, int) for value in choices.values()):
+            return Response({"error": "choices must map to item ids or null"}, status=400)
+        try:
+            booked = epera.import_order(round_id, choices)
+        except epera.AlreadyImported as error:
+            return Response({"error": str(error)}, status=status.HTTP_409_CONFLICT)
+        except epera.EperaError as error:
+            return Response({"error": str(error)}, status=status.HTTP_502_BAD_GATEWAY)
+        return Response({"booked": booked}, status=status.HTTP_201_CREATED)
 
 
 class BrewBatchView(APIView):

@@ -46,6 +46,11 @@ services:
       - media_files:/app/media
     expose:
       - "8001"
+    networks:
+      default:
+      # Reaches the Epera group-order backend (http://epera-backend:8000) for the stock import.
+      # Created once on the host: docker network create epera-bridge
+      epera-bridge:
     depends_on:
       db:
         condition: service_healthy
@@ -71,3 +76,5 @@ networks:
         # Pinned: nginx trusts the Docker gateway range (172.16.0.0/12) for the client
         # address and scheme, and an auto-assigned 192.168.x pool would break both.
         - subnet: 172.30.0.0/16
+  epera-bridge:
+    external: true

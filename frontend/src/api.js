@@ -112,5 +112,8 @@ export const api = {
   getStockChecks: () => request('/stock-checks'),
   addStockCheck: (payload) => post('/stock-checks', payload),
 
+  eperaLastOrder: () => request('/epera/last-order'),
+  eperaImport: (payload) => post('/epera/import', payload),
+
   stats: () => request('/stats'),
 }
